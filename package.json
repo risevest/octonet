@@ -1,0 +1,33 @@
+{
+  "name": "@risevest/libblank",
+  "version": "0.1.0",
+  "description": "Template for risevest libraries",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p ./tsconfig.json",
+    "watch": "tsc -w -p ./tsconfig.json",
+    "test": "echo 'Install mocha and chai'"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/risevest/libblank.git"
+  },
+  "bugs": {
+    "url": "https://github.com/risevest/libblank/issues"
+  },
+  "files": [
+    "dist/"
+  ],
+  "homepage": "https://github.com/risevest/libblank#readme",
+  "devDependencies": {
+    "npm-cli-login": "^0.1.1",
+    "prettier": "^2.3.2",
+    "typescript": "^4.3.5"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build & Test
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  build-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: "14.x"
+    
+    - name: Cache node modules
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: v1-npm-deps-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: v1-npm-deps-
+      
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+
+    - name: Build and publish
+      run: |
+        yarn build
+        yarn npm-cli-login
+        npm publish --access public
+      env:
+        NPM_USER: ${{ secrets.NPM_USER }}
+        NPM_PASS: ${{ secrets.NPM_PASS }}
+        NPM_EMAIL: ${{ secrets.NPM_EMAIL }}

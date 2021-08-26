@@ -1,0 +1,36 @@
+name: Build & Test
+
+on:
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+  build-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: "14.x"
+    
+    - name: Cache node modules
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: v1-npm-deps-${{ hashFiles('**/yarn.lock') }}
+        restore-keys: v1-npm-deps-
+      
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+
+    - name: Build
+      run: yarn build
+    
+    - name: Test
+      run: yarn test
