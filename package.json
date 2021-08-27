@@ -1,5 +1,5 @@
 {
-  "name": "@risevest/libblank",
+  "name": "@risevest/octonet",
   "version": "0.1.0",
   "description": "Template for risevest libraries",
   "main": "dist/index.js",
@@ -12,21 +12,26 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/risevest/libblank.git"
+    "url": "git+https://github.com/risevest/octonet.git"
   },
   "bugs": {
-    "url": "https://github.com/risevest/libblank/issues"
+    "url": "https://github.com/risevest/octonet/issues"
   },
   "files": [
     "dist/"
   ],
-  "homepage": "https://github.com/risevest/libblank#readme",
+  "homepage": "https://github.com/risevest/octonet#readme",
   "devDependencies": {
+    "@types/ioredis": "^4.27.0",
+    "@types/node": "^16.7.2",
     "npm-cli-login": "^0.1.1",
     "prettier": "^2.3.2",
     "typescript": "^4.3.5"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ioredis": "^4.27.8",
+    "ms": "^2.1.3"
+  },
   "engines": {
     "node": ">=14.0.0"
   }

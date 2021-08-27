@@ -12,7 +12,6 @@
     "moduleResolution": "node",
     "baseUrl": "./src",
     "typeRoots": ["./node_modules/@types"],
-    "types": ["reflect-metadata", "jest"],
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
