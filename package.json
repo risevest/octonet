@@ -24,11 +24,13 @@
   "homepage": "https://github.com/risevest/octonet#readme",
   "devDependencies": {
     "@types/chai": "^4.2.21",
+    "@types/faker": "^5.5.8",
     "@types/ioredis": "^4.27.0",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.7.6",
     "chai": "^4.3.4",
     "choma": "^1.2.1",
+    "faker": "^5.5.3",
     "mocha": "^9.1.1",
     "npm-cli-login": "^0.1.1",
     "prettier": "^2.3.2",
