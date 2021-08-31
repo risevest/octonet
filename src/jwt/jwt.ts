@@ -7,10 +7,16 @@ export class JWT {
     this.jwt_secret = secret;
   }
 
-  async encode<T = any>(payload: any, time: string): Promise<string> {
+  async encode(payload: any, time: string): Promise<string> {
 
     const token = await jwt.sign(payload, this.jwt_secret, { expiresIn: time })
     return token;
+  }
+
+  async decode(token: any): Promise<string> {
+
+    const decode = await jwt.verify(token, this.jwt_secret)
+    return decode;
   }
 
 
