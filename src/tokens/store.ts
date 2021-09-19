@@ -27,8 +27,8 @@ export interface TokenStore {
   extend<T = any>(token: string, time: string): AsyncNullable<T>;
   /**
    * Change the contents of the token without changing it's TTL
-   * @param key
-   * @param newVal
+   * @param key key used to generate the token
+   * @param newVal value to replace token content
    */
   reset<T = any>(key: string, newVal: T): Promise<void>;
   /**
