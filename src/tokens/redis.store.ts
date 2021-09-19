@@ -30,7 +30,7 @@ export class RedisStore implements TokenStore {
       return null;
     }
 
-    await this.redis.expire(token, ms(time));
+    await this.redis.pexpire(token, ms(time));
 
     return JSON.parse(result);
   }
@@ -43,7 +43,7 @@ export class RedisStore implements TokenStore {
     if (!result) return;
 
     const content = JSON.stringify(newVal);
-    const ttl = await this.redis.ttl(token);
+    const ttl = await this.redis.pttl(token);
 
     await this.redis.set(token, content, "PX", ttl);
   }
