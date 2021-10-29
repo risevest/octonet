@@ -2,7 +2,7 @@ import { Request } from "express";
 import superagent, { SuperAgentRequest } from "superagent";
 import { APIError, HttpError, NoRequestIDError } from "./errors";
 
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
  * Wrapper around superagent for supporting interservice API requests.
