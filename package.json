@@ -38,6 +38,8 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "bunyan": "^1.8.15",
+    "express": "^4.17.1",
     "ioredis": "^4.27.8",
     "ms": "^2.1.3"
   },
