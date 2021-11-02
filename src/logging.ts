@@ -59,12 +59,20 @@ export interface LogError {
 
 export class Logger {
   private logger: Bunyan;
+  public ringbuffer;
 
   constructor(name: string, env = "dev", serializers: Serializers) {
+    this.ringbuffer = new Bunyan.RingBuffer({ limit: 100 });
+
     this.logger = new Bunyan({
       name,
       serializers,
-      level: env === "test" ? FATAL : INFO
+      level: env === "test" ? FATAL : INFO,
+      streams: [
+        {
+          stream: this.ringbuffer
+        }
+      ]
     });
   }
 
