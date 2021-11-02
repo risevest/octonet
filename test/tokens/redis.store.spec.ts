@@ -193,3 +193,28 @@ describe("RedisStore#decommission", () => {
     expect(value).to.be.null;
   });
 });
+
+describe("RedisStore#revoke", () => {
+  it("should revoke key and render token useless", async () => {
+    const key = faker.internet.userName();
+    const data = faker.internet.email();
+    const token = await store.commision(key, data, "100ms");
+
+    let val = await store.peek(token);
+    const ttl1 = await redis.pttl(token);
+
+    expect(ttl1).to.be.gte(50).and.lte(100);
+    expect(val).to.eql(data);
+
+    await store.revoke(key);
+
+    val = await store.peek(token);
+    const ttl2 = await redis.pttl(token);
+
+    expect(ttl2).to.eql(-2);
+    expect(val).to.be.null;
+
+    const value = await store.extend(token, "200ms");
+    expect(value).to.be.null;
+  });
+});
