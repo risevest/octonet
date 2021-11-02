@@ -60,7 +60,7 @@ export interface LogError {
 export interface LoggerConfig {
   name: string;
   serializers: Serializers;
-  verbose: boolean;
+  verbose?: boolean;
   streams?: any;
 }
 
