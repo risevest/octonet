@@ -1,6 +1,7 @@
 import { Request } from "express";
 import { NoRequestIDError } from "./errors";
 import { Client, HttpMethod } from "./normie";
+import superagent from "superagent";
 
 /**
  * Configuration for creating a client
@@ -29,7 +30,7 @@ export class HeadlessClient extends Client {
     super(service);
   }
 
-  makeRequest(req: Request, method: HttpMethod, url: string, timeout = 10, headers = {}) {
+  makeRequests(req: Request, method: HttpMethod, url: string, timeout = 10, headers = {}) {
     // enables distributed tracing
     if (!req.headers["x-request-id"]) {
       throw new NoRequestIDError(url);
