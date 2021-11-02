@@ -153,3 +153,43 @@ describe("RedisStore#reset", () => {
     expect(val).to.eql(newContent);
   });
 });
+
+describe("RedisStore#decommission", () => {
+  it("should not be able to decommission an expired token", async () => {
+    const data = faker.internet.email();
+    const token = await store.commision(faker.internet.userName(), data, "50ms");
+
+    await timeout("70ms");
+    let val = await store.peek(token);
+    let ttl = await redis.pttl(token);
+
+    expect(ttl).to.eql(-2);
+    expect(val).to.be.null;
+
+    const tokenValue = await store.decommission(token);
+    expect(tokenValue).to.be.null;
+  });
+
+  it("should decommission a token and ensure it is unavailable for further use", async () => {
+    const data = faker.internet.email();
+    const token = await store.commision(faker.internet.userName(), data, "100ms");
+
+    let val = await store.peek(token);
+    let ttl = await redis.pttl(token);
+
+    expect(ttl).to.gte(50).and.lte(100);
+    expect(val).to.eql(data);
+
+    const tokenValue = await store.decommission(token);
+    expect(tokenValue).to.eql(data);
+
+    val = await store.peek(token);
+    ttl = await redis.pttl(token);
+
+    expect(ttl).to.eql(-2);
+    expect(val).to.be.null;
+
+    const value = await store.extend(token, "200ms");
+    expect(value).to.be.null;
+  });
+});
