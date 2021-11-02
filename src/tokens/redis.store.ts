@@ -4,7 +4,7 @@ import ms from "ms";
 import { AsyncNullable, TokenStore } from "./store";
 
 export class RedisStore implements TokenStore {
-  constructor(private secret: string, private redis: Redis) {}
+  constructor(private secret: string, private redis: Redis) { }
 
   async commision<T = any>(key: string, val: T, time: string): Promise<string> {
     const token = crypto.createHmac("sha256", this.secret).update(key).digest("hex");
@@ -30,7 +30,7 @@ export class RedisStore implements TokenStore {
       return null;
     }
 
-    await this.redis.expire(token, ms(time));
+    await this.redis.pexpire(token, ms(time));
 
     return JSON.parse(result);
   }
