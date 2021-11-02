@@ -66,7 +66,7 @@ describe("RedisStore#peek", () => {
 });
 
 describe("RedisStore#extend", () => {
-  it("should not be able reset the expiry time of an expired token", async () => {
+  it("should not be able to reset the expiry time of an expired token", async () => {
     const data = faker.internet.email();
     const token = await store.commision(faker.internet.userName(), data, "50ms");
 
