@@ -1,4 +1,4 @@
-import Bunyan, { FATAL, INFO, Serializers } from "bunyan";
+import Bunyan, { FATAL, Serializers } from "bunyan";
 import { Request, Response } from "express";
 import { unset } from "lodash";
 
@@ -57,22 +57,22 @@ export interface LogError {
   [key: string]: any;
 }
 
+export interface LoggerConfig {
+  name: string;
+  serializers: Serializers;
+  verbose: boolean;
+  streams?: any;
+}
+
 export class Logger {
   private logger: Bunyan;
-  public ringbuffer;
 
-  constructor(name: string, env = "dev", serializers: Serializers) {
-    this.ringbuffer = new Bunyan.RingBuffer({ limit: 100 });
-
+  constructor(config: LoggerConfig) {
     this.logger = new Bunyan({
-      name,
-      serializers,
-      level: env === "test" ? FATAL : INFO,
-      streams: [
-        {
-          stream: this.ringbuffer
-        }
-      ]
+      name: config.name,
+      serializers: config.serializers,
+      level: config.verbose ? config.verbose : FATAL,
+      streams: config.streams
     });
   }
 

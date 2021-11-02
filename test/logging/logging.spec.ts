@@ -1,19 +1,27 @@
 import { Logger, defaultSerializers, createRequestSerializer } from "../../src/logging";
+import Bunyan, { INFO } from "bunyan";
 import { expect } from "chai";
 import axios from "axios";
 import app from "./server";
 import http from "http";
 
-export const logger = new Logger(
-  "logger_tests",
-  "dev",
-  defaultSerializers(
+const ringbuffer = new Bunyan.RingBuffer({ limit: 100 });
+
+export const logger = new Logger({
+  name: "logger_tests",
+  verbose: INFO,
+  streams: [
+    {
+      stream: ringbuffer
+    }
+  ],
+  serializers: defaultSerializers(
     {
       http_req: createRequestSerializer("admin.password")
     },
     "password"
   )
-);
+});
 
 const baseUrl = "http://localhost:3005";
 
@@ -23,16 +31,16 @@ before(() => {
 
 // clears the buffer after each test
 afterEach(() => {
-  logger.ringbuffer.records = [];
+  ringbuffer.records = [];
 });
 
 describe("Bunyan#Request", () => {
   it("should be able to log a request", async () => {
     await axios.get(`${baseUrl}/req`);
 
-    const properties = JSON.parse(logger.ringbuffer.records);
+    const properties = JSON.parse(ringbuffer.records);
 
-    expect(logger.ringbuffer.records).to.be.length(1);
+    expect(ringbuffer.records).to.be.length(1);
     expect(properties.req).to.have.property("method");
     expect(properties.req).to.have.property("url");
     expect(properties.req).to.have.property("headers");
@@ -46,9 +54,9 @@ describe("Bunyan#Response", () => {
   it("should be able to log a response", async () => {
     await axios.get(`${baseUrl}/req-res`);
 
-    const properties = JSON.parse(logger.ringbuffer.records);
+    const properties = JSON.parse(ringbuffer.records);
 
-    expect(logger.ringbuffer.records).to.be.length(1);
+    expect(ringbuffer.records).to.be.length(1);
     expect(properties.req).to.have.property("method");
     expect(properties.req).to.have.property("url");
     expect(properties.req).to.have.property("headers");
@@ -63,9 +71,9 @@ describe("Bunyan#httpError", () => {
   it("should be able to log a http error", async () => {
     await axios.get(`${baseUrl}/error`);
 
-    const properties = JSON.parse(logger.ringbuffer.records);
+    const properties = JSON.parse(ringbuffer.records);
 
-    expect(logger.ringbuffer.records).to.be.length(1);
+    expect(ringbuffer.records).to.be.length(1);
     expect(properties.req).to.have.property("method");
     expect(properties.req).to.have.property("url");
     expect(properties.req).to.have.property("headers");
