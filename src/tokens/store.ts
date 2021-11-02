@@ -30,7 +30,7 @@ export interface TokenStore {
    * @param key key used to generate the token
    * @param newVal value to replace token content
    */
-  reset<T = any>(key: string, newVal: T): Promise<void>;
+  reset<T = any>(key: string, newVal: T): Promise<boolean>;
   /**
    * Load the value referenced by the token and dispenses of the token,
    * making it unvailable for further use.
