@@ -64,3 +64,52 @@ describe("RedisStore#peek", () => {
     expect(val).to.be.null;
   });
 });
+
+describe("RedisStore#extend", () => {
+  it("should not be able reset the expiry time of an expired token", async () => {
+    const data = faker.internet.email();
+    const token = await store.commision(faker.internet.userName(), data, "50ms");
+
+    await timeout("70ms");
+    let val = await store.peek(token);
+    let ttl = await redis.pttl(token);
+
+    expect(ttl).to.eql(-2);
+    expect(val).to.be.null;
+
+    const tokenValue = await store.extend(token, "200ms");
+    expect(tokenValue).to.be.null;
+  });
+
+  it("should reset the expiry time of the token", async () => {
+    const data = faker.internet.email();
+    const token = await store.commision(faker.internet.userName(), data, "200ms");
+
+    await timeout("70ms");
+    let val = await store.peek(token);
+    let ttl = await redis.pttl(token);
+
+    expect(ttl).to.be.gte(100);
+    expect(val).to.not.be.null;
+    expect(val).to.eql(data);
+
+    let tokenValue = await store.extend(token, "200ms");
+    await timeout("70ms");
+
+    val = await store.peek(token);
+    ttl = await redis.pttl(token);
+
+    expect(ttl).to.be.gte(100).and.lt(200);
+    expect(val).to.not.be.null;
+    expect(val).to.eql(data);
+    expect(tokenValue).to.eql(data);
+
+    await timeout("130ms");
+
+    val = await store.peek(token);
+    ttl = await redis.pttl(token);
+
+    expect(ttl).to.eql(-2);
+    expect(val).to.be.null;
+  });
+});
