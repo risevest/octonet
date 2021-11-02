@@ -33,12 +33,14 @@
     "choma": "^1.2.1",
     "faker": "^5.5.3",
     "mocha": "^9.1.1",
+    "nock": "^13.1.4",
     "npm-cli-login": "^0.1.1",
     "prettier": "^2.3.2",
     "ts-node": "^10.2.1",
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "axios": "^0.24.0",
     "bunyan": "^1.8.15",
     "ioredis": "^4.27.8",
     "ms": "^2.1.3"
