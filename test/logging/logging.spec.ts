@@ -38,6 +38,7 @@ describe("Bunyan#Request", () => {
     expect(properties.req).to.have.property("headers");
     expect(properties.req).to.have.property("remoteAddress");
     expect(properties.req).to.have.property("remotePort");
+    expect(properties).to.have.property("req");
   });
 });
 
@@ -53,6 +54,8 @@ describe("Bunyan#Response", () => {
     expect(properties.req).to.have.property("headers");
     expect(properties.req).to.have.property("remoteAddress");
     expect(properties.req).to.have.property("remotePort");
+    expect(properties).to.have.property("req");
+    expect(properties).to.have.property("res");
   });
 });
 
@@ -68,5 +71,8 @@ describe("Bunyan#httpError", () => {
     expect(properties.req).to.have.property("headers");
     expect(properties.req).to.have.property("remoteAddress");
     expect(properties.req).to.have.property("remotePort");
+    expect(properties).to.have.property("err");
+    expect(properties).to.have.property("req");
+    expect(properties).to.have.property("res");
   });
 });
