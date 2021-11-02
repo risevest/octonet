@@ -35,17 +35,18 @@ export class RedisStore implements TokenStore {
     return JSON.parse(result);
   }
 
-  async reset<T = any>(key: string, newVal: T): Promise<void> {
+  async reset<T = any>(key: string, newVal: T): Promise<boolean> {
     const token = crypto.createHmac("sha256", this.secret).update(key).digest("hex");
 
     // make sure the token exists
     const result = await this.redis.get(token);
-    if (!result) return;
+    if (!result) return false;
 
     const content = JSON.stringify(newVal);
-    const ttl = await this.redis.ttl(token);
+    const ttl = await this.redis.pttl(token);
 
-    await this.redis.set(token, content, "PX", ttl);
+    const status = await this.redis.set(token, content, "PX", ttl);
+    return status === "OK";
   }
 
   async decommission<T = any>(token: string): AsyncNullable<T> {
