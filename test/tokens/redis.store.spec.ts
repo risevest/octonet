@@ -113,3 +113,43 @@ describe("RedisStore#extend", () => {
     expect(val).to.be.null;
   });
 });
+
+describe("RedisStore#reset", () => {
+  it("should not be able to reset expired token", async () => {
+    const key = faker.internet.userName();
+    const data = faker.internet.email();
+    const token = await store.commision(key, data, "50ms");
+
+    await timeout("70ms");
+    let val = await store.peek(token);
+    let ttl = await redis.pttl(token);
+
+    expect(ttl).to.eql(-2);
+    expect(val).to.be.null;
+
+    const success = await store.reset(key, faker.internet.email());
+    expect(success).to.be.false;
+  });
+
+  it("should reset the contents of the token without changing its TTL", async () => {
+    const key = faker.internet.userName();
+    const data = faker.internet.email();
+    const token = await store.commision(key, data, "100ms");
+
+    let val = await store.peek(token);
+    const ttl1 = await redis.pttl(token);
+
+    expect(ttl1).to.be.gte(50).and.lte(100);
+    expect(val).to.eql(data);
+
+    const newContent = faker.internet.email();
+    const success = await store.reset(key, newContent);
+    expect(success).to.be.true;
+
+    val = await store.peek(token);
+    const ttl2 = await redis.pttl(token);
+
+    expect(ttl2).to.be.gte(50).and.lte(100);
+    expect(val).to.eql(newContent);
+  });
+});
