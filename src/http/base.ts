@@ -1,5 +1,6 @@
 import { Client, HttpMethod } from "./normie";
 import axios from "axios";
+import { v4 } from "uuid";
 
 export class BaseClient extends Client {
   constructor(service: string) {
@@ -27,5 +28,12 @@ export class BaseClient extends Client {
       data,
       timeout: timeout * 1000
     })
+  }
+
+  /**
+   * creates a request id 
+  */
+  protected genetateRequestId(): string {
+    return v4();
   }
 }

@@ -74,13 +74,6 @@ export class Client {
   }
 
   /**
-   * creates a request id 
-   */
-  protected genetateRequestId(): string {
-    return v4();
-  }
-
-  /**
    * makes a get request
    * @param url absolute URL
    * @param headers custom headers to set
