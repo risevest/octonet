@@ -9,6 +9,7 @@ const ringbuffer = new Bunyan.RingBuffer({ limit: 100 });
 
 export const logger = new Logger({
   name: "logger_tests",
+  verbose: INFO,
   streams: [
     {
       stream: ringbuffer
