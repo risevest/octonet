@@ -20,7 +20,7 @@ export class ServiceClient extends HttpClient {
    * @param url absolute URL of API
    * @param data request data to be sent to API
    */
-  makeRequest(req: Request, method: HttpMethod, url: string, data: {}) {
+  makeRequest(req: Request, method: HttpMethod, url: string, data: any = {}) {
     const headers = {};
     // enables distributed tracing
     if (!req.headers["x-request-id"]) {
@@ -106,7 +106,8 @@ export class ServiceClient extends HttpClient {
    * @param headers custom headers to set
    */
   del<T = any>(req: Request, url: string, headers = {}) {
-    const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+    const request = this.makeRequest(req, HttpMethod.PUT, url);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 }
