@@ -47,6 +47,19 @@ app.delete("/test/:id", (req, res) => {
   return res.json(result);
 });
 
+app.get("/auth", (req, res) => {
+  const result: TestResponse = {
+    data: { foo: "bar" },
+    error: null
+  };
+
+  if (req.headers["authorization"] === "Bearer") {
+    res.json(result);
+  } else {
+    throw new Error("No authorization header");
+  }
+});
+
 app.use((req, res, next) => {
   const result: TestResponse = {
     data: null,

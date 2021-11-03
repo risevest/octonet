@@ -1,36 +1,36 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
-// import { Logger } from "../logging";
+import { Logger } from "../logging";
 import { APIError, HttpError } from "./errors";
 import { HttpMethod } from "./types";
 
 export class InternetService {
   private client: AxiosInstance;
 
-  constructor(timeout: number, logger: {}) {
+  constructor(timeout: number, logger: Logger) {
     this.client = axios.create({ timeout, headers: { "Content-Type": "application/json" } });
-    // this.client.interceptors.request.use(
-    //   conf => {
-    //     logger.log({ http_req: conf });
-    //     return conf;
-    //   },
-    //   err => Promise.reject(err)
-    // );
+    this.client.interceptors.request.use(
+      conf => {
+        logger.log({ http_req: conf });
+        return conf;
+      },
+      err => Promise.reject(err)
+    );
 
-    // this.client.interceptors.response.use(
-    //   res => {
-    //     logger.log({ http_req: res.config, http_res: res });
-    //     return res;
-    //   },
-    //   err => {
-    //     if (err.response) {
-    //       logger.error({ err, http_req: err.response.config, http_res: err.response });
-    //     } else {
-    //       logger.error({ err });
-    //     }
+    this.client.interceptors.response.use(
+      res => {
+        logger.log({ http_req: res.config, http_res: res });
+        return res;
+      },
+      err => {
+        if (err.response) {
+          logger.error({ err, http_req: err.response.config, http_res: err.response });
+        } else {
+          logger.error({ err });
+        }
 
-    //     return Promise.reject(err);
-    //   }
-    // );
+        return Promise.reject(err);
+      }
+    );
   }
 
   async makeRequest<T>(method: HttpMethod, url: string, headers = {}, data?: any): Promise<T> {
