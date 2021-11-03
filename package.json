@@ -45,7 +45,7 @@
     "amqplib": "^0.8.0",
     "axios": "^0.24.0",
     "bunyan": "^1.8.15",
-    "inversify": "^6.0.1",
+    "inversify": "^5.1.1",
     "ioredis": "^4.27.8",
     "lodash": "^4.17.21",
     "ms": "^2.1.3",
