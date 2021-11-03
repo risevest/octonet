@@ -90,7 +90,7 @@ describe("BaseClient#patch", () => {
 describe("BaseClient#delete", () => {
   it("should return a response of type T if all is provided", async () => {
     const url = `${mockServerUrl}/test/som_random_id`;
-    const res = await httpClient.delete<TestResponse>(url, body);
+    const res = await httpClient.del<TestResponse>(url, body);
     expect(res).to.haveOwnProperty('data');
     expect(res).to.haveOwnProperty('error');
   })
