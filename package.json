@@ -42,9 +42,15 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "amqplib": "^0.8.0",
     "axios": "^0.24.0",
     "bunyan": "^1.8.15",
+<<<<<<< HEAD
+=======
+    "inversify": "^6.0.1",
+>>>>>>> fix: add missing dependencies
     "ioredis": "^4.27.8",
+    "lodash": "^4.17.21",
     "ms": "^2.1.3",
     "uuid": "^8.3.2"
   },
