@@ -16,7 +16,7 @@ function wrapHandler(handler: (arg: any) => Promise<void>, logger: Logger) {
     try {
       await handler(arg);
     } catch (error) {
-      logger.internalError(error, "error running handler");
+      logger.error(error);
     }
   };
 }
