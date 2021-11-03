@@ -14,7 +14,7 @@ export class BaseClient extends HttpClient {
    * @param url absolute URL of API
    * @param data request body payload
    */
-  makeRequest(method: HttpMethod, url: string, data: {}) {
+  makeRequest(method: HttpMethod, url: string, data: any = {}) {
     const headers = {};
     headers["X-Request-ID"] = this.generateRequestId();
     headers["X-Origin-Service"] = this.service;
