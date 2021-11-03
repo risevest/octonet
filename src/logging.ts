@@ -1,4 +1,4 @@
-import Bunyan, { Serializers, FATAL, INFO } from "bunyan";
+import Bunyan, { FATAL, INFO } from "bunyan";
 import { Request, Response } from "express";
 import { unset } from "lodash";
 
@@ -56,6 +56,11 @@ export interface LogError {
   err: Error;
   [key: string]: any;
 }
+
+type Serializer = (input: any) => any;
+type Serializers = {
+  [key: string]: Serializer;
+};
 
 export interface LoggerConfig {
   name: string;
