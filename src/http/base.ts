@@ -89,11 +89,10 @@ export class BaseClient extends HttpClient {
   /**
    * Makes a delete request
    * @param url absolute URL
-   * @param body request body payload
    * @param headers custom headers to set
    */
-  del<T = any>(url: string, body: {}, headers = {}) {
-    const request = this.makeRequest(HttpMethod.DELETE, url, body);
+  del<T = any>(url: string, headers = {}) {
+    const request = this.makeRequest(HttpMethod.DELETE, url);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }

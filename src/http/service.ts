@@ -101,10 +101,9 @@ export class ServiceClient extends HttpClient {
    * Makes a delete request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
-   * @param body request body payload
    * @param headers custom headers to set
    */
-  del<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  del<T = any>(req: Request, url: string, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
     return this.do<T>(request);
   }
