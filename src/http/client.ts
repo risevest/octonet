@@ -1,14 +1,8 @@
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import { APIError, HttpError } from "./errors";
 
 export interface IHttpClient {
-  do<T>(req: HttpRequest): Promise<T>
-  makeRequest(...args): HttpRequest;
-  get<T>(...args): Promise<T>
-  post<T>(...args): Promise<T>
-  put<T>(...args): Promise<T>
-  patch<T>(...args): Promise<T>
-  del<T>(...args): Promise<T>
+  do<T>(req: HttpRequest): Promise<T>;
 }
 
 export enum HttpMethod {
