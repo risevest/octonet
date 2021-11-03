@@ -82,6 +82,7 @@ export class ServiceClient extends HttpClient {
    */
   put<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
@@ -94,6 +95,7 @@ export class ServiceClient extends HttpClient {
    */
   patch<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
