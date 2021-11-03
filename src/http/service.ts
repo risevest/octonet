@@ -23,10 +23,10 @@ export class ServiceClient extends HttpClient {
   makeRequest(req: Request, method: HttpMethod, url: string, data: {}) {
     const headers = {};
     // enables distributed tracing
-    if (!req["x-request-id"]) {
+    if (!req.headers["x-request-id"]) {
       throw new NoRequestIDError(url);
     }
-    headers["X-Request-ID"] = req["x-request-id"];
+    headers["X-Request-ID"] = req.headers["x-request-id"];
     headers["X-Origin-Service"] = this.service;
 
     // share authentication between service calls
