@@ -20,7 +20,7 @@ export class ServiceClient extends HttpClient {
    * @param url absolute URL of API
    * @param data request data to be sent to API
    */
-  makeRequest(req: Request, method: HttpMethod, url: string, data: any = {}) {
+  makeRequest(req: Request, method: HttpMethod, url: string, data?: any) {
     const headers = {};
     // enables distributed tracing
     if (!req.headers["x-request-id"]) {
@@ -54,7 +54,7 @@ export class ServiceClient extends HttpClient {
    * @param param query parameters
    * @param headers custom headers to set
    */
-  get<T = any>(req: Request, url: string, params = {}, headers = {}) {
+  get<T = any>(req: Request, url: string, params?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.GET, url, params);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -67,7 +67,7 @@ export class ServiceClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  post<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  post<T = any>(req: Request, url: string, body?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.POST, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -80,7 +80,7 @@ export class ServiceClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  put<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  put<T = any>(req: Request, url: string, body?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -93,7 +93,7 @@ export class ServiceClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  patch<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  patch<T = any>(req: Request, url: string, body?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -105,7 +105,7 @@ export class ServiceClient extends HttpClient {
    * @param url absolute URL
    * @param headers custom headers to set
    */
-  del<T = any>(req: Request, url: string, headers = {}) {
+  del<T = any>(req: Request, url: string, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.PUT, url);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);

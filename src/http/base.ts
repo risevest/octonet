@@ -14,7 +14,7 @@ export class BaseClient extends HttpClient {
    * @param url absolute URL of API
    * @param data request body payload
    */
-  makeRequest(method: HttpMethod, url: string, data: any = {}) {
+  makeRequest(method: HttpMethod, url: string, data?: any) {
     const headers = {};
     headers["X-Request-ID"] = this.generateRequestId();
     headers["X-Origin-Service"] = this.service;
@@ -44,7 +44,7 @@ export class BaseClient extends HttpClient {
    * @param params query parameters
    * @param headers custom headers to set
    */
-  get<T = any>(url: string, params = {}, headers = {}) {
+  get<T = any>(url: string, params?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.GET, url, params);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -56,7 +56,7 @@ export class BaseClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  post<T = any>(url: string, body: {}, headers = {}) {
+  post<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.POST, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -68,7 +68,7 @@ export class BaseClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  put<T = any>(url: string, body: {}, headers = {}) {
+  put<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.PUT, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -80,7 +80,7 @@ export class BaseClient extends HttpClient {
    * @param body request body payload
    * @param headers custom headers to set
    */
-  patch<T = any>(url: string, body: {}, headers = {}) {
+  patch<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.PATCH, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
@@ -91,7 +91,7 @@ export class BaseClient extends HttpClient {
    * @param url absolute URL
    * @param headers custom headers to set
    */
-  del<T = any>(url: string, headers = {}) {
+  del<T = any>(url: string, headers?: any) {
     const request = this.makeRequest(HttpMethod.DELETE, url);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
