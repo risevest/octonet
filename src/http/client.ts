@@ -11,22 +11,24 @@ export enum HttpMethod {
   PUT = "PUT",
   PATCH = "PATCH",
   DELETE = "DELETE"
-};
+}
 
-export interface HttpRequest extends AxiosRequestConfig { }
+export type HttpRequest<T = any> = AxiosRequestConfig<T>;
 
 export class HttpClient {
-  protected timeout = 10;
+  protected instance: AxiosInstance;
 
-  constructor(protected service: string) { }
+  constructor(protected service: string) {
+    this.instance = axios.create({ headers: { "Content-Type": "application/json" } });
+  }
+
   /**
-  * Runs the API requests and handles errors.
-  * @param req super agent request, most probably created using `makeRequest`
-  */
-  do<T>(req: HttpRequest): Promise<T> {
-    req.timeout = this.timeout
-
-    return axios(req).then(
+   * Runs the API requests and handles errors.
+   * @param req super agent request, most probably created using `makeRequest`
+   * @param timeout timeout for request in seconds
+   */
+  do<T>(req: HttpRequest, timeout = 10): Promise<T> {
+    return this.instance({ timeout, ...req }).then(
       res => res.data,
       err => {
         if (err.response) {
