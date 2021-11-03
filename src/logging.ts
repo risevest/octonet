@@ -1,4 +1,4 @@
-import Bunyan, { FATAL, Serializers } from "bunyan";
+import Bunyan, { Serializers, FATAL, INFO, Stream } from "bunyan";
 import { Request, Response } from "express";
 import { unset } from "lodash";
 
@@ -61,17 +61,19 @@ export interface LoggerConfig {
   name: string;
   serializers: Serializers;
   verbose?: boolean;
-  streams?: any;
+  streams?: Stream[];
 }
 
 export class Logger {
   private logger: Bunyan;
 
   constructor(config: LoggerConfig) {
+    config.verbose = true;
+
     this.logger = new Bunyan({
       name: config.name,
       serializers: config.serializers,
-      level: config.verbose ? config.verbose : FATAL,
+      level: config.verbose === true ? INFO : FATAL,
       streams: config.streams
     });
   }
