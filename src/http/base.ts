@@ -1,11 +1,11 @@
 import { v4 } from "uuid";
-import { HttpClient, HttpMethod, HttpRequest, IHttpClient } from "./client";
+import { HttpClient, HttpMethod, HttpRequest } from "./client";
 
-export class BaseClient extends HttpClient implements IHttpClient {
+export class BaseClient extends HttpClient {
   protected defaultTimeout = 10;
 
   constructor(service: string) {
-    super(service)
+    super(service);
   }
 
   /**
@@ -15,32 +15,31 @@ export class BaseClient extends HttpClient implements IHttpClient {
    * @param data request body payload
    */
   makeRequest(method: HttpMethod, url: string, data: {}) {
-    const headers = {}
+    const headers = {};
     headers["X-Request-ID"] = this.generateRequestId();
     headers["X-Origin-Service"] = this.service;
 
-    const httpRequest: HttpRequest = { method, url, headers }
+    const httpRequest: HttpRequest = { method, url, headers };
 
-    if (method == HttpMethod.GET) {
+    if (method === HttpMethod.GET) {
       httpRequest.params = data;
     } else {
       httpRequest.data = data;
     }
 
-    return httpRequest
-
+    return httpRequest;
   }
 
   /**
-   * creates a request id 
+   * creates a request id
    * @returns string
-  */
+   */
   private generateRequestId(): string {
     return v4();
   }
 
   /**
-   * makes a get request
+   * Makes a get request
    * @param url absolute URL
    * @param params query parameters
    * @param headers custom headers to set
@@ -52,11 +51,10 @@ export class BaseClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a post request
+   * Makes a post request
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   post<T = any>(url: string, body: {}, headers = {}) {
     const request = this.makeRequest(HttpMethod.POST, url, body);
@@ -65,11 +63,10 @@ export class BaseClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a put request
+   * Makes a put request
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   put<T = any>(url: string, body: {}, headers = {}) {
     const request = this.makeRequest(HttpMethod.PUT, url, body);
@@ -78,11 +75,10 @@ export class BaseClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a patch request
+   * Makes a patch request
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   patch<T = any>(url: string, body: {}, headers = {}) {
     const request = this.makeRequest(HttpMethod.PATCH, url, body);
@@ -91,11 +87,10 @@ export class BaseClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a delete request
+   * Makes a delete request
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   del<T = any>(url: string, body: {}, headers = {}) {
     const request = this.makeRequest(HttpMethod.DELETE, url, body);

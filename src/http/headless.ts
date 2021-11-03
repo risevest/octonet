@@ -1,7 +1,7 @@
 import { Request } from "express";
-import { NoRequestIDError } from "./errors";
 import { ServiceClient } from "index";
-import { HttpMethod, HttpRequest, IHttpClient } from "./client";
+import { HttpMethod, HttpRequest } from "./client";
+import { NoRequestIDError } from "./errors";
 
 /**
  * Configuration for creating a client
@@ -25,7 +25,7 @@ export interface ClientConfig {
  * Client for making requests between services when no user session
  * has to be shared
  */
-export class HeadlessClient extends ServiceClient implements IHttpClient {
+export class HeadlessClient extends ServiceClient {
   constructor(service: string, scheme: string, secret: string) {
     super(service);
   }
@@ -44,7 +44,7 @@ export class HeadlessClient extends ServiceClient implements IHttpClient {
       headers["Authorization"] = req.headers.authorization;
     }
 
-    const httpRequest: HttpRequest = { method, url, headers }
+    const httpRequest: HttpRequest = { method, url, headers };
 
     if (method == HttpMethod.GET) {
       httpRequest.params = data;
@@ -52,6 +52,6 @@ export class HeadlessClient extends ServiceClient implements IHttpClient {
       httpRequest.data = data;
     }
 
-    return httpRequest
+    return httpRequest;
   }
 }

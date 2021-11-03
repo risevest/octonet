@@ -1,12 +1,11 @@
+import { Request } from "express";
+import { HttpClient, HttpMethod, HttpRequest } from "./client";
 import { NoAuthorizationTokenError, NoRequestIDError } from "./errors";
-import { Request } from "express"
-import { HttpClient, HttpMethod, HttpRequest, IHttpClient } from "./client";
-
 
 /**
  * Wrapper around superagent for supporting interservice API requests.
  */
-export class ServiceClient extends HttpClient implements IHttpClient {
+export class ServiceClient extends HttpClient {
   /**
    * @param service name of the originating service
    */
@@ -37,7 +36,7 @@ export class ServiceClient extends HttpClient implements IHttpClient {
 
     headers["Authorization"] = req.headers.authorization;
 
-    const httpRequest: HttpRequest = { url, method, headers, }
+    const httpRequest: HttpRequest = { url, method, headers };
 
     if (method == HttpMethod.GET) {
       httpRequest.params = data;
@@ -45,11 +44,11 @@ export class ServiceClient extends HttpClient implements IHttpClient {
       httpRequest.data = data;
     }
 
-    return httpRequest
+    return httpRequest;
   }
 
   /**
-   * makes a get request
+   * Makes a get request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param param query parameters
@@ -62,12 +61,11 @@ export class ServiceClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a post request
+   * Makes a post request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   post<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.POST, url, body);
@@ -76,12 +74,11 @@ export class ServiceClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a put request
+   * Makes a put request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   put<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
@@ -89,12 +86,11 @@ export class ServiceClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a patch request
+   * Makes a patch request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   patch<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
@@ -102,12 +98,11 @@ export class ServiceClient extends HttpClient implements IHttpClient {
   }
 
   /**
-   * makes a delete request
+   * Makes a delete request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
   del<T = any>(req: Request, url: string, body: {}, headers = {}) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);

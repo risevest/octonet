@@ -1,10 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import { APIError, HttpError } from "./errors";
 
-export interface IHttpClient {
-  do<T>(req: HttpRequest): Promise<T>;
-}
-
 export enum HttpMethod {
   GET = "GET",
   POST = "POST",
