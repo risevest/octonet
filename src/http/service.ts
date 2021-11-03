@@ -9,8 +9,8 @@ export class ServiceClient extends HttpClient {
   /**
    * @param service name of the originating service
    */
-  constructor(service: string) {
-    super(service);
+  constructor(protected service: string) {
+    super();
   }
 
   /**

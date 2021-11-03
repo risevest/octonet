@@ -4,8 +4,8 @@ import { HttpClient, HttpMethod, HttpRequest } from "./client";
 export class BaseClient extends HttpClient {
   protected defaultTimeout = 10;
 
-  constructor(service: string) {
-    super(service);
+  constructor(protected service: string) {
+    super();
   }
 
   /**

@@ -14,7 +14,7 @@ export type HttpRequest<T = any> = AxiosRequestConfig<T>;
 export class HttpClient {
   protected instance: AxiosInstance;
 
-  constructor(protected service: string) {
+  constructor() {
     this.instance = axios.create({ headers: { "Content-Type": "application/json" } });
   }
 
