@@ -1,8 +1,8 @@
 import { Channel, Connection } from "amqplib";
 import { EventEmitter } from "events";
 import { Container } from "inversify";
-import TYPES from "../inversify";
 import { Logger } from "../logging";
+import TAGS from "../tags";
 import { eventGroupKey, eventHandlerKey } from "./constants";
 import { HandlerMeta } from "./interfaces";
 
@@ -32,16 +32,16 @@ export class Consumer {
     // register event groups for dependency injection
     groupMeta.forEach(({ prefix, constructor }) => {
       const name = constructor.name;
-      if (container.isBoundNamed(TYPES.EventGroup, name)) {
+      if (container.isBoundNamed(TAGS.EventGroup, name)) {
         throw new Error("You can't declare event groups with the same class name");
       }
 
-      container.bind<any>(TYPES.EventGroup).to(constructor).whenTargetNamed(name);
+      container.bind<any>(TAGS.EventGroup).to(constructor).whenTargetNamed(name);
 
       // setup event emitter level listeners
       const methodMeta: HandlerMeta[] = Reflect.getMetadata(eventHandlerKey, constructor);
       methodMeta.forEach(({ event, method, group }) => {
-        const instance = container.getNamed(TYPES.EventGroup, group);
+        const instance = container.getNamed(TAGS.EventGroup, group);
         const handlerFn = instance[method].bind(instance);
         const fullEvent = `${prefix}.${event}`;
 
