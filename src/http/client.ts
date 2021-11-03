@@ -28,7 +28,7 @@ export class HttpClient {
       res => res.data,
       err => {
         if (err.response) {
-          throw new APIError(err.config.url, err.response.status, err.response.body);
+          throw new APIError(err.config.url, err.response.status, err.response.data);
         } else if (err.request) {
           throw new HttpError(err.config.url, err);
         } else {
