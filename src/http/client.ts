@@ -23,8 +23,8 @@ export class HttpClient {
    * @param req super agent request, most probably created using `makeRequest`
    * @param timeout timeout for request in seconds
    */
-  do<T>(req: HttpRequest, timeout = 10): Promise<T> {
-    return this.instance({ timeout, ...req }).then(
+  do<T = any>(req: HttpRequest, timeout = 10): Promise<T> {
+    return this.instance({ timeout: timeout * 1000, ...req }).then(
       res => res.data,
       err => {
         if (err.response) {
