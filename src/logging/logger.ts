@@ -85,7 +85,7 @@ export class Logger {
    * @param err
    */
   axiosError(err: AxiosError) {
-    this.logger.error({ err, axios_req: err.response.config, axios_res: err.response });
+    this.logger.error({ axios_req: err.response.config, axios_res: err.response });
   }
 
   /**
