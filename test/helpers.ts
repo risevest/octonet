@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import ms from "ms";
 import { promisify } from "util";
 
 /**
@@ -18,13 +17,7 @@ export function randomString(length: number) {
 export const asyncRandomString = promisify<number, string>(randomString);
 
 /**
- * Pause execution until `time` runs out. Equivalent to `Thread.sleep`
- * @param time how long to pause loop in `ms` format
+ * Same as `setTimeout` with promise to wait the timeout out
+ * @param delay how long in milliseconds to wait
  */
-export function timeout(time: string) {
-  return new Promise((resolve, _reject) => {
-    setTimeout(() => {
-      resolve(undefined);
-    }, ms(time));
-  });
-}
+export const sleep = promisify(setTimeout);
