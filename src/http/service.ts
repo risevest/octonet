@@ -38,10 +38,13 @@ export class ServiceClient extends HttpClient {
 
     const httpRequest: HttpRequest = { url, method, headers };
 
-    if (method == HttpMethod.GET) {
-      httpRequest.params = data;
-    } else {
-      httpRequest.data = data;
+    switch (method) {
+      case HttpMethod.GET:
+      case HttpMethod.DELETE:
+        httpRequest.params = data;
+        break;
+      default:
+        httpRequest.data = data;
     }
 
     return httpRequest;
@@ -94,7 +97,7 @@ export class ServiceClient extends HttpClient {
    * @param headers custom headers to set
    */
   patch<T = any>(req: Request, url: string, body?: any, headers?: any) {
-    const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+    const request = this.makeRequest(req, HttpMethod.PATCH, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
@@ -103,10 +106,11 @@ export class ServiceClient extends HttpClient {
    * Makes a delete request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
+   * @param params query parameters
    * @param headers custom headers to set
    */
-  del<T = any>(req: Request, url: string, headers?: any) {
-    const request = this.makeRequest(req, HttpMethod.PUT, url);
+  del<T = any>(req: Request, url: string, params?: any, headers?: any) {
+    const request = this.makeRequest(req, HttpMethod.DELETE, url, params);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
