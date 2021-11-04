@@ -21,10 +21,13 @@ export class BaseClient extends HttpClient {
 
     const httpRequest: HttpRequest = { method, url, headers };
 
-    if (method === HttpMethod.GET) {
-      httpRequest.params = data;
-    } else {
-      httpRequest.data = data;
+    switch (method) {
+      case HttpMethod.GET:
+      case HttpMethod.DELETE:
+        httpRequest.params = data;
+        break;
+      default:
+        httpRequest.data = data;
     }
 
     return httpRequest;
@@ -89,10 +92,11 @@ export class BaseClient extends HttpClient {
   /**
    * Makes a delete request
    * @param url absolute URL
+   * @param params query parameters
    * @param headers custom headers to set
    */
-  del<T = any>(url: string, headers?: any) {
-    const request = this.makeRequest(HttpMethod.DELETE, url);
+  del<T = any>(url: string, params?: any, headers?: any) {
+    const request = this.makeRequest(HttpMethod.DELETE, url, params);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
