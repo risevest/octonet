@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { decorate, injectable } from "inversify";
 import { eventGroupKey, eventHandlerKey } from "./constants";
 import { EventGroupMeta, HandlerMeta } from "./interfaces";
@@ -6,7 +7,7 @@ import { EventGroupMeta, HandlerMeta } from "./interfaces";
  * Declare a group of events with the same `prefix`.
  * @param prefix prefix used to name the events
  */
-export function eventGroup(prefix: string) {
+export function eventGroup(prefix: string): ClassDecorator {
   return function (constructor: Function) {
     // make the class injectable by default
     decorate(injectable(), constructor);
@@ -26,7 +27,7 @@ export function eventGroup(prefix: string) {
  * occurs
  * @param event name of the event to listen to
  */
-export function handler(event: string) {
+export function handler(event: string): MethodDecorator {
   return function (prototype: any, method: string, _desc: PropertyDescriptor) {
     const group = prototype.constructor.name;
     const metadata: HandlerMeta = { event, group, method };
