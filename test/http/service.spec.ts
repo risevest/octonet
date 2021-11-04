@@ -1,166 +1,76 @@
 import { expect } from "chai";
 import { before } from "mocha";
+import faker from "faker";
 import { v4 } from "uuid";
 import crypto from "crypto";
-import { ServiceClient } from "../../src";
-import { APIError, HttpError, NoRequestIDError } from "../../src/http/errors";
+import { HttpMethod, ServiceClient } from "../../src";
+import { NoRequestIDError } from "../../src/http/errors";
 import { NoAuthorizationTokenError } from "../../src/http/errors";
-import { startServer, stopServer, TestResponse } from "../server";
+import { startServer, stopServer } from "./server";
 import { Server } from "http";
+import { createTestApp } from "./server";
 
-let httpClient: ServiceClient;
 let server: Server;
-let mockServerUrl: string;
+let mockResourceURL: string;
+let port: number;
 
-const body = { foo: "bar" };
 const service = "test_service";
+const httpClient = new ServiceClient(service);
 const requestId = { "x-request-id": v4() };
 const authorization = { authorization: crypto.createHmac("sha256", "secret").update("key").digest("hex") };
 
 before(async () => {
-  server = (await startServer(4040)) as Server;
-  mockServerUrl = `http://localhost:${4040}`;
+  const app = createTestApp();
+  [server, port] = await startServer(app);
+  mockResourceURL = `http://localhost:${port}/test`;
 });
 
 after(async () => {
   await stopServer(server);
 });
 
-beforeEach(() => {
-  httpClient = new ServiceClient(service);
-});
-
-describe("ServiceClient#get", () => {
-  it("should throw error if request id isn't provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = {};
-    expect(httpClient.get.bind(httpClient, req, url, body)).to.throw(NoRequestIDError);
+describe("ServiceClien#makeRequest", () => {
+  it("should handle no request id errors", () => {
+    const mockRequest: any = { headers: { ...authorization } };
+    const data = {};
+    const makeRequest = () => httpClient.makeRequest(mockRequest, HttpMethod.GET, mockResourceURL, data);
+    expect(makeRequest).to.throw(NoRequestIDError);
   });
 
-  it("should throw error if auth token isn't provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = { ...requestId, headers: {} };
-    expect(httpClient.get.bind(httpClient, req, url, body)).to.throw(NoAuthorizationTokenError);
+  it("should handle no authorization token errors", () => {
+    const data = {};
+    const mockRequest: any = { headers: { ...requestId, headers: {} } };
+    const makeRequest = () => httpClient.makeRequest(mockRequest, HttpMethod.GET, mockResourceURL, data);
+    expect(makeRequest).to.throw(NoAuthorizationTokenError);
   });
 
-  it("should throw error if URL isn't found", async () => {
-    const url = `${mockServerUrl}/test/not-found`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    let changed = false;
-    try {
-      await httpClient.get(req, url, body);
-      changed = true;
-    } catch (err) {
-      expect(err).to.be.instanceOf(APIError);
-    }
-    expect(changed).to.be.equal(false);
+  it("should set params instead for get requests", () => {
+    const params = { first_name: faker.name.firstName() };
+    const mockRequest: any = { headers: { ...requestId, authorization } };
+    const req = httpClient.makeRequest(mockRequest, HttpMethod.GET, mockResourceURL, params);
+
+    expect(req.method).to.be.eq(HttpMethod.GET);
+    expect(req.params).to.be.eql(params);
   });
 
-  it("should throw error if remote server isn't found", async () => {
-    const url = `http://localhost:40410/test`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    let changed = false;
-    try {
-      await httpClient.get(req, url, body);
-    } catch (err) {
-      expect(err).to.be.instanceOf(HttpError);
-    }
-    expect(changed).to.be.equal(false);
+  it("should set params instead for delete requests", () => {
+    const params = { first_name: faker.name.firstName() };
+    const mockRequest: any = { headers: { ...requestId, authorization } };
+    const req = httpClient.makeRequest(mockRequest, HttpMethod.DELETE, mockResourceURL, params);
+
+    expect(req.method).to.be.eq(HttpMethod.DELETE);
+    expect(req.params).to.be.eql(params);
   });
 
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    const res = await httpClient.get<TestResponse>(req, url, body, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
+  it("should maka a request", () => {
+    const data = { first_name: faker.name.firstName() };
+    const mockRequest: any = { headers: { ...requestId, authorization } };
+    const req = httpClient.makeRequest(mockRequest, HttpMethod.POST, mockResourceURL, data);
 
-describe("ServiceClient#post", () => {
-  it("should throw error if request id isn't provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = {};
-    expect(httpClient.post.bind(httpClient, req, url, body)).to.throw(NoRequestIDError);
-  });
-
-  it("should throw error if auth token isn't provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = { ...requestId, headers: {} };
-    expect(httpClient.post.bind(httpClient, req, url, body)).to.throw(NoAuthorizationTokenError);
-  });
-
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    const res = await httpClient.post<TestResponse>(req, url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("ServiceClient#put", () => {
-  it("should throw error if request id isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = {};
-    expect(httpClient.put.bind(httpClient, req, url, body)).to.throw(NoRequestIDError);
-  });
-
-  it("should throw error if auth token isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: {} };
-    expect(httpClient.put.bind(httpClient, req, url, body)).to.throw(NoAuthorizationTokenError);
-  });
-
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    const res = await httpClient.put<TestResponse>(req, url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("ServiceClient#patch", () => {
-  it("should throw error if request id isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = {};
-    expect(httpClient.patch.bind(httpClient, req, url, body)).to.throw(NoRequestIDError);
-  });
-
-  it("should throw error if auth token isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: {} };
-    expect(httpClient.patch.bind(httpClient, req, url, body)).to.throw(NoAuthorizationTokenError);
-  });
-
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    const res = await httpClient.patch<TestResponse>(req, url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("ServiceClient#delete", () => {
-  it("should throw error if request id isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = {};
-    expect(httpClient.del.bind(httpClient, req, url, body)).to.throw(NoRequestIDError);
-  });
-
-  it("should throw error if auth token isn't provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: {} };
-    expect(httpClient.del.bind(httpClient, req, url, body)).to.throw(NoAuthorizationTokenError);
-  });
-
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const req: any = { ...requestId, headers: { ...authorization } };
-    const res = await httpClient.del<TestResponse>(req, url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
+    expect(req.url).to.be.eq(mockResourceURL);
+    expect(req.method).to.be.eq(HttpMethod.POST);
+    expect(req.data).to.be.eql(data);
+    expect(req.headers["X-Request-ID"]).to.be.a("string");
+    expect(req.headers["X-Origin-Service"]).to.be.eq(service);
   });
 });
