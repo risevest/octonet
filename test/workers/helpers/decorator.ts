@@ -1,6 +1,6 @@
 import { eventGroup, handler} from "../../../src/workers/decorators";
 
-@eventGroup('wallet')
+@eventGroup('Wallet')
 export class Wallet{
     // @ts-ignore
     private walletBalance: number;
