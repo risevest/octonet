@@ -1,16 +1,16 @@
-import { Logger, defaultSerializers, createRequestSerializer } from "../../src/logging";
+import axios from "axios";
 import Bunyan from "bunyan";
 import { expect } from "chai";
-import axios from "axios";
-import app from "./server";
 import http from "http";
+import { defaultSerializers, Logger } from "../../src";
+import app from "./server";
 
 const ringbuffer = new Bunyan.RingBuffer({ limit: 5 });
 
 export const logger = new Logger({
   name: "logger_tests",
   buffer: ringbuffer,
-  serializers: defaultSerializers({ http_req: createRequestSerializer("admin.password") }, "password")
+  serializers: defaultSerializers("admin.password", "password")
 });
 
 const baseUrl = "http://localhost:3005";

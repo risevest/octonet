@@ -17,7 +17,7 @@ export function defaultSerializers(...paths: string[]) {
  */
 export function axiosRequest(...paths: string[]) {
   return (conf: AxiosRequestConfig) => {
-    const log = { method: conf.method, url: conf.url, headers: conf.headers };
+    const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
 
     if (conf.data && Object.keys(conf.data).length !== 0) {
       const logBody = { ...conf.data };
@@ -54,6 +54,7 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
       method: req.method,
       url: req.url,
       headers: req.headers,
+      params: req.params,
       remoteAddress: req.socket.remoteAddress,
       remotePort: req.socket.remotePort
     };
