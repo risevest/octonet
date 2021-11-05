@@ -1,26 +1,48 @@
-// import { expect } from "chai";
-// import { Server } from "http";
-// // import { before } from "mocha";
-// import { Container } from "inversify";
-// import { Logger, LoggerConfig } from "../../src/logging";
+import { expect } from "chai";
+import amqp from "amqplib";
+import { Consumer } from "../../src/workers/consumer";
+import { Container } from "inversify";
+import "./helpers/decorator.helper";
+import { Logger, LoggerConfig } from "../../src/logging";
+import TAGS from '../../src/tags';
+import { createQueue, Queue } from "./helpers/amqp.helper";
+import { promisify } from "util";
+import { amount } from "./helpers/decorator.helper";
 
-// let testContainer: Container;
-// let logger: Logger;
-// let testLoggerConfig: LoggerConfig
+let testContainer: Container;
+let logger: Logger;
+let queue: Queue;
+let testLoggerConfig: LoggerConfig
 
-// before(() => {
-//     let loggerSerializer = {
-//         req: () => {}
-//     };
+const sleep = promisify(setTimeout);
 
-//     testContainer = new Container();
-//     testLoggerConfig = {
-//         name: 'test logger',
-//         serializers: loggerSerializer
-//     };
-//     logger = new Logger(testLoggerConfig);
-// });
+before(async() => {
+    let loggerSerializer = {
+        req: () => {}
+    };
+    testLoggerConfig = {
+        name: 'test logger',
+        serializers: loggerSerializer
+    };
+    logger = new Logger(testLoggerConfig);
 
-// describe('Consumer tests', () => {
-//     it('should')
-// });
+    testContainer = new Container();
+    testContainer.bind<Logger>(TAGS.Logger).toConstantValue(logger);
+
+    // queue connection
+    const conn = await amqp.connect('amqp://localhost:5672');
+    queue = await createQueue('amqp://localhost:5672');
+
+    // consumer creation
+    const testConsumer: Consumer = new Consumer(testContainer, logger);
+    testConsumer.listen(conn);
+});
+
+describe('Consumer', () => {
+    it('should create a consumer that emits a "fund" event', async() => {
+        await queue.push('WALLET_FUND',500);
+        await sleep(300);
+
+        expect(amount).to.eq(500);
+    });
+});
