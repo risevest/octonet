@@ -29,7 +29,7 @@ export function eventGroup(prefix: string): ClassDecorator {
  */
 export function handler(event: string): MethodDecorator {
   return function (prototype: any, method: string, _desc: PropertyDescriptor) {
-    const group = prototype.constructor.name; 
+    const group = prototype.constructor.name;
     const metadata: HandlerMeta = { event, group, method };
 
     let methodMetadata: HandlerMeta[] = [];
