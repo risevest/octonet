@@ -2,7 +2,6 @@ import { expect } from "chai";
 import amqp from "amqplib";
 import { Consumer } from "../../src/workers/consumer";
 import { Container } from "inversify";
-// import "./helpers/decorator.helper";
 import { Logger, LoggerConfig } from "../../src/logging";
 import TAGS from "../../src/tags";
 import { createQueue, Queue } from "./helpers/amqp.helper";

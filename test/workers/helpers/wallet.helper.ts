@@ -9,6 +9,12 @@ export interface IWallet {
   fund(): void;
 }
 
+export class WalletFunder implements IWallet {
+  fund() {
+    console.log("Wallet funded!");
+  }
+}
+
 @eventGroup("wallet")
 export class Wallet {
   @inject(TYPES.Wallet) private walletFunder: IWallet;

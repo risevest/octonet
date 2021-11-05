@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { Wallet } from "./helpers/wallet.helper";
 import { eventGroupKey, eventHandlerKey } from "../../src/workers/constants";
+import "reflect-metadata";
 
 describe("Decorators", () => {
   it('should contain the "wallet" metadata on the Reflect group', () => {
-    new Wallet();
     const eventGroupMetadata = Reflect.getMetadata(eventGroupKey, Reflect);
 
     expect(eventGroupMetadata.length).to.be.greaterThan(0);
@@ -12,9 +12,6 @@ describe("Decorators", () => {
   });
 
   it('should contain the "handler" metadata event', () => {
-    const testWallet: Wallet = new Wallet();
-    testWallet.executeFunding();
-
     const handlerMetadataGroup = Reflect.getMetadata(eventHandlerKey, Wallet);
     expect(handlerMetadataGroup.length).to.be.greaterThan(0);
 
