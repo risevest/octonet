@@ -28,6 +28,11 @@ export function axiosRequest(...paths: string[]) {
     });
     log.headers = headers;
 
+    // when we get the config from the axios response
+    if (typeof conf.data === "string") {
+      conf.data = JSON.parse(conf.data);
+    }
+
     if (conf.data && Object.keys(conf.data).length !== 0) {
       const logBody = { ...conf.data };
       paths.forEach(p => unset(logBody, p));
