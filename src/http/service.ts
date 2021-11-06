@@ -1,17 +1,16 @@
+import { Request } from "express";
+import { HttpClient, HttpMethod, HttpRequest } from "./client";
 import { NoAuthorizationTokenError, NoRequestIDError } from "./errors";
-import { Request } from "express"
-import { HttpClient, HttpMethod, HttpRequest, IHttpClient } from "./client";
-
 
 /**
  * Wrapper around superagent for supporting interservice API requests.
  */
-export class ServiceClient extends HttpClient implements IHttpClient {
+export class ServiceClient extends HttpClient {
   /**
    * @param service name of the originating service
    */
-  constructor(service: string) {
-    super(service);
+  constructor(protected service: string) {
+    super();
   }
 
   /**
@@ -21,13 +20,13 @@ export class ServiceClient extends HttpClient implements IHttpClient {
    * @param url absolute URL of API
    * @param data request data to be sent to API
    */
-  makeRequest(req: Request, method: HttpMethod, url: string, data: {}) {
+  makeRequest(req: Request, method: HttpMethod, url: string, data?: any) {
     const headers = {};
     // enables distributed tracing
-    if (!req["x-request-id"]) {
+    if (!req.headers["x-request-id"]) {
       throw new NoRequestIDError(url);
     }
-    headers["X-Request-ID"] = req["x-request-id"];
+    headers["X-Request-ID"] = req.headers["x-request-id"];
     headers["X-Origin-Service"] = this.service;
 
     // share authentication between service calls
@@ -37,80 +36,82 @@ export class ServiceClient extends HttpClient implements IHttpClient {
 
     headers["Authorization"] = req.headers.authorization;
 
-    const httpRequest: HttpRequest = { url, method, headers, }
+    const httpRequest: HttpRequest = { url, method, headers };
 
-    if (method == HttpMethod.GET) {
-      httpRequest.params = data;
-    } else {
-      httpRequest.data = data;
+    switch (method) {
+      case HttpMethod.GET:
+      case HttpMethod.DELETE:
+        httpRequest.params = data;
+        break;
+      default:
+        httpRequest.data = data;
     }
 
-    return httpRequest
+    return httpRequest;
   }
 
   /**
-   * makes a get request
+   * Makes a get request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param param query parameters
    * @param headers custom headers to set
    */
-  get<T = any>(req: Request, url: string, params = {}, headers = {}) {
+  get<T = any>(req: Request, url: string, params?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.GET, url, params);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
   /**
-   * makes a post request
+   * Makes a post request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
-  post<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  post<T = any>(req: Request, url: string, body?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.POST, url, body);
     request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
   /**
-   * makes a put request
+   * Makes a put request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
-  put<T = any>(req: Request, url: string, body: {}, headers = {}) {
+  put<T = any>(req: Request, url: string, body?: any, headers?: any) {
     const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
   /**
-   * makes a patch request
+   * Makes a patch request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
    * @param body request body payload
    * @param headers custom headers to set
-   * @returns 
    */
-  patch<T = any>(req: Request, url: string, body: {}, headers = {}) {
-    const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+  patch<T = any>(req: Request, url: string, body?: any, headers?: any) {
+    const request = this.makeRequest(req, HttpMethod.PATCH, url, body);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 
   /**
-   * makes a delete request
+   * Makes a delete request
    * @param req Express request that serves as the originator for service call
    * @param url absolute URL
-   * @param body request body payload
+   * @param params query parameters
    * @param headers custom headers to set
-   * @returns 
    */
-  del<T = any>(req: Request, url: string, body: {}, headers = {}) {
-    const request = this.makeRequest(req, HttpMethod.PUT, url, body);
+  del<T = any>(req: Request, url: string, params?: any, headers?: any) {
+    const request = this.makeRequest(req, HttpMethod.DELETE, url, params);
+    request.headers = { ...headers, ...request.headers };
     return this.do<T>(request);
   }
 }

@@ -1,15 +1,5 @@
-import axios, { AxiosRequestConfig } from "axios";
-import { APIError, HttpError } from "./errors";
-
-export interface IHttpClient {
-  do<T>(req: HttpRequest): Promise<T>
-  makeRequest(...args): HttpRequest;
-  get<T>(...args): Promise<T>
-  post<T>(...args): Promise<T>
-  put<T>(...args): Promise<T>
-  patch<T>(...args): Promise<T>
-  del<T>(...args): Promise<T>
-}
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import { APIError, HttpError, TimeoutError } from "./errors";
 
 export enum HttpMethod {
   GET = "GET",
@@ -17,27 +7,32 @@ export enum HttpMethod {
   PUT = "PUT",
   PATCH = "PATCH",
   DELETE = "DELETE"
-};
+}
 
-export interface HttpRequest extends AxiosRequestConfig { }
+export type HttpRequest<T = any> = AxiosRequestConfig<T>;
 
 export class HttpClient {
-  protected timeout = 10;
+  protected instance: AxiosInstance;
 
-  constructor(protected service: string) { }
+  constructor() {
+    this.instance = axios.create({ headers: { "Content-Type": "application/json" } });
+  }
+
   /**
-  * Runs the API requests and handles errors.
-  * @param req super agent request, most probably created using `makeRequest`
-  */
-  do<T>(req: HttpRequest): Promise<T> {
-    req.timeout = this.timeout
-
-    return axios(req).then(
+   * Runs the API requests and handles errors.
+   * @param req super agent request, most probably created using `makeRequest`
+   * @param timeout timeout for request in seconds
+   */
+  do<T = any>(req: HttpRequest, timeout = 10): Promise<T> {
+    return this.instance({ timeout: timeout * 1000, ...req }).then(
       res => res.data,
-      err => {
+      (err: AxiosError) => {
         if (err.response) {
-          throw new APIError(err.config.url, err.response.status, err.response.body);
+          throw new APIError(err.config.url, err.response.status, err.response.data);
         } else if (err.request) {
+          if (/timeout/.test(err.message)) {
+            throw new TimeoutError(err.config.url, err.config.timeout);
+          }
           throw new HttpError(err.config.url, err);
         } else {
           throw new Error(err.message);

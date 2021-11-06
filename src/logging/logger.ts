@@ -1,61 +1,16 @@
-import Bunyan, { Serializers, FATAL, INFO } from "bunyan";
+import { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
+import Bunyan, { FATAL, INFO } from "bunyan";
 import { Request, Response } from "express";
-import { unset } from "lodash";
-
-/**
- * Creates bunyan serializer for express requests
- * @param paths sensitive data pasths
- */
-export function createRequestSerializer(...paths: string[]): (req: Request) => object {
-  return (req: Request) => {
-    if (!req || !req.socket) return req;
-
-    const log = {
-      method: req.method,
-      url: req.url,
-      headers: req.headers,
-      remoteAddress: req.socket.remoteAddress,
-      remotePort: req.socket.remotePort
-    };
-
-    if (req.body && Object.keys(req.body).length !== 0) {
-      // sanitize first`
-      const logBody = { ...req.body };
-      paths.forEach(p => unset(logBody, p));
-
-      log["body"] = logBody;
-    }
-
-    return log;
-  };
-}
-
-/**
- * bunyan serializer for express responses
- * @param res express response object
- */
-function resSerializer(res: Response) {
-  if (!res || !res.statusCode) return res;
-
-  return {
-    statusCode: res.statusCode,
-    headers: res.getHeaders(),
-    body: res.locals.body
-  };
-}
-
-export function defaultSerializers(serializers: Serializers = null, ...paths: string[]): Serializers {
-  return {
-    ...serializers,
-    res: resSerializer,
-    req: createRequestSerializer(...paths)
-  };
-}
 
 export interface LogError {
   err: Error;
   [key: string]: any;
 }
+
+type Serializer = (input: any) => any;
+type Serializers = {
+  [key: string]: Serializer;
+};
 
 export interface LoggerConfig {
   name: string;
@@ -107,6 +62,30 @@ export class Logger {
    */
   httpError(err: Error, req: Request, res: Response) {
     this.logger.error({ err, res, req });
+  }
+
+  /**
+   * Logs an axios request
+   * @param req Axios Request
+   */
+  axiosRequest(req: AxiosRequestConfig) {
+    this.logger.info({ axios_req: req });
+  }
+
+  /**
+   * Logs response to axios reequest
+   * @param res Axios Response
+   */
+  axiosResponse(res: AxiosResponse) {
+    this.logger.info({ axios_req: res.config, axios_res: res });
+  }
+
+  /**
+   * Logs error response to axios request
+   * @param err
+   */
+  axiosError(err: AxiosError) {
+    this.logger.error({ axios_req: err.response.config, axios_res: err.response });
   }
 
   /**

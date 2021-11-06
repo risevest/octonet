@@ -6,13 +6,19 @@ export class NoRequestIDError extends Error {
 
 export class NoAuthorizationTokenError extends Error {
   constructor(url: string) {
-    super(`Request to ${url} requires an authorization token. "authorization" header not set`)
+    super(`Request to ${url} requires an authorization token. "authorization" header not set`);
   }
 }
 
 export class HttpError extends Error {
   constructor(url: string, readonly rawError: any) {
     super(`Request to ${url} failed`);
+  }
+}
+
+export class TimeoutError extends Error {
+  constructor(url: string, timeout: number) {
+    super(`Request to ${url} failed: request timed out after ${Math.floor(timeout / 1000)}`);
   }
 }
 

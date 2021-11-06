@@ -3,7 +3,7 @@ import faker from "faker";
 import IORedis, { Redis } from "ioredis";
 import { after } from "mocha";
 import { RedisStore } from "../../src";
-import { randomString, timeout } from "../helpers";
+import { randomString, sleep } from "../helpers";
 
 let redis: Redis;
 let store: RedisStore;
@@ -62,7 +62,7 @@ describe("RedisStore#peek", () => {
   it("should return null after the token expires", async () => {
     const token = await store.commision(faker.internet.userName(), faker.internet.email(), "100ms");
 
-    await timeout("110ms");
+    await sleep(110);
     const val = await store.peek(token);
 
     expect(val).to.be.null;
@@ -86,7 +86,7 @@ describe("RedisStore#extend", () => {
   it("should return null after the token expires", async () => {
     const token = await store.commision(faker.internet.userName(), faker.internet.email(), "100ms");
 
-    await timeout("110ms");
+    await sleep(110);
     const val = await store.extend(token, "10ms");
 
     expect(val).to.be.null;
@@ -107,11 +107,11 @@ describe("RedisStore#reset", () => {
     expect(newValue).not.eq(data);
   });
 
-  it("should not change the timeout on the token", async () => {
+  it("should not change the sleep on the token", async () => {
     const key = faker.internet.userName();
     const token = await store.commision(key, faker.internet.email(), "100ms");
 
-    await timeout("50ms");
+    await sleep(50);
     await store.reset(key, faker.internet.email());
     const newTTL = await redis.pttl(token);
 
@@ -133,7 +133,7 @@ describe("RedisStore#decommission", () => {
   it("should return null after the token expires", async () => {
     const token = await store.commision(faker.internet.userName(), faker.internet.email(), "100ms");
 
-    await timeout("110ms");
+    await sleep(110);
     const val = await store.decommission(token);
 
     expect(val).to.be.null;

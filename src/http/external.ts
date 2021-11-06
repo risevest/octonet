@@ -1,25 +1,36 @@
-import { v4 } from "uuid";
+import { Logger } from "../logging/logger";
 import { HttpClient, HttpMethod, HttpRequest } from "./client";
 
-export class BaseClient extends HttpClient {
-  protected defaultTimeout = 10;
-
-  constructor(protected service: string) {
+export class ExternalClient extends HttpClient {
+  constructor(logger: Logger) {
     super();
+    this.instance.interceptors.request.use(
+      conf => {
+        logger.axiosRequest(conf);
+        return conf;
+      },
+      err => Promise.reject(err)
+    );
+
+    this.instance.interceptors.response.use(
+      res => {
+        logger.axiosResponse(res);
+        return res;
+      },
+      err => {
+        if (err.response) {
+          logger.axiosError(err);
+        } else {
+          logger.error({ err });
+        }
+
+        return Promise.reject(err);
+      }
+    );
   }
 
-  /**
-   * Create a pre-configured axios request with distributed tracing and authentication
-   * @param method HTTP method of API
-   * @param url absolute URL of API
-   * @param data request body payload
-   */
-  makeRequest(method: HttpMethod, url: string, data?: any) {
-    const headers = {};
-    headers["X-Request-ID"] = this.generateRequestId();
-    headers["X-Origin-Service"] = this.service;
-
-    const httpRequest: HttpRequest = { method, url, headers };
+  makeRequest<T>(method: HttpMethod, url: string, data?: any): HttpRequest<T> {
+    const httpRequest: HttpRequest = { method, url };
 
     switch (method) {
       case HttpMethod.GET:
@@ -34,14 +45,6 @@ export class BaseClient extends HttpClient {
   }
 
   /**
-   * creates a request id
-   * @returns string
-   */
-  private generateRequestId(): string {
-    return v4();
-  }
-
-  /**
    * Makes a get request
    * @param url absolute URL
    * @param params query parameters
@@ -49,8 +52,7 @@ export class BaseClient extends HttpClient {
    */
   get<T = any>(url: string, params?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.GET, url, params);
-    request.headers = { ...headers, ...request.headers };
-    return this.do<T>(request);
+    return this.do<T>({ ...request, headers });
   }
 
   /**
@@ -61,8 +63,7 @@ export class BaseClient extends HttpClient {
    */
   post<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.POST, url, body);
-    request.headers = { ...headers, ...request.headers };
-    return this.do<T>(request);
+    return this.do<T>({ ...request, headers });
   }
 
   /**
@@ -73,8 +74,7 @@ export class BaseClient extends HttpClient {
    */
   put<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.PUT, url, body);
-    request.headers = { ...headers, ...request.headers };
-    return this.do<T>(request);
+    return this.do<T>({ ...request, headers });
   }
 
   /**
@@ -85,8 +85,7 @@ export class BaseClient extends HttpClient {
    */
   patch<T = any>(url: string, body?: any, headers?: any) {
     const request = this.makeRequest(HttpMethod.PATCH, url, body);
-    request.headers = { ...headers, ...request.headers };
-    return this.do<T>(request);
+    return this.do<T>({ ...request, headers });
   }
 
   /**
@@ -96,8 +95,7 @@ export class BaseClient extends HttpClient {
    * @param headers custom headers to set
    */
   del<T = any>(url: string, params?: any, headers?: any) {
-    const request = this.makeRequest(HttpMethod.DELETE, url, params);
-    request.headers = { ...headers, ...request.headers };
-    return this.do<T>(request);
+    const request = this.makeRequest(HttpMethod.DELETE, url);
+    return this.do<T>({ ...request, headers });
   }
 }

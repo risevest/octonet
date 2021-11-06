@@ -1,94 +1,56 @@
-import { expect } from "chai";
+import chai, { expect } from "chai";
+import chaiAsPromised from "chai-as-promised";
+import faker from "faker";
 import { Server } from "http";
 import { before } from "mocha";
 import { BaseClient } from "../../src";
-import { APIError, HttpError } from "../../src/http/errors";
-import { startServer, stopServer, TestResponse } from "../server";
+import { HttpMethod } from "../../src/http/client";
+import { createTestApp, startServer, stopServer } from "./server";
 
-let httpClient: BaseClient;
-let server: Server;
-let mockServerUrl: string;
+chai.use(chaiAsPromised);
 
-const body = { foo: "bar" };
 const service = "test_service";
+const httpClient = new BaseClient(service);
+let server: Server;
+let port: number;
+let mockResourceURL: string;
 
 before(async () => {
-  server = (await startServer(4050)) as Server;
-  mockServerUrl = `http://localhost:${4050}`;
+  const app = createTestApp();
+  [server, port] = await startServer(app);
+  mockResourceURL = `http://localhost:${port}/test`;
 });
 
 after(async () => {
   await stopServer(server);
 });
 
-beforeEach(() => {
-  httpClient = new BaseClient(service);
-});
+describe("BaseClient#makeRequest", () => {
+  it("should make a request config with ID and origin service", async () => {
+    const data = { first_name: faker.name.firstName() };
+    const req = httpClient.makeRequest(HttpMethod.POST, mockResourceURL, data);
 
-describe("BaseClient#get", () => {
-  it("should throw error if URL isn't found", async () => {
-    const url = `${mockServerUrl}/test/not-found`;
-    let changed = false;
-    try {
-      await httpClient.get(url);
-      changed = true;
-    } catch (err) {
-      expect(err).to.be.instanceOf(APIError);
-    }
-    expect(changed).to.be.equal(false);
+    expect(req.url).to.be.eq(mockResourceURL);
+    expect(req.method).to.be.eq(HttpMethod.POST);
+    expect(req.data).to.be.eql(data);
+
+    expect(req.headers["X-Request-ID"]).to.be.a("string");
+    expect(req.headers["X-Origin-Service"]).to.be.eq(service);
   });
 
-  it("should throw error if remote server isn't found", async () => {
-    const url = `http://localhost:40410/test`;
-    let changed = false;
-    try {
-      await httpClient.get(url);
-    } catch (err) {
-      expect(err).to.be.instanceOf(HttpError);
-    }
-    expect(changed).to.be.equal(false);
+  it("should set params instead for get requests", async () => {
+    const params = { first_name: faker.name.firstName() };
+    const req = httpClient.makeRequest(HttpMethod.GET, mockResourceURL, params);
+
+    expect(req.method).to.be.eq(HttpMethod.GET);
+    expect(req.params).to.be.eql(params);
   });
 
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const res = await httpClient.get<TestResponse>(url);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
+  it("should set params instead for delete requests", async () => {
+    const params = { first_name: faker.name.firstName() };
+    const req = httpClient.makeRequest(HttpMethod.DELETE, mockResourceURL, params);
 
-describe("BaseClient#post", () => {
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test`;
-    const res = await httpClient.post<TestResponse>(url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("Baselient#put", () => {
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const res = await httpClient.put<TestResponse>(url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("BaseClient#patch", () => {
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const res = await httpClient.patch<TestResponse>(url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
-  });
-});
-
-describe("BaseClient#delete", () => {
-  it("should return a response of type T if all is provided", async () => {
-    const url = `${mockServerUrl}/test/som_random_id`;
-    const res = await httpClient.del<TestResponse>(url, body);
-    expect(res).to.haveOwnProperty("data");
-    expect(res).to.haveOwnProperty("error");
+    expect(req.method).to.be.eq(HttpMethod.DELETE);
+    expect(req.params).to.be.eql(params);
   });
 });
