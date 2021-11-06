@@ -2,6 +2,8 @@ import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { Request, Response } from "express";
 import unset from "lodash/unset";
 
+const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "patch"];
+
 export function defaultSerializers(...paths: string[]) {
   return {
     axios_req: axiosRequest(...paths),
@@ -18,6 +20,13 @@ export function defaultSerializers(...paths: string[]) {
 export function axiosRequest(...paths: string[]) {
   return (conf: AxiosRequestConfig) => {
     const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
+
+    // remove default header config
+    const headers = { ...conf.headers };
+    axiosDefaultHeaders.forEach(k => {
+      delete headers[k];
+    });
+    log.headers = headers;
 
     if (conf.data && Object.keys(conf.data).length !== 0) {
       const logBody = { ...conf.data };

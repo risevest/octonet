@@ -24,7 +24,7 @@ export function createTestApp() {
     return res.json({ method: req.method, headers: req.headers, params: req.params });
   });
 
-  app.get("/test/error", (req, res) => {
+  app.get("/test/error", (_req, res) => {
     return res.status(422).json({ message: "an error occurred" });
   });
 
