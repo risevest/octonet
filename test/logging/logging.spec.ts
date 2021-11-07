@@ -11,14 +11,16 @@ export const logger = new Logger({
   buffer: ringbuffer,
   serializers: defaultSerializers("admin.password", "password")
 });
+
 const baseUrl = "http://localhost:3005";
 before(() => {
   http.createServer(app).listen(3005);
 });
-// clears the buffer after each test
+
 afterEach(() => {
   ringbuffer.records = [];
 });
+
 describe("Bunyan#Request", () => {
   it("should be able to log a request", async () => {
     await axios.get(`${baseUrl}/req`);
@@ -32,6 +34,7 @@ describe("Bunyan#Request", () => {
     expect(properties).to.have.property("req");
   });
 });
+
 describe("Bunyan#Response", () => {
   it("should be able to log a response", async () => {
     await axios.get(`${baseUrl}/req-res`);
@@ -46,6 +49,7 @@ describe("Bunyan#Response", () => {
     expect(properties).to.have.property("res");
   });
 });
+
 describe("Bunyan#httpError", () => {
   it("should be able to log a http error", async () => {
     await axios.get(`${baseUrl}/error`);

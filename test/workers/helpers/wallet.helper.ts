@@ -1,26 +1,42 @@
 import { inject } from "inversify";
-import { eventGroup, handler } from "../../../src/workers/decorators";
+import sinon from "sinon";
+import { eventGroup, handler } from "../../../src";
 
-export const TYPES = {
-  Wallet: Symbol.for("Wallet")
-};
+export const WalletStubTag = Symbol.for("WalletStub");
 
-export interface IWallet {
-  fund(): void;
+interface Withdrawal {
+  amount: number;
+  receiver: string;
 }
 
-export class WalletFunder implements IWallet {
-  fund() {
-    console.log("Wallet funded!");
-  }
+export class WalletStub {
+  fund(amount: number) {}
+  withdraw(withdrawal: Withdrawal) {}
 }
 
 @eventGroup("wallet")
-export class Wallet {
-  @inject(TYPES.Wallet) private walletFunder: IWallet;
+export class WalletConsumer {
+  @inject(WalletStubTag) private spy: WalletStub;
 
   @handler("fund")
-  executeFunding() {
-    this.walletFunder.fund();
+  fund(amount: number) {
+    this.spy.fund(amount);
   }
+
+  @handler("withdraw")
+  withdraw(withdrawal: Withdrawal) {
+    this.spy.withdraw(withdrawal);
+  }
+}
+
+export const Wallet = new WalletStub();
+const fund = sinon.stub(Wallet, "fund");
+const withdraw = sinon.stub(Wallet, "withdraw");
+
+export function mockFund(amount: number) {
+  return fund.withArgs(amount);
+}
+
+export function mockWithdrawal(match: Partial<Withdrawal>) {
+  return withdraw.withArgs(sinon.match(match));
 }
