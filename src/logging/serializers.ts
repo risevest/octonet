@@ -4,12 +4,32 @@ import unset from "lodash/unset";
 
 const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "patch"];
 
+/**
+ * Create serializers for common log entries. This entries would
+ * be avoided for:
+ * - Client log entries for axios request/response
+ * - Server log entries requests and responses
+ * - Consumer log entries for events
+ * @param paths paths to not print anywhere
+ */
 export function defaultSerializers(...paths: string[]) {
   return {
     axios_req: axiosRequest(...paths),
     axios_res: axiosResponse,
     req: expressRequest(...paths),
-    res: expressResponse
+    res: expressResponse,
+    event: sanitized(...paths)
+  };
+}
+
+export function sanitized<T = any>(...paths: string[]) {
+  return (data: T) => {
+    if (!data || typeof data !== "object" || Object.keys(data).length === 0) return data;
+
+    const dataCopy = { ...data };
+    paths.forEach(p => unset(dataCopy, p));
+
+    return dataCopy;
   };
 }
 
@@ -74,7 +94,6 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
     };
 
     if (req.body && Object.keys(req.body).length !== 0) {
-      // sanitize first`
       const logBody = { ...req.body };
       paths.forEach(p => unset(logBody, p));
 
