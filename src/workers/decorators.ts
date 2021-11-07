@@ -1,5 +1,5 @@
-import "reflect-metadata";
 import { decorate, injectable } from "inversify";
+import "reflect-metadata";
 import { eventGroupKey, eventHandlerKey } from "./constants";
 import { EventGroupMeta, HandlerMeta } from "./interfaces";
 
