@@ -1,49 +1,51 @@
-import { expect } from "chai";
 import amqp from "amqplib";
-import { Consumer } from "../../src/workers/consumer";
+import { expect } from "chai";
+import faker from "faker";
 import { Container } from "inversify";
-import { Logger, LoggerConfig } from "../../src";
-import TAGS from "../../src/tags";
+import "reflect-metadata";
+import { defaultSerializers, Logger } from "../../src";
+import { Consumer } from "../../src/";
+import { sleep } from "../helpers";
 import { createQueue, Queue } from "./helpers/amqp.helper";
-import { promisify } from "util";
-import { mockFund, testWallet } from "./helpers/wallet.mock";
-import { IWallet, TYPES } from "./helpers/wallet.helper";
+import { mockFund, mockWithdrawal, Wallet, WalletStub, WalletStubTag } from "./helpers/wallet.helper";
 
-let testContainer: Container;
-let logger: Logger;
+const amqpURL = "amqp://localhost:5672";
+export const logger = new Logger({
+  name: "consumer_tests",
+  serializers: defaultSerializers(),
+  verbose: false
+});
+
 let queue: Queue;
-let testLoggerConfig: LoggerConfig;
-
-const sleep = promisify(setTimeout);
 
 before(async () => {
-  let loggerSerializer = {
-    req: () => {}
-  };
-  testLoggerConfig = {
-    name: "test logger",
-    serializers: loggerSerializer
-  };
-  logger = new Logger(testLoggerConfig);
+  const testContainer = new Container();
+  testContainer.bind<WalletStub>(WalletStubTag).toConstantValue(Wallet);
 
-  testContainer = new Container();
-  testContainer.bind<Logger>(TAGS.Logger).toConstantValue(logger);
-  testContainer.bind<IWallet>(TYPES.Wallet).toConstantValue(testWallet);
-
-  // queue connection
-  const conn = await amqp.connect("amqp://localhost:5672");
-  queue = await createQueue("amqp://localhost:5672");
-
-  // consumer creation
   const testConsumer: Consumer = new Consumer(testContainer, logger);
-  testConsumer.listen(conn);
+  testConsumer.listen(await amqp.connect(amqpURL));
+
+  queue = await createQueue("amqp://localhost:5672");
 });
 
 describe("Consumer", () => {
-  it('should create a consumer that emits a "fund" event', async () => {
-    await queue.push("WALLET_FUND", 500);
+  it("should consume the fund event", async () => {
+    const amount = parseFloat(faker.finance.amount(100));
+    const fund = mockFund(amount);
+
+    await queue.push("WALLET_FUND", amount);
     await sleep(300);
 
-    expect(mockFund.called).to.be.true;
+    expect(fund.called).to.be.true;
+  });
+
+  it("should consume the withdaraw event", async () => {
+    const withdrawal = { amount: parseFloat(faker.finance.amount(100)), receiver: faker.datatype.uuid() };
+    const withdraw = mockWithdrawal(withdrawal);
+
+    await queue.push("WALLET_WITHDRAW", withdrawal);
+    await sleep(300);
+
+    expect(withdraw.called).to.be.true;
   });
 });

@@ -1,22 +1,41 @@
 import { expect } from "chai";
-import { Wallet } from "./helpers/wallet.helper";
-import { eventGroupKey, eventHandlerKey } from "../../src/workers/constants";
+import { Container } from "inversify";
 import "reflect-metadata";
+import { eventGroupKey, eventHandlerKey } from "../../src/workers/constants";
+import { Group, GroupTag, NeedsGroup, NeedsGroupTag } from "./helpers/group.helper";
 
-describe("Decorators", () => {
-  it('should contain the "wallet" metadata on the Reflect group', () => {
+describe("Decorators#eventGroup", () => {
+  it("should save group as an event group", () => {
     const eventGroupMetadata = Reflect.getMetadata(eventGroupKey, Reflect);
 
-    expect(eventGroupMetadata.length).to.be.greaterThan(0);
-    expect(eventGroupMetadata[0].prefix).to.equal("wallet");
+    // we do this because mocha loads all sources
+    expect(eventGroupMetadata.length).to.be.greaterThanOrEqual(1);
+    const [eventGroup] = eventGroupMetadata;
+
+    expect(eventGroup.prefix).to.equal("group");
+    expect(eventGroup.constructor).to.be.a("function");
   });
 
-  it('should contain the "handler" metadata event', () => {
-    const handlerMetadataGroup = Reflect.getMetadata(eventHandlerKey, Wallet);
-    expect(handlerMetadataGroup.length).to.be.greaterThan(0);
+  it("should make the class injectable", () => {
+    const container = new Container();
+    container.bind<Group>(GroupTag).to(Group);
+    container.bind<NeedsGroup>(NeedsGroupTag).to(NeedsGroup);
 
-    const fundMetadata = handlerMetadataGroup.pop();
-    expect(fundMetadata.event).to.equal("fund");
-    expect(fundMetadata.group).to.equal("Wallet");
+    const needsGroupInstance = container.get<NeedsGroup>(NeedsGroupTag);
+    expect(needsGroupInstance.group).to.be.instanceOf(Group);
+  });
+});
+
+describe("Decorators#handler", () => {
+  it('should contain the "handler" metadata event', () => {
+    const handlerMetadataGroup = Reflect.getMetadata(eventHandlerKey, Group);
+
+    // we do this because mocha loads all sources
+    expect(handlerMetadataGroup.length).to.be.greaterThanOrEqual(1);
+    const [eventHandler] = handlerMetadataGroup;
+
+    expect(eventHandler.event).to.eq("handler");
+    expect(eventHandler.group).to.eq(Group.name);
+    expect(eventHandler.method).to.eq("handleEvent");
   });
 });
