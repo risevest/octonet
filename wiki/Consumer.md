@@ -1,14 +1,14 @@
 # Decorators & Consumer
 
-This describes the Decorator and COnsumer API
+This describes the Decorator and Consumer API
 
 ## Decorators
 
 Decorators (in this context) are functions used to retrieve and store metadata about consumer classes. The two decorators used in Octonet are as follows:
 
-- **eventGroup** (@eventGroup(name: string)): This decorator is annotated at the top of a Consumer class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers. It is used as follows:
+- **eventGroup** [*@eventGroup(name: string)*]: This decorator is annotated at the top of a Consumer class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers. It is used as follows:
 
-- **handler** (_@handler_): The handler decorator is annotated at the top of a handler function. A handler function is a function that is executed when a particular event is dispatched.
+- **handler** [_@handler(event: string)_]: The handler decorator is annotated at the top of a handler function. A handler function is a function that is executed when a particular event is dispatched.
 
 ## Consumer
 
@@ -25,7 +25,7 @@ First, we create types and interfaces. Theses interfaces will contain methods ne
 Let's create our interface.
 
 ```js
-// file: wallet.interface.ts
+// wallet.interface.ts
 
 export interface IFundWallet {
   fund(amount: number): void;
@@ -38,7 +38,8 @@ export interface IFundWallet {
 Next, we create an implementation of the `IFundWallet` interface, which will be bounded to it. This will be help Inversify during the dependency injection process at runtime.
 
 ```js
-// file: wallet.repo.ts
+// wallet.repo.ts
+
 import { IFundWallet } from "./wallet.interface";
 
 export FundWallet implements IWallet{
@@ -57,7 +58,7 @@ export FundWallet implements IWallet{
 Next, we create a container class for binding the necessary interfaces with their respective implementations.
 
 ```js
-// file: inversify.config.ts
+// inversify.config.ts
 
 import { Container } from "inversify";
 import { IFundWallet} from "./wallet.interface";
@@ -76,7 +77,7 @@ export container;
 Next, we create the `Wallet` class for handling the `fund` and `withdrawal` event. Note that the `Wallet` class is `injectable()` by default;
 
 ```js
-// file: wallet.ts
+// wallet.ts
 import { eventGroup, handler } from "@risevest/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
@@ -103,7 +104,7 @@ export class Wallet {
 Let's create a helper file for testing the consumer;
 
 ```js
-// file: amqp.helper.ts
+// amqp.helper.ts
 
 import amqp, { Channel, Connection } from "amqplib";
 
@@ -141,7 +142,7 @@ export async function createQueue(ampqURl: string) {
 Finally, we create the consumer instance
 
 ```js
-// file: index.ts
+// index.ts
 
 import { Logger, Consumer, defaultSerializers } from "@risevest/octonet";
 import amqp from "amqplib";

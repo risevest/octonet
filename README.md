@@ -53,11 +53,11 @@ npm install --save @risevest/octonet reflect-metadata inversify
 
 The features Octonet provides are listed below:
 
-- HTTP (Interservice Comunication)
-- Decorators & Consumer (subscribing to Manator API)
-- Authentication
-- Errors
-- Logging
+- [HTTP (Interservice Comunication)]()
+- [Decorators & Consumer (subscribing to Manator API)]()
+- [Authentication]()
+- [Errors]()
+- [Logging]()
 
 ## References and Helpful Links
 
