@@ -17,21 +17,23 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-The following are required for Octonet to work properly:
+The following are required for the best use of Octonet:
 
-- NodeJs (v14 or higher)
-- NPM/Yarn
-- Typescript (v4.4 or higher)
+- Device Requirements
+  - NodeJs (v14 or higher)
+  - NPM/Yarn
+  - Typescript (v4.4 or higher)
+- A basic understanding of dependency injection with Inversify
 
 ### Installation
 
 To install Octonet, run the following command in your terminal
 
 ```bash
-npm install --save @risevest/octonet reflect-metadata
+npm install --save @risevest/octonet reflect-metadata inversify
 ```
 
-> Note: Octonet requires Typescript(version listed above), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:
+> Note: Octonet requires Typescript (>= v4.4), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:
 
 ```json
 {
@@ -52,7 +54,7 @@ npm install --save @risevest/octonet reflect-metadata
 The features Octonet provides are listed below:
 
 - HTTP (Interservice Comunication)
-- Consumer (subscribing to Manator API)
+- Decorators & Consumer (subscribing to Manator API)
 - Authentication
 - Errors
 - Logging
