@@ -45,3 +45,39 @@ In this case, the custom-defined scheme is `Rise`. It could be any other arbitra
 These are requests made from a service to an external (third-party) service. For example, the transaction service making a request to Paystack.
 
 #### Practical application (in progress)
+
+## HTTP Errors
+
+The various types of HTTP errors provided by Octonet are summarized in the table below
+
+| Error Class                 | Constructor Parameter |
+| --------------------------- | --------------------- |
+| `NoRequestIDError`          | url                   |
+| `NoAuthorizationTokenError` | url                   |
+| `HttpError`                 | url                   |
+| `TimeoutError`              | url                   |
+| `APIError`                  | url                   |
+
+### Basic example
+
+Let's see a basic example
+
+```js
+// example.ts
+
+import express from "express";
+import { NoRequestIDError } from "@risevest/octonet";
+
+// express app
+const app = express();
+
+// simple API
+app.get('/test-route', (req, res) => {
+    try {
+           doSomething();
+        } catch(err){
+            throw new NoRequestIDError(req.url);
+        }
+    }
+});
+```
