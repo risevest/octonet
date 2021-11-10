@@ -158,7 +158,7 @@ const queue: Queue;
 // create a Logger instance
 const logger = new Logger({
     name: "wallet_demo",
-    serializers: defaultSerializers(),
+    serializers: defaultSerializers('password'),
     verbose: false
 });
 

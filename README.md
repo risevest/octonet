@@ -49,15 +49,17 @@ npm install --save @risevest/octonet reflect-metadata inversify
 }
 ```
 
-## Features and API reference
+## Guides
 
-The features Octonet provides are listed below:
+Below are links to detailed explanations to the various features of Octonet as well as practical examples:
 
 - [HTTP (Interservice Comunication)]()
 - [Decorators & Consumer (subscribing to Manator API)]()
 - [Authentication]()
 - [Errors]()
 - [Logging]()
+
+## API Reference
 
 ## References and Helpful Links
 
