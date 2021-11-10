@@ -42,7 +42,7 @@ The _commission_ function creates a cryptographic token using a secret and a spe
 **value:** The value to be referenced with the token. Typically, this is the session object
 **time:** The lifespan (expiry time) of the token, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library (see reference section at the end of this document).
 
-### Return value
+#### Return value
 
 It returns a promise that resolves to the created token.
 
