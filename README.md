@@ -67,3 +67,4 @@ The following links would further aid the understanding of Octonet
 - [Typescript Decorators](https://www.typescriptlang.org/docs/handbook/decorators.html)
 - [AMPQ Client docs for NodeJs](http://www.squaremobius.net/amqp.node/channel_api.html)
 - [Bunyan](https://github.com/trentm/node-bunyan#readme)
+- [Axios](https://axios-http.com/docs/intro)
