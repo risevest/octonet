@@ -180,7 +180,9 @@ const logger = new Logger({
 
 **Interpretation:**
 
-- When the project is executed at runtime, two events namely `wallet.fund` and `wallet.withdraw` are created, courtesy of the `@eventGroup` and `@handler` decorators.
-- Once the consumer instance has been created, the `listen` method creates queues from the metadata stored on the global `Reflect` object.
-- In this case, the queues created are: `WALLET_FUND` and `WALLET_WITHDRAW` queues
+- When the project is executed at runtime, event-related metadata are created on the `Reflect` object courtesy of the `@eventGroup` and `@handler` decorators.
+- ,
+- Once the consumer instance has been created, the constructor creates a list of events using the event-related metadata previously stored on the `Reflect` object. Hence, two events namely `wallet.fund` and `wallet.withdraw` are created.
+- The `listen` method creates queues from the list of events being maintained by the `Consumer` class.
+- In this case, the queues created are: `WALLET_FUND` and `WALLET_WITHDRAW` queues.
 - For testing, once a payload (amount) has been passed to either the `WALLET_FUND` or `WALLET_WITHDRAW` event, the `executeWalletFunding()` or `executeWalletWithdrawal()` function respectively is called in the `Wallet` class.
