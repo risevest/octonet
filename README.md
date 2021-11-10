@@ -58,8 +58,6 @@ Below are links to detailed explanations to the various features of Octonet as w
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
 
-## API Reference
-
 ## References and Helpful Links
 
 The following links would further aid the understanding of Octonet
