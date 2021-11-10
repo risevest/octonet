@@ -53,11 +53,10 @@ npm install --save @risevest/octonet reflect-metadata inversify
 
 Below are links to detailed explanations to the various features of Octonet as well as practical examples:
 
-- [HTTP (Interservice Comunication)]()
-- [Decorators & Consumer (subscribing to Manator API)]()
-- [Authentication]()
-- [Errors]()
-- [Logging]()
+- [HTTP (Interservice Comunication)](docs/HTTP.md)
+- [Decorators & Consumer (subscribing to Manator API)](docs/Consumer.md)
+- [Authentication](docs/Authentication.md)
+- [Logging](docs/Logging.md)
 
 ## API Reference
 
