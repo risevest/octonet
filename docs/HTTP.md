@@ -25,7 +25,7 @@ req.headers.authorization = `Bearer ${token}`.
 
 The scheme in this case is `Bearer`.
 
-#### Practical application
+#### Practical application (in progress)
 
 ### System-level requests
 
@@ -38,10 +38,10 @@ req.headers.authorization = `Rise ${token}`;
 
 In this case, the custom-defined scheme is `Rise`. It could be any other arbitrary value.
 
-#### Practical application
+#### Practical application (in progress)
 
 ### External API requests
 
 These are requests made from a service to an external (third-party) service. For example, the transaction service making a request to Paystack.
 
-#### Practical application
+#### Practical application (in progress)

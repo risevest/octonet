@@ -100,7 +100,7 @@ export class Logger {
    * Log internal application error
    * @param message additional error description
    */
-  error(entry: string | LogError) {
-    this.logger.error(entry);
+  error(message: string | LogError) {
+    this.logger.error(message);
   }
 }

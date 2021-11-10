@@ -138,13 +138,13 @@ Next, we create a Redis client.
 // redis.config.ts
 
 import IORedis from "ioredis";
-import Log from "./logger";
+import Logger from "./logger";
 
 const redis_url = "redis://localhost:6379"; // read this from your .env file
 const Redis = new IORedis(redis_url);
 
 Redis.on("error", err => {
-  Log.internalError(err, "An error occured with the Redis client.");
+  Logger.error(err, "An error occured with the Redis client.");
 });
 
 export default Redis;
