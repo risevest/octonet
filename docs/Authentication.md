@@ -7,11 +7,11 @@ This section describes how Authentication is performed in Octonet.
 The Authentication module in Octonet exists for 2 main reasons:
 
 - User session management
-- Service session management
+- System session management
 
-These involves managing sessions for requests initiated by the user or the service. Usually, a session token is provided in the request header through which a session object is obtained.
+These involve managing sessions for requests initiated by the user or the system. Usually, a session token is provided in the request header through which a session object is obtained.
 
-One way through which a user session can be differentiated from a service session is the `scheme` value. This is depicted as shown below.
+One way through which a user session can be differentiated from a system session is the `scheme` value. This is depicted as shown below.
 
 ```js
 // express request headers.
@@ -22,19 +22,19 @@ req.headers.authorization = `${scheme} ${token}`;
 // request header for a user session with a `Bearer` scheme
 req.headers.authorization = `Bearer ${token}`;
 
-// request header for a service session with a custom-defined scheme
+// request header for a system session with a custom-defined scheme
 req.headers.authorization = `Rise ${token}`;
 ```
 
-> Note that a user can only have a **single** token in Redis store at any point in time. Tis is because the cryptographic function for generating a token is **idempotent**. Hence, it returns the same value regardless of the number of times the function is being called.
+> Note that a user can only have a **single** token in Redis store at any point in time. This is because the cryptographic function for generating a token is **idempotent**. Hence, it returns the same value regardless of the number of times the function is being called.
 
-## Utility functions
+## Utility methods
 
 There are 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
 
 ### commision<T = any>(key: string, val: T, time: string): Promise<string>
 
-The _commission_ function creates a cryptographic token using a secret and a specified key, and saves the created token in Redis.
+The _commission_ function creates a cryptographic token using a secret and a specified key, and saves the data for that key in Redis. The saved data can be accessed via the token.
 
 #### Parameters
 
@@ -48,7 +48,7 @@ It returns a promise that resolves to the created token.
 
 ### peek<T = any>(token: string): AsyncNullable<T>
 
-The _peak_ function retrieves the session object from Redis which the token points to.
+The _peak_ function retrieves the session object from Redis which the token points to. However, it doesn't change the validity of the token.
 
 #### Parameters
 
@@ -112,27 +112,9 @@ No return value
 
 Let's look at practial applications of these utility functions.
 
-### Step 1: create a Logger object
+### Step 1: create a Redis Client
 
-First, we create a Logger object (see reference below for Logging in Octonet)
-
-```js
-// logger.ts
-
-import { Logger, defaultSerializers } from "@risevest/octonet";
-
-const logger: Logger = new Logger({
-  name: "wallet_demo",
-  serializers: defaultSerializers("password"),
-  verbose: false
-});
-
-export default logger;
-```
-
-### Step 2: create a Redis Client
-
-Next, we create a Redis client.
+First, we create a Redis client.
 
 ```js
 // redis.config.ts
@@ -150,9 +132,9 @@ Redis.on("error", err => {
 export default Redis;
 ```
 
-### Step 3: create and use `RedisStore` instance
+### Step 2: create and use `RedisStore` instance
 
-Finally, we create and Octonet's `RedisStore` instance as shown below
+Next, we create and Octonet's `RedisStore` instance as shown below
 
 ```js
 // redis.store.ts
@@ -172,7 +154,7 @@ const session = {
 
 const redisStore: RedisStore = new RedisStore(SECRET, Redis);
 
-// sample immediately invoking start function, for the purpose of this example
+// sample immediately invoking start function for the purpose of this example
 (async function () {
   // create a token with an expiry time of 1 hour
   const token: string = await redisStore.commission(key, session, "1h"); // returns a cryptographic token

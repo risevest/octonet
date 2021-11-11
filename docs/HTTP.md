@@ -50,13 +50,13 @@ These are requests made from a service to an external (third-party) service. For
 
 The various types of HTTP errors provided by Octonet are summarized in the table below
 
-| Error Class                 | Constructor Parameter |
-| --------------------------- | --------------------- |
-| `NoRequestIDError`          | url                   |
-| `NoAuthorizationTokenError` | url                   |
-| `HttpError`                 | url                   |
-| `TimeoutError`              | url                   |
-| `APIError`                  | url                   |
+| Error Class                 | Description                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NoRequestIDError`          | Usually thrown when a request header `X-Request-ID` is absent (i.e, `req.headers['x-request-id']` is `undefined`).                         |
+| `NoAuthorizationTokenError` | Usually thrown when a request is sent without a token (i.e, `req.headers.authorization` is `undefined`).                                   |
+| `HttpError`                 | Usually thrown when a request to a particular url endpoint failed without a status code..                                                  |
+| `TimeoutError`              | Usually thrown when a request to an endpoint has exceeded the configured timeout value.                                                    |
+| `APIError`                  | Usually thrown when a request to an API endpoint failed with a specified status code (which gives an insight to the reason for the error). |
 
 ### Basic example
 

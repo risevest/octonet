@@ -8,7 +8,7 @@
 Octonet is an internal library (Rise) that provides utility functions for building microservices such as:
 
 - Interservice communication (via REST)
-- Subscribing to events from [Manator API](https://github.com/risevest/manator-api)
+- Subscribing to events from RabbitMQ queues.
 - Authentication
 
 ## Getting Started
@@ -19,9 +19,9 @@ These instructions will get you a copy of the project up and running on your loc
 
 The following are required for the best use of Octonet:
 
-- Device Requirements
+- Package Dependencies
   - NodeJs (v14 or higher)
-  - NPM/Yarn
+  - Yarn
   - Typescript (v4.4 or higher)
 - A basic understanding of dependency injection with Inversify
 
@@ -30,7 +30,7 @@ The following are required for the best use of Octonet:
 To install Octonet, run the following command in your terminal
 
 ```bash
-npm install --save @risevest/octonet reflect-metadata inversify
+yarn install --save @risevest/octonet reflect-metadata inversify
 ```
 
 > Note: Octonet requires Typescript (>= v4.4), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:
@@ -54,7 +54,7 @@ npm install --save @risevest/octonet reflect-metadata inversify
 Below are links to detailed explanations to the various features of Octonet as well as practical examples:
 
 - [HTTP (Interservice Comunication)](docs/HTTP.md)
-- [Decorators & Consumer (subscribing to Manator API)](docs/Consumer.md)
+- [Consumer (subscribing to events)](docs/Consumer.md)
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
 

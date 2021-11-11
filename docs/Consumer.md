@@ -1,26 +1,28 @@
-# Decorators & Consumer
+# Consumer
 
-This describes the Decorator and Consumer API
+This describes the Consumer API.
 
 ## Decorators
 
-Decorators (in this context) are functions used to retrieve and store metadata about consumer classes. The two decorators used in Octonet are as follows:
+Decorators are annotations required to support the event classes. The two decorators used in Octonet are as follows:
 
-- **eventGroup** [*@eventGroup(name: string)*]: This decorator is annotated at the top of a Consumer class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers. It is used as follows:
+- **eventGroup** [*@eventGroup(name: string)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
 
-- **handler** [_@handler(event: string)_]: The handler decorator is annotated at the top of a handler function. A handler function is a function that is executed when a particular event is dispatched.
+- **handler** [_@handler(event: string)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
 
 ## Consumer
 
-The Octonet Consumer is used to listen for events dispatched from the [Manator API](https://github.com/risevest/manator-api). These events are then handled by event classes containing handler functions.
+The Octonet Consumer is used to listen for events dispatched from different systems. These events are then handled by event classes containing handler functions.
 
 ## Basic example
 
-Let's look at a practical application of decorators and the consumer class. Basically, our goal is to have a `Wallet` class which handles two wallet-related events namely: `fund` and `withdrawal`.
+Let's look at a practical application of decorators, an event class and a consumer class. Basically, our goal is to have a `Wallet` event class which handles two wallet-related events namely: `fund` and `withdrawal`.
 
 ### Step 1: Creating types and interface
 
-First, we create types and interfaces. Theses interfaces will contain methods necessary for the functionality of the `fund` and `withdrawal` methods in our `Wallet` class.
+First, we create types and interfaces. The interface is an abstraction which is responsible for the core functionality for the `Wallet` class.
+
+Theses interfaces will contain methods necessary for the functionality of the `executeFunding` and `executeWithdrawal` methods in our `Wallet` class.
 
 Let's create our interface.
 
@@ -174,15 +176,4 @@ const logger = new Logger({
     await queue.push('WALLET_WITHDRAW', 100);
 })();
 
-
-
 ```
-
-**Interpretation:**
-
-- When the project is executed at runtime, event-related metadata are created on the `Reflect` object courtesy of the `@eventGroup` and `@handler` decorators.
-- ,
-- Once the consumer instance has been created, the constructor creates a list of events using the event-related metadata previously stored on the `Reflect` object. Hence, two events namely `wallet.fund` and `wallet.withdraw` are created.
-- The `listen` method creates queues from the list of events being maintained by the `Consumer` class.
-- In this case, the queues created are: `WALLET_FUND` and `WALLET_WITHDRAW` queues.
-- For testing, once a payload (amount) has been passed to either the `WALLET_FUND` or `WALLET_WITHDRAW` event, the `executeWalletFunding()` or `executeWalletWithdrawal()` function respectively is called in the `Wallet` class.

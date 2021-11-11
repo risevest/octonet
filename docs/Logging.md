@@ -64,13 +64,13 @@ The _log_ message logs simple messages
 
 **entry:** Entry message to be logged
 
-### error(message: string | LogError)
+### error(entry: string | LogError)
 
 The _error_ function logs internal application error.
 
 #### Parameters
 
-**message:** additional error description
+**entry:** additional error description
 
 ## Practical examples
 

@@ -98,9 +98,9 @@ export class Logger {
 
   /**
    * Log internal application error
-   * @param message additional error description
+   * @param entry additional error description
    */
-  error(message: string | LogError) {
-    this.logger.error(message);
+  error(entry: string | LogError) {
+    this.logger.error(entry);
   }
 }
