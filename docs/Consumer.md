@@ -148,6 +148,7 @@ Finally, we create the consumer instance
 
 import { Logger, Consumer, defaultSerializers } from "@risevest/octonet";
 import amqp from "amqplib";
+import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";
 import { createQueue, Queue } from "./amqp.helper";
 
