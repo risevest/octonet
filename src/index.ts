@@ -1,8 +1,7 @@
-export * from "./http/base";
-export * from "./http/client";
+export * from "./http/agent";
 export * from "./http/errors";
-export * from "./http/external";
-export * from "./http/service";
+export * as jwt from "./http/jwt";
+export * from "./http/wrapper";
 export * from "./logging/logger";
 export * from "./logging/serializers";
 export * from "./tokens/redis.store";
