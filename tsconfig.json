@@ -11,12 +11,12 @@
     "noUnusedLocals": true,
     "moduleResolution": "node",
     "baseUrl": "./src",
-    "typeRoots": ["./node_modules/@types"],
-    "types": ["reflect-metadata", "jest"],
+    "typeRoots": ["./node_modules/@types", "types/**/*.d.ts"],
+    "types": ["reflect-metadata", "mocha"],
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
   "exclude": ["src/**/*.spec.ts"],
-  "include": ["typings/**/*.d.ts", "src/**/*"]
+  "include": ["types/**/*.d.ts", "src/**/*"]
 }

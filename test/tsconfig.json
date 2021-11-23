@@ -1,0 +1,13 @@
+{
+  "include": ["./**/*.ts"],
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2017",
+    "module": "commonjs",
+    "lib": ["es2017", "esnext.asynciterable", "dom"],
+    "rootDir": ".",
+    "types": ["reflect-metadata", "mocha"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}
