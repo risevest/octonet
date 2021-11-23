@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build & Test
+name: Deploy
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - release
 
 jobs:
-  build-test:
+  deploy:
 
     runs-on: ubuntu-latest
 
