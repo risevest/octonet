@@ -1,12 +1,12 @@
 export class NoRequestIDError extends Error {
   constructor(url: string) {
-    super(`Request to ${url} cannot be traced`);
+    super(`Request to ${url} requires a request ID`);
   }
 }
 
 export class NoAuthorizationTokenError extends Error {
   constructor(url: string) {
-    super(`Request to ${url} requires an authorization token. "authorization" header not set`);
+    super(`Request to ${url} requires an authorization token`);
   }
 }
 
