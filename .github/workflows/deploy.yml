@@ -19,6 +19,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: "14.x"
+        registry-url: 'https://registry.npmjs.org'
     
     - name: Cache node modules
       uses: actions/cache@v2
@@ -33,9 +34,6 @@ jobs:
     - name: Build and publish
       run: |
         yarn build
-        yarn npm-cli-login
         npm publish --access public
       env:
-        NPM_USER: ${{ secrets.NPM_USER }}
-        NPM_PASS: ${{ secrets.NPM_PASS }}
-        NPM_EMAIL: ${{ secrets.NPM_EMAIL }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
