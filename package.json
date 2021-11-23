@@ -1,7 +1,7 @@
 {
-  "name": "@risevest/octonet",
+  "name": "@risemaxis/octonet",
   "version": "0.1.0",
-  "description": "Template for risevest libraries",
+  "description": "Web toolkit for rise macro services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
