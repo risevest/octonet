@@ -1,34 +1,40 @@
 import express, { Application } from "express";
 import { Server } from "http";
+import multer from "multer";
 import { sleep } from "../helpers";
 
 export interface TestRequest {
   method: string;
   headers: any;
   body?: any;
-  params?: any;
+  query?: any;
   token?: string;
 }
 
 export function createTestApp() {
   const app = express();
   app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: true }));
+  const uploads = multer();
 
   app.get("/test", (req, res) => {
-    return res.json({ method: req.method, headers: req.headers, params: req.params });
+    return res.json({ method: req.method, headers: req.headers, query: req.query });
+  });
+
+  app.delete("/test", (req, res) => {
+    return res.json({ method: req.method, headers: req.headers, query: req.query });
   });
 
   app.get("/test/timeout", async (req, res) => {
     await sleep(1000);
-    return res.json({ method: req.method, headers: req.headers, params: req.params });
+    return res.json({ method: req.method, headers: req.headers, query: req.query });
   });
 
   app.get("/test/error", (_req, res) => {
     return res.status(422).json({ message: "an error occurred" });
   });
 
-  app.post("/test", (req, res) => {
+  app.post("/test", uploads.none(), (req, res) => {
     return res.json({ method: req.method, headers: req.headers, body: req.body });
   });
 
