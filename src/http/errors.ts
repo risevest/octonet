@@ -1,6 +1,6 @@
 export class NoRequestIDError extends Error {
   constructor(url: string) {
-    super(`Request to ${url} cannot be  because Request ID was not set`);
+    super(`Request to ${url} requires a request ID`);
   }
 }
 
