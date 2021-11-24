@@ -73,7 +73,9 @@ export class Consumer {
     }
   }
 
-  close() {
-    return this.channel.close();
+  close(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      return this.channel.close().then(resolve, reject);
+    });
   }
 }
