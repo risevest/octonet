@@ -1,5 +1,5 @@
 {
-  "name": "@risemaxis/octonet",
+  "name": "@risemaxi/octonet",
   "version": "0.1.0",
   "description": "Web toolkit for rise macro services",
   "main": "dist/index.js",
