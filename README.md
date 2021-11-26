@@ -30,7 +30,7 @@ The following are required for the best use of Octonet:
 To install Octonet, run the following command in your terminal
 
 ```bash
-yarn install --save @risevest/octonet reflect-metadata inversify
+yarn install --save @risemaxi/octonet reflect-metadata inversify
 ```
 
 > Note: Octonet requires Typescript (>= v4.4), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:

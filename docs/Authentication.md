@@ -139,7 +139,7 @@ Next, we create and Octonet's `RedisStore` instance as shown below
 ```js
 // redis.store.ts
 
-import { RedisStore } from "@risevest/octonet";
+import { RedisStore } from "@risemaxi/octonet";
 import Redis from "./redis.config";
 
 const SECRET = "my_secret"; // use the secret specified in your .env file

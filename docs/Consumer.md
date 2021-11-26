@@ -80,7 +80,7 @@ Next, we create the `Wallet` class for handling the `fund` and `withdrawal` even
 
 ```js
 // wallet.ts
-import { eventGroup, handler } from "@risevest/octonet";
+import { eventGroup, handler } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
@@ -146,7 +146,7 @@ Finally, we create the consumer instance
 ```js
 // index.ts
 
-import { Logger, Consumer, defaultSerializers } from "@risevest/octonet";
+import { Logger, Consumer, defaultSerializers } from "@risemaxi/octonet";
 import amqp from "amqplib";
 import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";

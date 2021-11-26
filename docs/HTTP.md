@@ -66,7 +66,7 @@ Let's see a basic example
 // example.ts
 
 import express from "express";
-import { NoRequestIDError } from "@risevest/octonet";
+import { NoRequestIDError } from "@risemaxi/octonet";
 
 // express app
 const app = express();
