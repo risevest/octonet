@@ -3,6 +3,7 @@ import FormData from "form-data";
 import { each } from "lodash";
 import qs from "qs";
 import { v4 } from "uuid";
+
 import { APIError, HttpError, NoAuthorizationTokenError, NoRequestIDError, TimeoutError } from "./errors";
 import { encode } from "./jwt";
 
@@ -153,7 +154,7 @@ export class RequestWrapper<T extends object> {
 
       // push till when the request is being made
       return this.defer(async () => {
-        const token = await encode(this.authConfig.scheme, this.authConfig.secret, this.authConfig.timeout, reqSession);
+        const token = await encode(this.authConfig.secret, this.authConfig.timeout, reqSession);
 
         Object.assign(this.request.headers, {
           Authorization: `${this.authConfig.scheme} ${token}`
