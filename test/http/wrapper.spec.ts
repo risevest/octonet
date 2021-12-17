@@ -1,10 +1,12 @@
+import { Server } from "http";
+
 import axios from "axios";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import faker from "faker";
-import { Server } from "http";
 import { before } from "mocha";
 import { v4 } from "uuid";
+
 import { HttpMethod } from "../../src/http/agent";
 import { APIError, NoAuthorizationTokenError, NoRequestIDError, TimeoutError } from "../../src/http/errors";
 import * as jwt from "../../src/http/jwt";
@@ -166,7 +168,7 @@ describe("RequestWrapper#auth", () => {
     expect(res.headers.authorization).to.match(/Test\s.+/);
 
     const [, token] = res.headers.authorization.split(" ");
-    const session = await jwt.decode("Test", secret, token);
+    const session = await jwt.decode(secret, token);
 
     expect(session).to.be.eql(data);
   });
@@ -180,7 +182,7 @@ describe("RequestWrapper#auth", () => {
     expect(res.headers.authorization).to.match(/Test\s.+/);
 
     const [, token] = res.headers.authorization.split(" ");
-    const session = await jwt.decode("Test", secret, token);
+    const session = await jwt.decode(secret, token);
 
     expect(session.service).to.be.eq(service);
     expect(Date.parse(session.request_time)).to.not.be.NaN;
