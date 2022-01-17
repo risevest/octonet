@@ -4,7 +4,7 @@ export class Queue {
   private queues = new Set<string>();
   constructor(private conn: Connection, private chan: Channel) {}
 
-  async push(queue: string, data: any) {
+  async push(queue: string, data: any = {}) {
     this.queues.add(queue);
     await this.chan.assertQueue(queue, { durable: true });
     return this.chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
