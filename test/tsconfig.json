@@ -1,5 +1,5 @@
 {
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "../src/**/*.ts"],
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "target": "ES2017",

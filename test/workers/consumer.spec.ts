@@ -1,13 +1,15 @@
+import "reflect-metadata";
+
 import amqp from "amqplib";
 import { expect } from "chai";
 import faker from "faker";
 import { Container } from "inversify";
-import "reflect-metadata";
-import { defaultSerializers, Logger } from "../../src";
+
+import { Logger, defaultSerializers } from "../../src";
 import { Consumer } from "../../src/";
 import { sleep } from "../helpers";
-import { createQueue, Queue } from "./helpers/amqp.helper";
-import { mockFund, mockWithdrawal, Wallet, WalletStub, WalletStubTag } from "./helpers/wallet.helper";
+import { Queue, createQueue } from "./helpers/amqp.helper";
+import { Wallet, WalletStub, WalletStubTag, mockClose, mockFund, mockWithdrawal } from "./helpers/wallet.helper";
 
 const amqpURL = "amqp://localhost:5672";
 export const logger = new Logger({
@@ -47,5 +49,13 @@ describe("Consumer", () => {
     await sleep(300);
 
     expect(withdraw.called).to.be.true;
+  });
+
+  it("should consume the events without prefixes", async () => {
+    const close = mockClose();
+    await queue.push("CLOSE_GROUP");
+    await sleep(300);
+
+    expect(close.called).to.be.true;
   });
 });

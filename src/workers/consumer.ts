@@ -1,6 +1,8 @@
-import { Channel, Connection } from "amqplib";
 import { EventEmitter } from "events";
+
+import { Channel, Connection } from "amqplib";
 import { Container } from "inversify";
+
 import { Logger } from "../logging/logger";
 import { eventGroupKey, eventHandlerKey } from "./constants";
 import { HandlerMeta } from "./interfaces";
@@ -44,7 +46,7 @@ export class Consumer {
       methodMeta.forEach(({ event, method, group }) => {
         const instance = container.getNamed(EVENT_GROUP_TAG, group);
         const handlerFn = instance[method].bind(instance);
-        const fullEvent = `${prefix}.${event}`;
+        const fullEvent = !prefix ? event : `${prefix}.${event}`;
 
         this.events.add(fullEvent);
 
