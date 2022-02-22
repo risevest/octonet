@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+
 import { Logger } from "../logging/logger";
 import { AuthConfig, RequestWrapper } from "./wrapper";
 
@@ -96,7 +97,7 @@ export class HttpAgent {
         logger.error({ err });
       }
 
-      return err;
+      return Promise.reject(err);
     };
 
     this.instance.interceptors.request.use(onRequest, Promise.reject);
