@@ -1,16 +1,19 @@
 import { Server } from "http";
 
 import axios from "axios";
+import { RingBuffer } from "bunyan";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import faker from "faker";
 import { before } from "mocha";
 import { v4 } from "uuid";
 
-import { HttpMethod } from "../../src/http/agent";
+import { HttpAgent, HttpMethod } from "../../src/http/agent";
 import { APIError, NoAuthorizationTokenError, NoRequestIDError, TimeoutError } from "../../src/http/errors";
 import * as jwt from "../../src/http/jwt";
 import { RequestWrapper } from "../../src/http/wrapper";
+import { Logger } from "../../src/logging/logger";
+import { defaultSerializers } from "../../src/logging/serializers";
 import { randomString } from "../helpers";
 import { createTestApp, startServer, stopServer } from "./server";
 
@@ -219,6 +222,27 @@ describe("RequestWrapper#do", () => {
   it("handles API errors", async function () {
     const request = { method: HttpMethod.GET, url: `${mockResourceURL}/error` };
     const req = new RequestWrapper(axiosInstance, service, authConfig, request);
+    const promise = req.do();
+
+    await expect(promise).rejectedWith(APIError);
+
+    let err: APIError;
+    try {
+      await promise;
+    } catch (error) {
+      err = error;
+    }
+
+    expect(err.status).to.be.eq(422);
+    expect(err.data).to.haveOwnProperty("message");
+    expect(err.data.message).to.be.eq("an error occurred");
+  });
+
+  it("handles API errors even with logging", async function () {
+    const ringbuffer = new RingBuffer({ limit: 5 });
+    const logger = new Logger({ name: "logger_tests", buffer: ringbuffer, serializers: defaultSerializers() });
+    const agent = new HttpAgent({ service: "test_service", secret: randomString(32), scheme: "Test", logger });
+    const req = agent.makeRequest(HttpMethod.GET, `${mockResourceURL}/error`);
     const promise = req.do();
 
     await expect(promise).rejectedWith(APIError);
