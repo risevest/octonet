@@ -89,15 +89,21 @@ export class Logger {
   }
 
   /**
-   * Simple message log
-   * @param message entry message to be logged
-   * @param metadata additional data to be loggwed with the message
+   * Log data
+   * @param metadata data to be loggwed
    */
-  log(message: string, metadata?: any) {
-    if (metadata) {
-      this.logger.info({ metadata }, message);
+  log(metadata: object): void;
+  /**
+   * Logs data with a message
+   * @param message message to be logged
+   * @param metadata data to be logged
+   */
+  log(message: string, metadata?: object): void;
+  log(entry: string | any, metadata?: object) {
+    if (typeof entry === "string" && metadata) {
+      this.logger.info(metadata, entry);
     } else {
-      this.logger.info(message);
+      this.logger.info(entry);
     }
   }
 

@@ -94,7 +94,7 @@ export class HttpAgent {
       if (err.response) {
         logger.axiosError(err);
       } else {
-        logger.error({ err });
+        logger.error(err);
       }
 
       return Promise.reject(err);
