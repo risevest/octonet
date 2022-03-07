@@ -1,21 +1,21 @@
 import { expect } from "chai";
 import faker from "faker";
 import IORedis, { Redis } from "ioredis";
-import { after } from "mocha";
+
 import { RedisStore } from "../../src";
 import { randomString, sleep } from "../helpers";
 
 let redis: Redis;
 let store: RedisStore;
 
-before(async () => {
+beforeAll(async () => {
   const secret = randomString(32);
 
   redis = new IORedis();
   store = new RedisStore(secret, redis);
 });
 
-after(async () => {
+afterAll(async () => {
   await redis.quit();
 });
 

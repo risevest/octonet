@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import amqp from "amqplib";
+import amqp, { Connection } from "amqplib";
 import { expect } from "chai";
 import faker from "faker";
 import { Container } from "inversify";
@@ -19,15 +19,24 @@ export const logger = new Logger({
 });
 
 let queue: Queue;
+let testConsumer: Consumer;
+let connection: Connection;
 
-before(async () => {
+beforeAll(async () => {
   const testContainer = new Container();
   testContainer.bind<WalletStub>(WalletStubTag).toConstantValue(Wallet);
 
-  const testConsumer: Consumer = new Consumer(testContainer, logger);
-  testConsumer.listen(await amqp.connect(amqpURL));
+  connection = await amqp.connect(amqpURL);
+  testConsumer = new Consumer(testContainer, logger);
+  testConsumer.listen(connection);
 
   queue = await createQueue("amqp://localhost:5672");
+});
+
+afterAll(async () => {
+  await queue.stop();
+  await testConsumer.close();
+  await connection.close();
 });
 
 describe("Consumer", () => {

@@ -5,7 +5,6 @@ import { RingBuffer } from "bunyan";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import faker from "faker";
-import { before } from "mocha";
 import { v4 } from "uuid";
 
 import { HttpAgent, HttpMethod } from "../../src/http/agent";
@@ -35,13 +34,13 @@ const authConfig = {
 const requestIDHeader = "x-request-id";
 const originServiceHeader = "x-origin-service";
 
-before(async () => {
+beforeAll(async () => {
   const app = createTestApp();
   [server, port] = await startServer(app);
   mockResourceURL = `http://localhost:${port}/test`;
 });
 
-after(async () => {
+afterAll(async () => {
   await stopServer(server);
 });
 
@@ -202,8 +201,6 @@ describe("RequestWrapper#do", () => {
   });
 
   it("cause a timeout with 500ms timeout", async function () {
-    this.timeout(1500);
-
     const request = { method: HttpMethod.GET, url: `${mockResourceURL}/timeout` };
     const req = new RequestWrapper(axiosInstance, service, authConfig, request);
 
@@ -211,8 +208,6 @@ describe("RequestWrapper#do", () => {
   });
 
   it("not cause a timeout with 5s timeout", async function () {
-    this.timeout(1500);
-
     const request = { method: HttpMethod.GET, url: `${mockResourceURL}/timeout` };
     const req = new RequestWrapper(axiosInstance, service, authConfig, request);
 

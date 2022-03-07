@@ -12,8 +12,8 @@
     "noUnusedLocals": true,
     "moduleResolution": "node",
     "baseUrl": "./src",
-    "typeRoots": ["./node_modules/@types", "types/**/*.d.ts"],
-    "types": ["reflect-metadata", "mocha"],
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["reflect-metadata", "jest", "node"],
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
