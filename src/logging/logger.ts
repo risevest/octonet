@@ -90,17 +90,23 @@ export class Logger {
 
   /**
    * Simple message log
-   * @param entry entry message to be logged
+   * @param message entry message to be logged
+   * @param metadata additional data to be loggwed with the message
    */
-  log(entry: string | object) {
-    this.logger.info(entry);
+  log(message: string, metadata?: any) {
+    if (metadata) {
+      this.logger.info({ metadata }, message);
+    } else {
+      this.logger.info(message);
+    }
   }
 
   /**
    * Log internal application error
-   * @param message additional error description
+   * @param err actual error being logged
+   * @param message custom error message
    */
-  error(entry: string | LogError) {
-    this.logger.error(entry);
+  error(err: Error, message?: string) {
+    this.logger.error(err, message);
   }
 }
