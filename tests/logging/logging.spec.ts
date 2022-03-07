@@ -1,20 +1,34 @@
+import http from "http";
+
 import axios from "axios";
 import Bunyan from "bunyan";
 import { expect } from "chai";
-import http from "http";
-import { defaultSerializers, Logger } from "../../src";
-import app from "./server";
+
+import { Logger, defaultSerializers } from "../../src";
+import { createLoggingApp } from "./server";
 
 const ringbuffer = new Bunyan.RingBuffer({ limit: 5 });
-export const logger = new Logger({
+const logger = new Logger({
   name: "logger_tests",
   buffer: ringbuffer,
   serializers: defaultSerializers("admin.password", "password")
 });
 
 const baseUrl = "http://localhost:3005";
-before(() => {
-  http.createServer(app).listen(3005);
+let server: http.Server;
+
+beforeAll(() => {
+  const app = createLoggingApp(logger);
+  server = http.createServer(app).listen(3005);
+});
+
+afterAll(() => {
+  return new Promise<void>((resolve, reject) => {
+    server.close(err => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
 });
 
 afterEach(() => {
