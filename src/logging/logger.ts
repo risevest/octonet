@@ -89,18 +89,30 @@ export class Logger {
   }
 
   /**
-   * Simple message log
-   * @param entry entry message to be logged
+   * Log data
+   * @param metadata data to be loggwed
    */
-  log(entry: string | object) {
-    this.logger.info(entry);
+  log(metadata: object): void;
+  /**
+   * Logs data with a message
+   * @param message message to be logged
+   * @param metadata data to be logged
+   */
+  log(message: string, metadata?: object): void;
+  log(entry: string | any, metadata?: object) {
+    if (typeof entry === "string" && metadata) {
+      this.logger.info(metadata, entry);
+    } else {
+      this.logger.info(entry);
+    }
   }
 
   /**
    * Log internal application error
-   * @param message additional error description
+   * @param err actual error being logged
+   * @param message custom error message
    */
-  error(entry: string | LogError) {
-    this.logger.error(entry);
+  error(err: Error, message?: string) {
+    this.logger.error(err, message);
   }
 }

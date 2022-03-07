@@ -1,25 +1,26 @@
+import { Server } from "http";
+
 import { RingBuffer } from "bunyan";
 import { expect } from "chai";
 import faker from "faker";
-import { Server } from "http";
-import { before } from "mocha";
+
 import { HttpAgent, HttpMethod } from "../../src/http/agent";
 import { Logger } from "../../src/logging/logger";
 import { defaultSerializers } from "../../src/logging/serializers";
 import { randomString } from "../helpers";
-import { createTestApp, startServer, stopServer, TestRequest } from "./server";
+import { TestRequest, createTestApp, startServer, stopServer } from "./server";
 
 let server: Server;
 let mockResourceURL: string;
 let port: number;
 
-before(async () => {
+beforeAll(async () => {
   const app = createTestApp();
   [server, port] = await startServer(app);
   mockResourceURL = `http://localhost:${port}/test`;
 });
 
-after(async () => {
+afterAll(async () => {
   await stopServer(server);
 });
 
