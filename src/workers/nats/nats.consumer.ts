@@ -1,18 +1,15 @@
 import { Logger } from "../../logging/logger";
-import { connect, consumerOpts, createInbox, JetStreamClient, JsMsg, NatsError } from "nats";
+import { consumerOpts, createInbox, JetStreamClient, JsMsg, NatsError } from "nats";
 import { natsStreamKey, natsHandlerKey } from "../constants";
-import { NatsHandlerMeta, NatsHandlerObject, NatsStreamMeta } from "../interfaces";
+import { NatsHandlerMeta, NatsHandlerObject } from "../interfaces";
 import { Container } from "inversify";
-import { handler } from "workers/decorators";
 
 export const STREAM_GROUP_TAG = Symbol.for("StreamGroup");
 
 export class NatsConsumer {
-  private natsClient;
   private handlerObjects: NatsHandlerObject[] = [];
 
-  constructor(container: Container, private logger: Logger, private jetstreamClient: JetStreamClient) {
-    this.jetstreamClient = jetstreamClient;
+  constructor(container: Container, private jetstreamClient: JetStreamClient, private logger: Logger) {
     const streamMeta = Reflect.getMetadata(natsStreamKey, Reflect) || [];
 
     streamMeta.forEach(({ stream, constructor }) => {
@@ -35,10 +32,7 @@ export class NatsConsumer {
     });
   }
 
-  async listen(url: string) {
-    this.natsClient = await connect({ servers: url });
-    this.jetstreamClient = await this.natsClient.jetstreamManager();
-
+  async listen() {
     for (const handlerObject of this.handlerObjects) {
       const { subject, handlerFunction } = handlerObject;
       const opts = consumerOpts();
