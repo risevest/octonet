@@ -2,8 +2,8 @@ import "reflect-metadata";
 
 import { decorate, injectable } from "inversify";
 
-import { eventGroupKey, eventHandlerKey } from "./constants";
-import { EventGroupMeta, HandlerMeta } from "./interfaces";
+import { eventGroupKey, eventHandlerKey, natsStreamKey, natsHandlerKey } from "./constants";
+import { EventGroupMeta, HandlerMeta, NatsStreamMeta, NatsHandlerMeta } from "./interfaces";
 
 /**
  * Declare a group of events with the same `prefix`.
@@ -40,6 +40,37 @@ export function handler(event: string): MethodDecorator {
       Reflect.defineMetadata(eventHandlerKey, methodMetadata, prototype.constructor);
     } else {
       methodMetadata = Reflect.getMetadata(eventHandlerKey, prototype.constructor);
+    }
+
+    methodMetadata.push(metadata);
+  };
+}
+
+export function natsStream(stream?: string) {
+  return function (constructor: Function) {
+    // make the class injectable by default
+    decorate(injectable(), constructor);
+
+    const metadata: NatsStreamMeta = { stream, constructor };
+    Reflect.defineMetadata(natsStreamKey, metadata, constructor);
+
+    // add to global list of nats streams
+    const streamMetadata: NatsStreamMeta[] = Reflect.getMetadata(natsStreamKey, Reflect) || [];
+    const updatedStreamMetadata = [metadata, ...streamMetadata];
+    Reflect.defineMetadata(natsStreamKey, updatedStreamMetadata, Reflect);
+  };
+}
+
+export function natsHandler(event: string): MethodDecorator {
+  return function (prototype: any, method: string, _desc: PropertyDescriptor) {
+    const streamGroup = prototype.constructor.name;
+    const metadata: NatsHandlerMeta = { event, streamGroup, method };
+
+    let methodMetadata: NatsHandlerMeta[] = [];
+    if (!Reflect.hasMetadata(natsHandlerKey, prototype.constructor)) {
+      Reflect.defineMetadata(natsHandlerKey, methodMetadata, prototype.constructor);
+    } else {
+      methodMetadata = Reflect.getMetadata(natsHandlerKey, prototype.constructor);
     }
 
     methodMetadata.push(metadata);
