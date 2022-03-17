@@ -11,6 +11,10 @@ type Constructor = new (...args: never[]) => any;
  */
 export interface Group {
   /**
+   * tag for the group
+   */
+  tag: string;
+  /**
    * middlewares for all handlers in the group
    */
   middleware: Middleware[];
@@ -47,9 +51,13 @@ export interface Handler {
  */
 export interface ParsedHandler {
   /**
-   * tag passed to the method
+   * tag for the group
    */
-  tag: string;
+  group_tag: string;
+  /**
+   * tag for the specific handler
+   */
+  handler_tag: string;
   /**
    * all the middleware defined for the group
    */
@@ -71,12 +79,12 @@ export interface ParsedHandler {
  * @param s namespace to store metadata
  */
 export function groupDecorator(s: Symbol) {
-  return function group(...middlewares: Middleware[]) {
+  return function group(tag: string, ...middleware: Middleware[]) {
     return function (constructor: Constructor) {
       // make the class injectable by default
       decorate(injectable(), constructor);
 
-      const metadata: Group = { middleware: middlewares, constructor };
+      const metadata: Group = { tag, middleware, constructor };
       Reflect.defineMetadata(s, metadata, constructor);
 
       // add to global list of event groups
@@ -116,7 +124,7 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
   const groups: Group[] = Reflect.getMetadata(groupKey, Reflect) || [];
   const handlers: ParsedHandler[] = [];
 
-  groups.forEach(({ middleware: groupMiddleware, constructor }) => {
+  groups.forEach(({ tag: groupTag, middleware: groupMiddleware, constructor }) => {
     const name = constructor.name;
     if (container.isBoundNamed(groupInstanceTag, name)) {
       throw new Error("You can't declare groups using the same class");
@@ -130,7 +138,8 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
       const handlerFn = instance[method].bind(instance);
 
       handlers.push({
-        tag: tag,
+        group_tag: groupTag,
+        handler_tag: tag,
         group_middleware: groupMiddleware,
         handler_middleware: middleware,
         handler: handlerFn
