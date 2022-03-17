@@ -1,0 +1,35 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.prometheus.ClusterRole.name }}
+rules:
+- apiGroups: [""]
+  resources:
+  - services
+  - endpoints
+  - pods
+  - nodes
+  - nodes/proxy
+  - nodes/metrics
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  - apps
+  resources:
+  - ingresses
+  - deployments
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.prometheus.ClusterRoleBinding.name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.prometheus.ClusterRole.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.prometheus.serviceAccountName }}
+  namespace: {{ .Values.prometheus.namespace}}
+  apiGroup: rbac.authorization.k8s.io

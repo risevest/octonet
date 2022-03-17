@@ -1,0 +1,40 @@
+prometheus:
+  name: prometheus
+  namespace: monitoring
+  replicaCount: 1
+  kind: StatefulSet
+  image: prom/prometheus
+  serviceAccountName: prometheus
+  labels: 
+    component: scraper
+    name: prometheus
+  volumeMounts:
+    name: prometheus-volume
+    mountPath: /etc/prometheus/prometheus.yml
+    subPath: prometheus.yml
+  volume: 
+    name: prometheus-volume
+  configMap:
+    name: prometheus-config
+  ClusterRole:
+    name: cluster-reader
+  ClusterRoleBinding:
+    name: read-cluster
+  port: 
+    name: prometheus
+    number: 9090
+  service:
+    name: prometheus-service
+    type: ClusterIP
+    port: 9090
+  image:
+    pullPolicy: IfNotPresent
+  resources: {}
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+
