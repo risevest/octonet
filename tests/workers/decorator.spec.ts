@@ -3,7 +3,6 @@ import "reflect-metadata";
 import { expect } from "chai";
 import { Container } from "inversify";
 
-import { eventGroupKey, eventHandlerKey } from "../../src/workers/constants";
 import { Group, GroupTag, NeedsGroup, NeedsGroupTag } from "./helpers/group.helper";
 
 describe("Decorators#eventGroup", () => {
