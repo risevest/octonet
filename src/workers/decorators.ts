@@ -1,78 +1,119 @@
 import "reflect-metadata";
 
-import { decorate, injectable } from "inversify";
+import { Container, decorate, injectable } from "inversify";
 
-import { eventGroupKey, eventHandlerKey, natsStreamKey, natsHandlerKey } from "./constants";
-import { EventGroupMeta, HandlerMeta, NatsStreamMeta, NatsHandlerMeta } from "./interfaces";
+type Constructor = new (...args: never[]) => any;
 
 /**
- * Declare a group of events with the same `prefix`.
- * @param prefix prefix used to name the events. Leave empty if group doesn't need
- * a prefix.
+ * Metadata extracted by group decorator
  */
-export function eventGroup(prefix?: string): ClassDecorator {
-  return function (constructor: Function) {
-    // make the class injectable by default
-    decorate(injectable(), constructor);
-
-    const metadata: EventGroupMeta = { prefix, constructor };
-    Reflect.defineMetadata(eventGroupKey, metadata, constructor);
-
-    // add to global list of event groups
-    const groupMetadata: EventGroupMeta[] = Reflect.getMetadata(eventGroupKey, Reflect) || [];
-    const updatedGroupMetadata = [metadata, ...groupMetadata];
-    Reflect.defineMetadata(eventGroupKey, updatedGroupMetadata, Reflect);
-  };
+export interface Group {
+  /**
+   * optional tag for the group
+   */
+  tag?: string;
+  /**
+   * constructor of the class
+   */
+  constructor: Constructor;
 }
 
 /**
- * Call the given method whenever `event`(prefixed by the method's event group)
- * occurs
- * @param event name of the event to listen to
+ * Metadata extracted by the handler decorator
  */
-export function handler(event: string): MethodDecorator {
-  return function (prototype: any, method: string, _desc: PropertyDescriptor) {
-    const group = prototype.constructor.name;
-    const metadata: HandlerMeta = { event, group, method };
+export interface Handler {
+  /**
+   * a tag for the handler
+   */
+  tag: string;
+  /**
+   * name of the method
+   */
+  method: string;
+  /**
+   * name of the class the method belongs to
+   */
+  class_name: string;
+}
 
-    let methodMetadata: HandlerMeta[] = [];
-    if (!Reflect.hasMetadata(eventHandlerKey, prototype.constructor)) {
-      Reflect.defineMetadata(eventHandlerKey, methodMetadata, prototype.constructor);
-    } else {
-      methodMetadata = Reflect.getMetadata(eventHandlerKey, prototype.constructor);
-    }
+/**
+ * A bounded handler function(meaning access to dependencies) with metadata
+ */
+export interface ParsedHandler {
+  /**
+   * tag passed to the method
+   */
+  method_tag: string;
+  /**
+   * tag declared at the group
+   */
+  group_tag?: string;
+  /**
+   * bounded handler function.
+   */
+  handler: Function;
+}
 
-    methodMetadata.push(metadata);
+/**
+ * Create a decorator for capturing a group of handlers. Note that it also makes
+ * the class injectable for the sake of dependency inversion.
+ * @param s namespace to store metadata
+ */
+export function groupDecorator(s: Symbol) {
+  return function group(tag?: string) {
+    return function (constructor: Constructor) {
+      // make the class injectable by default
+      decorate(injectable(), constructor);
+
+      const metadata: Group = { tag, constructor };
+      Reflect.defineMetadata(s, metadata, constructor);
+
+      // add to global list of event groups
+      const groupMetadata: Group[] = Reflect.getMetadata(s, Reflect) || [];
+      const updatedGroupMetadata = [metadata, ...groupMetadata];
+      Reflect.defineMetadata(s, updatedGroupMetadata, Reflect);
+    };
   };
 }
 
-export function natsStream(stream?: string) {
-  return function (constructor: Function) {
-    // make the class injectable by default
-    decorate(injectable(), constructor);
+export function handlerDecorator(s: Symbol) {
+  return function handler(tag: string): MethodDecorator {
+    return function (prototype: any, method: string, _desc: PropertyDescriptor) {
+      const className = prototype.constructor.name;
+      const metadata: Handler = { tag, class_name: className, method };
 
-    const metadata: NatsStreamMeta = { stream, constructor };
-    Reflect.defineMetadata(natsStreamKey, metadata, constructor);
+      let methodMetadata: Handler[] = [];
+      if (!Reflect.hasMetadata(s, prototype.constructor)) {
+        Reflect.defineMetadata(s, methodMetadata, prototype.constructor);
+      } else {
+        methodMetadata = Reflect.getMetadata(s, prototype.constructor);
+      }
 
-    // add to global list of nats streams
-    const streamMetadata: NatsStreamMeta[] = Reflect.getMetadata(natsStreamKey, Reflect) || [];
-    const updatedStreamMetadata = [metadata, ...streamMetadata];
-    Reflect.defineMetadata(natsStreamKey, updatedStreamMetadata, Reflect);
+      methodMetadata.push(metadata);
+    };
   };
 }
 
-export function natsHandler(event: string): MethodDecorator {
-  return function (prototype: any, method: string, _desc: PropertyDescriptor) {
-    const streamGroup = prototype.constructor.name;
-    const metadata: NatsHandlerMeta = { event, streamGroup, method };
+export function parseHandlers(container: Container, groupKey: Symbol, handlerKey: Symbol) {
+  const groupInstanceTag = Symbol("group.instance");
+  const groups: Group[] = Reflect.getMetadata(groupKey, Reflect) || [];
+  const handlers: ParsedHandler[] = [];
 
-    let methodMetadata: NatsHandlerMeta[] = [];
-    if (!Reflect.hasMetadata(natsHandlerKey, prototype.constructor)) {
-      Reflect.defineMetadata(natsHandlerKey, methodMetadata, prototype.constructor);
-    } else {
-      methodMetadata = Reflect.getMetadata(natsHandlerKey, prototype.constructor);
+  groups.forEach(({ tag: groupTag, constructor }) => {
+    const name = constructor.name;
+    if (container.isBoundNamed(groupInstanceTag, name)) {
+      throw new Error("You can't declare groups using the same class");
     }
 
-    methodMetadata.push(metadata);
-  };
+    container.bind<any>(groupInstanceTag).to(constructor).whenTargetNamed(name);
+
+    const methodMeta: Handler[] = Reflect.getMetadata(handlerKey, constructor);
+    methodMeta.forEach(({ tag, method, class_name }) => {
+      const instance = container.getNamed(groupInstanceTag, class_name);
+      const handlerFn = instance[method].bind(instance);
+      handlers.push({ method_tag: tag, group_tag: groupTag, handler: handlerFn });
+    });
+  });
+
+  return handlers;
 }
