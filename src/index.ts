@@ -6,5 +6,5 @@ export * from "./logging/logger";
 export * from "./logging/serializers";
 export * from "./tokens/redis.store";
 export * from "./tokens/store";
-export { Consumer } from "./workers/amqp";
-export * from "./workers/decorators";
+export { Consumer } from "./mq/amqp";
+export * from "./mq/decorators";
