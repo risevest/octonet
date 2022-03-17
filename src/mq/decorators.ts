@@ -2,6 +2,8 @@ import "reflect-metadata";
 
 import { Container, decorate, injectable } from "inversify";
 
+import { Middleware } from "./handlers";
+
 type Constructor = new (...args: never[]) => any;
 
 /**
@@ -9,9 +11,9 @@ type Constructor = new (...args: never[]) => any;
  */
 export interface Group {
   /**
-   * optional tag for the group
+   * middlewares for all handlers in the group
    */
-  tag?: string;
+  middleware: Middleware[];
   /**
    * constructor of the class
    */
@@ -34,6 +36,10 @@ export interface Handler {
    * name of the class the method belongs to
    */
   class_name: string;
+  /**
+   * middleware for the specific handler
+   */
+  middleware: Middleware[];
 }
 
 /**
@@ -43,11 +49,15 @@ export interface ParsedHandler {
   /**
    * tag passed to the method
    */
-  method_tag: string;
+  tag: string;
   /**
-   * tag declared at the group
+   * all the middleware defined for the group
    */
-  group_tag?: string;
+  group_middleware: Middleware[];
+  /**
+   * all the middleware defined for the handler
+   */
+  handler_middleware: Middleware[];
   /**
    * bounded handler function.
    */
@@ -56,16 +66,17 @@ export interface ParsedHandler {
 
 /**
  * Create a decorator for capturing a group of handlers. Note that it also makes
- * the class injectable for the sake of dependency inversion.
+ * the class injectable for the sake of dependency inversion. The decorator accepts
+ * middleware.
  * @param s namespace to store metadata
  */
 export function groupDecorator(s: Symbol) {
-  return function group(tag?: string) {
+  return function group(...middlewares: Middleware[]) {
     return function (constructor: Constructor) {
       // make the class injectable by default
       decorate(injectable(), constructor);
 
-      const metadata: Group = { tag, constructor };
+      const metadata: Group = { middleware: middlewares, constructor };
       Reflect.defineMetadata(s, metadata, constructor);
 
       // add to global list of event groups
@@ -76,11 +87,17 @@ export function groupDecorator(s: Symbol) {
   };
 }
 
+/**
+ * Create a decorator for capturing a single handler that has been defined as a method
+ * in group of handlers.. The decorator accepts a tag for the handler(event or subject) and
+ * middleware.
+ * @param s namespace to store metadata
+ */
 export function handlerDecorator(s: Symbol) {
-  return function handler(tag: string): MethodDecorator {
+  return function handler(tag: string, ...middleware: Middleware[]): MethodDecorator {
     return function (prototype: any, method: string, _desc: PropertyDescriptor) {
       const className = prototype.constructor.name;
-      const metadata: Handler = { tag, class_name: className, method };
+      const metadata: Handler = { tag, class_name: className, method, middleware };
 
       let methodMetadata: Handler[] = [];
       if (!Reflect.hasMetadata(s, prototype.constructor)) {
@@ -99,7 +116,7 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
   const groups: Group[] = Reflect.getMetadata(groupKey, Reflect) || [];
   const handlers: ParsedHandler[] = [];
 
-  groups.forEach(({ tag: groupTag, constructor }) => {
+  groups.forEach(({ middleware: groupMiddleware, constructor }) => {
     const name = constructor.name;
     if (container.isBoundNamed(groupInstanceTag, name)) {
       throw new Error("You can't declare groups using the same class");
@@ -108,10 +125,16 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
     container.bind<any>(groupInstanceTag).to(constructor).whenTargetNamed(name);
 
     const methodMeta: Handler[] = Reflect.getMetadata(handlerKey, constructor);
-    methodMeta.forEach(({ tag, method, class_name }) => {
+    methodMeta.forEach(({ tag, method, class_name, middleware }) => {
       const instance = container.getNamed(groupInstanceTag, class_name);
       const handlerFn = instance[method].bind(instance);
-      handlers.push({ method_tag: tag, group_tag: groupTag, handler: handlerFn });
+
+      handlers.push({
+        tag: tag,
+        group_middleware: groupMiddleware,
+        handler_middleware: middleware,
+        handler: handlerFn
+      });
     });
   });
 
