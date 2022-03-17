@@ -4,7 +4,6 @@ export * as jwt from "./http/jwt";
 export * from "./http/wrapper";
 export * from "./logging/logger";
 export * from "./logging/serializers";
+export * from "./mq";
 export * from "./tokens/redis.store";
 export * from "./tokens/store";
-export { AMQPCommands } from "./mq/amqp";
-export * from "./mq/decorators";
