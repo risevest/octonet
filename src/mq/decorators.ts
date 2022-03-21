@@ -125,16 +125,15 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
   const handlers: ParsedHandler[] = [];
 
   groups.forEach(({ tag: groupTag, middleware: groupMiddleware, constructor }) => {
-    const name = constructor.name;
-    if (container.isBoundNamed(groupInstanceTag, name)) {
+    if (container.isBoundNamed(groupInstanceTag, groupTag)) {
       throw new Error("You can't declare groups using the same class");
     }
 
-    container.bind<any>(groupInstanceTag).to(constructor).whenTargetNamed(name);
+    container.bind<any>(groupInstanceTag).to(constructor).whenTargetNamed(groupTag);
 
     const methodMeta: Handler[] = Reflect.getMetadata(handlerKey, constructor);
-    methodMeta.forEach(({ tag, method, class_name, middleware }) => {
-      const instance = container.getNamed(groupInstanceTag, class_name);
+    methodMeta.forEach(({ tag, method, middleware }) => {
+      const instance = container.getNamed(groupInstanceTag, groupTag);
       const handlerFn = instance[method].bind(instance);
 
       handlers.push({
