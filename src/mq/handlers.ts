@@ -33,6 +33,12 @@ export function loggerMiddleware(logger: Logger): Middleware {
       await handler(data);
     } catch (error) {
       logger.error(error);
+      throw error;
     }
   };
 }
+
+/**
+ * Custom error instance to allow handlers request a retry
+ */
+export class RetryError extends Error {}

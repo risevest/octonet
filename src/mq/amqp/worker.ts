@@ -1,9 +1,9 @@
 import { Channel, Connection } from "amqplib";
 import { Container } from "inversify";
-import { collapse, loggerMiddleware } from "mq/handlers";
 
 import { Logger } from "../../logging/logger";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
+import { RetryError, collapse, loggerMiddleware } from "../handlers";
 
 export const groupKey = Symbol.for("amqp.job.groups");
 export const handlerKey = Symbol.for("amqp.job.handler");
@@ -50,9 +50,16 @@ export class AMQPWorker {
           return;
         }
 
-        this.channel.ack(msg);
         const data = JSON.parse(msg.content.toString());
-        await handler(data);
+        try {
+          await handler(data);
+          this.channel.ack(msg);
+        } catch (err) {
+          if (!(err instanceof RetryError)) {
+            this.channel.ack(msg);
+          }
+          // no-op for normal errors
+        }
       });
     }
   }

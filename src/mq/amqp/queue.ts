@@ -1,7 +1,7 @@
 import { Channel } from "amqplib";
 import { inject, injectable } from "inversify";
 
-export const ChannelFactory = Symbol.for("AMQPChannel");
+export const ChannelFactory = Symbol.for("ChannelFactory");
 
 interface BufferEntry {
   queue: string;
