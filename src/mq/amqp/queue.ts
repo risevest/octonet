@@ -1,7 +1,10 @@
-import { Channel } from "amqplib";
-import { inject, injectable } from "inversify";
+import { Channel, Connection } from "amqplib";
+import { inject, injectable, interfaces } from "inversify";
 
-export const ChannelFactory = Symbol.for("ChannelFactory");
+import { Logger } from "../../logging/logger";
+
+export const ChannelProviderTag = Symbol.for("ChannelProvider");
+export type ChannelProvider = () => Promise<Channel>;
 
 interface BufferEntry {
   queue: string;
@@ -12,10 +15,10 @@ interface BufferEntry {
 export class AMQPQueue {
   private internalBuffer: BufferEntry[] = [];
   private chan: Channel;
-  @inject(ChannelFactory) private factory: () => Promise<Channel>;
+  @inject(ChannelProviderTag) private provider: ChannelProvider;
 
   constructor() {
-    this.factory().then(chan => {
+    this.provider().then(chan => {
       this.chan = chan;
       chan.on("drain", async () => {
         while (this.internalBuffer.length !== 0) {
