@@ -11,6 +11,55 @@ interface BufferEntry {
   data: any;
 }
 
+export class ConnectionManager {
+  private channels: Channel[] = [];
+  public connected = true;
+
+  constructor(private conn: Connection, logger: Logger) {
+    conn.on("error", err => {
+      this.connected = false;
+      logger.error(err);
+    });
+
+    conn.on("close", () => {
+      this.connected = false;
+    });
+  }
+
+  /**
+   * Creates an inversify channel provider ensuring the channel can be managed
+   */
+  provider(): interfaces.ProviderCreator<Channel> {
+    return _context => {
+      return () => {
+        return new Promise((resolve, reject) => {
+          this.conn.createChannel().then(chan => {
+            this.channels.push(chan);
+            resolve(chan);
+          }, reject);
+        });
+      };
+    };
+  }
+
+  /**
+   * Close all channels and this connection
+   */
+  async close() {
+    if (!this.connected) {
+      return;
+    }
+
+    for (const chan of this.channels) {
+      await chan.close();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.conn.close().then(resolve, reject);
+    });
+  }
+}
+
 @injectable()
 export class AMQPQueue {
   private internalBuffer: BufferEntry[] = [];
