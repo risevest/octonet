@@ -1,4 +1,4 @@
-import { Channel, Connection } from "amqplib";
+import { Channel } from "amqplib";
 import { Container } from "inversify";
 
 import { Logger } from "../../logging/logger";
@@ -16,7 +16,6 @@ export const command = handlerDecorator(handlerKey);
  */
 export class AMQPWorker {
   private commands = new Map<string, Function>();
-  private channel: Channel;
 
   /**
    * Build up the command handlers. Each command runs their group middleware first
@@ -34,18 +33,16 @@ export class AMQPWorker {
 
   /**
    * Connect the handlers to their AMQP queues.
-   * @param conn AMQP connection
+   * @param channel AMQP channel
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async listen(conn: Connection, parallel = 5) {
-    this.channel = await conn.createChannel();
-
-    await this.channel.prefetch(parallel);
+  async listen(channel: Channel, parallel = 5) {
+    await channel.prefetch(parallel);
 
     for (const [job, handler] of this.commands.entries()) {
       const queue = job.split(".").join("_").toUpperCase();
-      this.channel.assertQueue(queue, { durable: true });
-      this.channel.consume(queue, async msg => {
+      channel.assertQueue(queue, { durable: true });
+      channel.consume(queue, async msg => {
         if (msg === null) {
           return;
         }
@@ -53,24 +50,14 @@ export class AMQPWorker {
         const data = JSON.parse(msg.content.toString());
         try {
           await handler(data);
-          this.channel.ack(msg);
+          channel.ack(msg);
         } catch (err) {
           if (!(err instanceof RetryError)) {
-            this.channel.ack(msg);
+            channel.ack(msg);
           }
           // no-op for normal errors
         }
       });
     }
-  }
-
-  /**
-   * Close the internal connection
-   * @returns
-   */
-  close(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      return this.channel.close().then(resolve, reject);
-    });
   }
 }
