@@ -14,12 +14,14 @@ export type Middleware = (data: any, handler: Function) => Promise<void>;
  * @returns new handler wrapped using middleware
  */
 export function collapse(handler: Function, middleware: Middleware[]): Function {
-  let l = handler;
-  for (const m of middleware) {
-    l = (data: any) => m(data, l);
-  }
+  const final = middleware.reduce(
+    (a, b) => async (data, handler) =>
+      a(data, async (data: any) => {
+        b(data, handler);
+      })
+  );
 
-  return l;
+  return (data: any) => final(data, handler);
 }
 
 /**
