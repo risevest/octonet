@@ -37,7 +37,7 @@ export class NatsConsumer {
   constructor(container: Container, logger: Logger) {
     const handlers = parseHandlers(container, groupKey, handlerKey);
     handlers.forEach(({ handler_tag, group_tag, handler, group_middleware, handler_middleware }) => {
-      const middleware = [...group_middleware, ...handler_middleware, loggerMiddleware(logger)];
+      const middleware = [loggerMiddleware(logger), ...group_middleware, ...handler_middleware];
       this.streams.add(group_tag);
       this.subsribers.set(`${group_tag}.${handler_tag}`, collapse(handler, middleware));
     });

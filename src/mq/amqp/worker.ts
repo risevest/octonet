@@ -26,7 +26,7 @@ export class AMQPWorker {
   constructor(container: Container, logger: Logger) {
     const handlers = parseHandlers(container, groupKey, handlerKey);
     handlers.forEach(({ handler_tag: tag, handler, group_middleware, handler_middleware }) => {
-      const middleware = [...group_middleware, ...handler_middleware, loggerMiddleware(logger)];
+      const middleware = [loggerMiddleware(logger), ...group_middleware, ...handler_middleware];
       this.commands.set(tag, collapse(handler, middleware));
     });
   }
