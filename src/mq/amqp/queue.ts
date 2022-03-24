@@ -12,12 +12,10 @@ interface BufferEntry {
 @injectable()
 export class AMQPQueue {
   private internalBuffer: BufferEntry[] = [];
-  private chan: Channel;
-  @inject(ChannelProviderTag) private provider: ChannelProvider;
+  private chan: Promise<Channel>;
 
-  constructor() {
-    this.provider().then(chan => {
-      this.chan = chan;
+  constructor(@inject(ChannelProviderTag) provider: ChannelProvider) {
+    this.chan = provider().then(chan => {
       chan.on("drain", async () => {
         while (this.internalBuffer.length !== 0) {
           const top = this.internalBuffer[0];
@@ -31,6 +29,8 @@ export class AMQPQueue {
           this.internalBuffer.shift();
         }
       });
+
+      return chan;
     });
   }
 
@@ -48,7 +48,8 @@ export class AMQPQueue {
   }
 
   private async internalQueue(queue: string, data: any) {
-    await this.chan.assertQueue(queue, { durable: true });
-    return this.chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
+    const chan = await this.chan;
+    await chan.assertQueue(queue, { durable: true });
+    return chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
   }
 }
