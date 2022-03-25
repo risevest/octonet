@@ -1,3 +1,5 @@
+import "reflect-metadata";
+
 export * from "./http/agent";
 export * from "./http/errors";
 export * as jwt from "./http/jwt";

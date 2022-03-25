@@ -8,7 +8,19 @@ import { RetryError, collapse, loggerMiddleware } from "../handlers";
 export const groupKey = Symbol.for("amqp.job.groups");
 export const handlerKey = Symbol.for("amqp.job.handler");
 
+/**
+ * Declares a class has command handlers
+ * @param tag there for decorative reasons
+ * @param middleware optional list of middleware to run on all commands
+ */
 export const jobs = groupDecorator(groupKey);
+/**
+ * Create handler for a queue.
+ * @param tag queue name which can either be in dot format (my.queue) or just standard name(MY_QUEUE).
+ * all names are uppercased and `.` is converted to `_`
+ * @param middleware middleware to run on the subscriber. Not that stream middleware are run
+ * first
+ */
 export const command = handlerDecorator(handlerKey);
 
 /**

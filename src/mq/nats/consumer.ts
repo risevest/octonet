@@ -1,6 +1,6 @@
 import { Container } from "inversify";
 import ms from "ms";
-import { JSONCodec, JetStreamSubscription, NatsConnection, StorageType, consumerOpts } from "nats";
+import { JSONCodec, JetStreamPullSubscription, NatsConnection, StorageType, consumerOpts } from "nats";
 
 import { Logger } from "../../logging/logger";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
@@ -8,6 +8,8 @@ import { RetryError, collapse, loggerMiddleware } from "../handlers";
 
 export const groupKey = Symbol.for("nats.streams");
 export const handlerKey = Symbol.for("nats.streams.subscribers");
+
+const megabyte = 1024 * 1024;
 
 /**
  * Create a stream for all subscriptions starting with `tag`
@@ -22,11 +24,26 @@ export const stream = groupDecorator(groupKey);
  * first
  */
 export const subscribe = handlerDecorator(handlerKey);
-
+/**
+ * Configuration for a nats subscriber
+ */
 export interface NatsConfig {
+  /**
+   * namespace of all subscriptions in this application
+   */
   namespace: string;
+  /**
+   * maximum number of messages this subscription should request for. Change this
+   * based on how fast your subscriber can deal with messages
+   */
   batch_size: number;
+  /**
+   * timeout before retrying the message in `ms` format(e.g. 1m, 2h)
+   */
   timeout: string;
+  /**
+   * Size of the stream in megabytes
+   */
   backup_size: number;
 }
 
@@ -44,10 +61,9 @@ export class NatsConsumer {
   }
 
   /**
-   *
-   * @param service name of the service running this consumer
-   * @param parallilsm
-   * @param nats
+   * Create subscriptions for the handlers that have been setup
+   * @param nats the nats connection to link with
+   * @param cfg configuration for the subscribers
    */
   async listen(nats: NatsConnection, cfg: NatsConfig) {
     const manager = await nats.jetstreamManager();
@@ -59,7 +75,7 @@ export class NatsConsumer {
           storage: StorageType.Memory,
           subjects: [`${stream}.>`],
           name: stream,
-          max_msgs: cfg.backup_size
+          max_bytes: cfg.backup_size * megabyte
         });
       } else {
         await manager.streams.update(stream, { max_msgs: cfg.backup_size });
@@ -72,15 +88,17 @@ export class NatsConsumer {
       opts.ackExplicit();
       opts.ackWait(ms(cfg.timeout));
       opts.manualAck();
-
       opts.deliverAll();
       opts.replayInstantly();
       opts.sample(100);
+      opts.durable(`${stream}_${cfg.namespace}_${subjectToName(topic)}`);
 
-      opts.durable(`${stream}.${cfg.namespace}`);
+      const sub = await client.pullSubscribe(topic, opts);
+      const done = pullSmart(cfg.batch_size, sub);
+      runSub(sub, handler, done);
 
-      const sub = await client.subscribe(topic, opts);
-      runSub(sub, handler);
+      // first pull 😁
+      sub.pull({ batch: cfg.batch_size });
     }
   }
 }
@@ -93,32 +111,35 @@ async function safeGet<T>(getter: () => Promise<T>) {
   }
 }
 
-async function runSub(sub: JetStreamSubscription, handler: Function) {
+async function runSub(sub: JetStreamPullSubscription, handler: Function, done: Function) {
   const codec = JSONCodec();
   for await (const event of sub) {
     const data = codec.decode(event.data);
     try {
       await handler(data);
       event.ack();
+      done();
     } catch (err) {
       if (!(err instanceof RetryError)) {
         event.ack();
+        done();
       }
     }
   }
 }
 
-// function toName(subject: string) {
-//   const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
-//   return subject.replace(/[\.\*\>]/g, c => invalidChars[c]);
-// }
+function subjectToName(subject: string) {
+  const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
+  return subject.replace(/[\.\*\>]/g, c => invalidChars[c]);
+}
 
-// async function generateConsumerName(manager: JetStreamManager, stream: string, subject: string) {
-//   const validName = toName(subject);
-//   let count = 0;
-//   let consumer = await getConsumer(`${validName}-${count}`);
-
-//   function getConsumer(name: string) {
-//     return safeGet(() => manager.consumers.info(stream, name));
-//   }
-// }
+function pullSmart(batch: number, sub: JetStreamPullSubscription) {
+  let count = 0;
+  return () => {
+    count++;
+    if (count === batch) {
+      count = 0;
+      sub.pull({ batch }); // do this asynchronously so it doesn't interfere with sub
+    }
+  };
+}
