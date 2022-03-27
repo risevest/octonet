@@ -78,8 +78,6 @@ export class NatsConsumer {
           name: stream,
           max_bytes: cfg.backup_size * megabyte
         });
-      } else {
-        await manager.streams.update(stream, { max_msgs: cfg.backup_size });
       }
     }
 
