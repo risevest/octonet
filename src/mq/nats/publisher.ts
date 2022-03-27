@@ -1,10 +1,11 @@
-import { inject, interfaces } from "inversify";
+import { inject, injectable, interfaces } from "inversify";
 import { JSONCodec, JetStreamClient, NatsConnection } from "nats";
 import { v4 as uuidV4 } from "uuid";
 
 export const JSClientFactoryTag = Symbol.for("JSClientFactory");
 export type JSClientFactory = () => JetStreamClient;
 
+@injectable()
 export class NatsPublisher {
   private client: JetStreamClient;
   private codec = JSONCodec();

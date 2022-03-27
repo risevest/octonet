@@ -36,7 +36,7 @@ beforeAll(async () => {
   container.bind<AMQPQueue>(queueTag).to(AMQPQueue);
 
   const worker = new AMQPWorker(container, logger);
-  worker.listen(await manager.createChannel());
+  await worker.listen(await manager.createChannel());
 
   queue = container.get<AMQPQueue>(queueTag);
 });
