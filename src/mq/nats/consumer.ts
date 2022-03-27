@@ -61,7 +61,8 @@ export class NatsConsumer {
   }
 
   /**
-   * Create subscriptions for the handlers that have been setup
+   * Create subscriptions for the handlers that have been setup. REturns a function that can
+   * be used to clean off streams and their subscriptions. Do make sure
    * @param nats the nats connection to link with
    * @param cfg configuration for the subscribers
    */
@@ -92,7 +93,7 @@ export class NatsConsumer {
       opts.replayInstantly();
       opts.sample(100);
       opts.filterSubject(topic);
-      opts.durable(`${stream}_${cfg.namespace}_${subjectToName(topic)}`);
+      opts.durable(consumerName(stream, cfg.namespace, topic));
 
       const sub = await client.pullSubscribe(topic, opts);
       const done = pullSmart(cfg.batch_size, sub);
@@ -101,7 +102,21 @@ export class NatsConsumer {
       // first pull 😁
       sub.pull({ batch: cfg.batch_size });
     }
+
+    return async (...streams: string[]) => {
+      streams = streams.length !== 0 ? streams : [...this.streams];
+      for (const s of streams) {
+        // this apparently cleans off consumers too
+        await manager.streams.delete(s);
+      }
+    };
   }
+}
+
+function consumerName(stream: string, namespace: string, topic: string) {
+  const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
+  const safeTopic = topic.replace(/[\.\*\>]/g, c => invalidChars[c]);
+  return `${stream}_${namespace}_${safeTopic}`;
 }
 
 async function safeGet<T>(getter: () => Promise<T>) {
@@ -127,11 +142,6 @@ async function runSub(sub: JetStreamPullSubscription, handler: Function, done: F
       }
     }
   }
-}
-
-function subjectToName(subject: string) {
-  const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
-  return subject.replace(/[\.\*\>]/g, c => invalidChars[c]);
 }
 
 function pullSmart(batch: number, sub: JetStreamPullSubscription) {
