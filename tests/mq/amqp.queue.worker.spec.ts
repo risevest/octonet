@@ -13,7 +13,7 @@ import {
   Logger,
   defaultSerializers
 } from "../../src";
-import { AMQPWorker } from "../../src/";
+import { AMQPWorker } from "../../src";
 import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
