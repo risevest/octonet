@@ -9,8 +9,6 @@ import { RetryError, collapse, loggerMiddleware } from "../handlers";
 export const groupKey = Symbol.for("nats.streams");
 export const handlerKey = Symbol.for("nats.streams.subscribers");
 
-const megabyte = 1024 * 1024;
-
 /**
  * Create a stream for all subscriptions starting with `tag`
  * @param tag the name of the stream. It must not contain anything other than a-z.
@@ -42,9 +40,9 @@ export interface NatsConfig {
    */
   timeout: string;
   /**
-   * Size of the stream in megabytes
+   * how long messages should last in the stream in `ms` format
    */
-  backup_size: number;
+  message_age: string;
 }
 
 export class NatsConsumer {
@@ -62,7 +60,7 @@ export class NatsConsumer {
 
   /**
    * Create subscriptions for the handlers that have been setup. REturns a function that can
-   * be used to clean off streams and their subscriptions. Do make sure
+   * be used to clean off streams and their subscriptions.
    * @param nats the nats connection to link with
    * @param cfg configuration for the subscribers
    */
@@ -76,7 +74,7 @@ export class NatsConsumer {
           storage: StorageType.Memory,
           subjects: [`${stream}.>`],
           name: stream,
-          max_bytes: cfg.backup_size * megabyte
+          max_age: ms(cfg.message_age) * 1000_000
         });
       }
     }
