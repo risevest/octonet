@@ -91,6 +91,7 @@ export class NatsConsumer {
       opts.deliverAll();
       opts.replayInstantly();
       opts.sample(100);
+      opts.filterSubject(topic);
       opts.durable(`${stream}_${cfg.namespace}_${subjectToName(topic)}`);
 
       const sub = await client.pullSubscribe(topic, opts);
