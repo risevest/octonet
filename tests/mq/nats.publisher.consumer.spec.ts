@@ -38,6 +38,8 @@ let publisher: NatsPublisher;
 let natsConn: NatsConnection;
 let cleanStreams: Function;
 
+jest.setTimeout(10000);
+
 beforeAll(async () => {
   const container = new Container();
   natsConn = await connect();
