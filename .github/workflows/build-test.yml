@@ -34,11 +34,6 @@ jobs:
         image: noxecane/nats-js-image:latest
         ports:
         - 4222:4222
-        options: >-
-          --health-cmd "nats server ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
     - name: Checkout source code
