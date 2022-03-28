@@ -31,11 +31,10 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       nats:
-        image: nats:latest
+        image: noxecane/nats-js-image:latest
         ports:
         - 4222:4222
         options: >-
-          --entrypoint "/nats-server --js"
           --health-cmd "nats server ping"
           --health-interval 10s
           --health-timeout 5s
