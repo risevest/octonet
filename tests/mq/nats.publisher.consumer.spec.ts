@@ -3,7 +3,7 @@ import "reflect-metadata";
 import { expect } from "chai";
 import faker from "faker";
 import { Container } from "inversify";
-import { NatsConnection, connect } from "nats";
+import { JetStreamManager, NatsConnection, StorageType, connect } from "nats";
 import sinon from "sinon";
 
 import {
@@ -36,26 +36,25 @@ export const logger = new Logger({
 
 let publisher: NatsPublisher;
 let natsConn: NatsConnection;
-let cleanStreams: Function;
+let jm: JetStreamManager;
 
 beforeAll(async () => {
   const container = new Container();
   natsConn = await connect();
+  jm = await natsConn.jetstreamManager();
   container.bind<JSClientFactory>(JSClientFactoryTag).toFactory(jSClientFactory(natsConn));
   container.bind<NatsPublisher>(publisherTag).to(NatsPublisher);
 
+  // create the stream to listen to
+  await jm.streams.add({ name: "transactions", storage: StorageType.Memory, subjects: ["transactions.>"] });
+
   const consumer = new NatsConsumer(container, logger);
-  cleanStreams = await consumer.listen(natsConn, {
-    namespace: "octonet",
-    message_age: "1d",
-    batch_size: 10,
-    timeout: "1m"
-  });
+  await consumer.listen(natsConn, { namespace: "octonet", batch_size: 10, timeout: "1m" });
   publisher = container.get<NatsPublisher>(publisherTag);
 });
 
 afterAll(async () => {
-  await cleanStreams("transactions");
+  await jm.streams.delete("transactions");
   await natsConn.close();
 });
 
