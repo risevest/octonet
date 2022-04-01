@@ -1,36 +1,26 @@
 import { Channel } from "amqplib";
-import { inject, injectable } from "inversify";
-
-export const ChannelProviderTag = Symbol.for("ChannelProvider");
-export type ChannelProvider = () => Promise<Channel>;
 
 interface BufferEntry {
   queue: string;
   data: any;
 }
 
-@injectable()
 export class AMQPQueue {
   private internalBuffer: BufferEntry[] = [];
-  private chan: Promise<Channel>;
 
-  constructor(@inject(ChannelProviderTag) provider: ChannelProvider) {
-    this.chan = provider().then(chan => {
-      chan.on("drain", async () => {
-        while (this.internalBuffer.length !== 0) {
-          const top = this.internalBuffer[0];
-          const succeeded = await this.internalQueue(top.queue, top.data);
+  constructor(private chan: Channel) {
+    chan.on("drain", async () => {
+      while (this.internalBuffer.length !== 0) {
+        const top = this.internalBuffer[0];
+        const succeeded = await this.internalQueue(top.queue, top.data);
 
-          // break out if we need to wait again
-          if (!succeeded) {
-            return;
-          }
-
-          this.internalBuffer.shift();
+        // break out if we need to wait again
+        if (!succeeded) {
+          return;
         }
-      });
 
-      return chan;
+        this.internalBuffer.shift();
+      }
     });
   }
 
@@ -48,8 +38,7 @@ export class AMQPQueue {
   }
 
   private async internalQueue(queue: string, data: any) {
-    const chan = await this.chan;
-    await chan.assertQueue(queue, { durable: true });
-    return chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
+    await this.chan.assertQueue(queue, { durable: true });
+    return this.chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
   }
 }

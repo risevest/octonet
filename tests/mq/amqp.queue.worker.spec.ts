@@ -5,19 +5,10 @@ import faker from "faker";
 import { Container } from "inversify";
 import sinon from "sinon";
 
-import {
-  AMQPQueue,
-  ChannelProvider,
-  ChannelProviderTag,
-  ConnectionManager,
-  Logger,
-  defaultSerializers
-} from "../../src";
-import { AMQPWorker } from "../../src";
+import { AMQPQueue, AMQPWorker, ConnectionManager, Logger, defaultSerializers } from "../../src";
 import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
-const queueTag = Symbol.for("AMQPQueue");
 const amqpURL = "amqp://localhost:5672";
 export const logger = new Logger({
   name: "amqp.worker.tests",
@@ -26,19 +17,16 @@ export const logger = new Logger({
 });
 
 let queue: AMQPQueue;
-let manager: ConnectionManager;
+let manager = new ConnectionManager(logger);
 
 beforeAll(async () => {
   const container = new Container();
-  manager = await ConnectionManager.connect(amqpURL, logger);
-
-  container.bind<ChannelProvider>(ChannelProviderTag).toProvider(manager.provider());
-  container.bind<AMQPQueue>(queueTag).to(AMQPQueue);
+  await manager.connect("base", amqpURL);
 
   const worker = new AMQPWorker(container, logger);
-  await worker.listen(await manager.createChannel());
+  await worker.listen(await manager.createChannel("base"));
 
-  queue = container.get<AMQPQueue>(queueTag);
+  queue = new AMQPQueue(await manager.createChannel("base"));
 });
 
 afterAll(async () => {
