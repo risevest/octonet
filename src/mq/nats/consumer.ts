@@ -1,6 +1,6 @@
 import { Container } from "inversify";
 import ms from "ms";
-import { JSONCodec, JetStreamPullSubscription, NatsConnection, StorageType, consumerOpts } from "nats";
+import { JSONCodec, JetStreamPullSubscription, NatsConnection, consumerOpts } from "nats";
 
 import { Logger } from "../../logging/logger";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
@@ -39,10 +39,6 @@ export interface NatsConfig {
    * timeout before retrying the message in `ms` format(e.g. 1m, 2h)
    */
   timeout: string;
-  /**
-   * how long messages should last in the stream in `ms` format
-   */
-  message_age: string;
 }
 
 export class NatsConsumer {
@@ -59,8 +55,7 @@ export class NatsConsumer {
   }
 
   /**
-   * Create subscriptions for the handlers that have been setup. REturns a function that can
-   * be used to clean off streams and their subscriptions.
+   * Create subscriptions for the handlers that have been setup.
    * @param nats the nats connection to link with
    * @param cfg configuration for the subscribers
    */
@@ -68,15 +63,7 @@ export class NatsConsumer {
     const manager = await nats.jetstreamManager();
     const client = nats.jetstream();
     for (const stream of this.streams) {
-      const existing = await safeGet(() => manager.streams.info(stream));
-      if (!existing) {
-        await manager.streams.add({
-          storage: StorageType.Memory,
-          subjects: [`${stream}.>`],
-          name: stream,
-          max_age: ms(cfg.message_age) * 1000_000
-        });
-      }
+      await manager.streams.info(stream);
     }
 
     for (const [topic, handler] of this.subsribers.entries()) {
@@ -98,14 +85,6 @@ export class NatsConsumer {
       // first pull 😁
       sub.pull({ batch: cfg.batch_size });
     }
-
-    return async (...streams: string[]) => {
-      streams = streams.length !== 0 ? streams : [...this.streams];
-      for (const s of streams) {
-        // this apparently cleans off consumers too
-        await manager.streams.delete(s);
-      }
-    };
   }
 }
 
@@ -113,14 +92,6 @@ function consumerName(stream: string, namespace: string, topic: string) {
   const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
   const safeTopic = topic.replace(/[\.\*\>]/g, c => invalidChars[c]);
   return `${stream}_${namespace}_${safeTopic}`;
-}
-
-async function safeGet<T>(getter: () => Promise<T>) {
-  try {
-    return await getter();
-  } catch (err) {
-    return null;
-  }
 }
 
 async function runSub(sub: JetStreamPullSubscription, handler: Function, done: Function) {
