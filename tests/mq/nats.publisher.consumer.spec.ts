@@ -6,17 +6,8 @@ import { Container } from "inversify";
 import { JetStreamManager, NatsConnection, StorageType, connect } from "nats";
 import sinon from "sinon";
 
-import {
-  JSClientFactory,
-  JSClientFactoryTag,
-  Logger,
-  NatsConsumer,
-  NatsPublisher,
-  defaultSerializers,
-  jSClientFactory
-} from "../../src";
-import { sleep } from "../helpers";
-import { repeat } from "../helpers";
+import { Logger, NatsConsumer, NatsPublisher, defaultSerializers } from "../../src";
+import { repeat, sleep } from "../helpers";
 import {
   allCredits,
   creditWallet,
@@ -27,7 +18,6 @@ import {
   handlerBefore
 } from "./helpers/nats";
 
-const publisherTag = Symbol.for("NatsPublisher");
 export const logger = new Logger({
   name: "nats.publisher.consumer.tests",
   serializers: defaultSerializers(),
@@ -42,15 +32,13 @@ beforeAll(async () => {
   const container = new Container();
   natsConn = await connect();
   jm = await natsConn.jetstreamManager();
-  container.bind<JSClientFactory>(JSClientFactoryTag).toFactory(jSClientFactory(natsConn));
-  container.bind<NatsPublisher>(publisherTag).to(NatsPublisher);
 
   // create the stream to listen to
   await jm.streams.add({ name: "transactions", storage: StorageType.Memory, subjects: ["transactions.>"] });
 
   const consumer = new NatsConsumer(container, logger);
   await consumer.listen(natsConn, { namespace: "octonet", batch_size: 10, timeout: "1m" });
-  publisher = container.get<NatsPublisher>(publisherTag);
+  publisher = new NatsPublisher(natsConn.jetstream());
 });
 
 afterAll(async () => {
