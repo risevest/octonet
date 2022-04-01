@@ -1,18 +1,13 @@
-import { inject, injectable, interfaces } from "inversify";
+import { interfaces } from "inversify";
 import { JSONCodec, JetStreamClient, NatsConnection } from "nats";
 import { v4 as uuidV4 } from "uuid";
 
-export const JSClientFactoryTag = Symbol.for("JSClientFactory");
-export type JSClientFactory = () => JetStreamClient;
+export type PublisherFactory = () => NatsPublisher;
 
-@injectable()
 export class NatsPublisher {
-  private client: JetStreamClient;
   private codec = JSONCodec();
 
-  constructor(@inject(JSClientFactoryTag) clientFactory: JSClientFactory) {
-    this.client = clientFactory();
-  }
+  constructor(private client: JetStreamClient) {}
 
   async publish(subject: string, data: any): Promise<void> {
     const message = this.codec.encode(data);
@@ -21,13 +16,13 @@ export class NatsPublisher {
 }
 
 /**
- * Connect nats to inversify for the sake of creating jetstream clients
+ * Inversify factory for creating nats publishers
  * @param conn nats connection
  */
-export function jSClientFactory(conn: NatsConnection): interfaces.FactoryCreator<JetStreamClient> {
+export function publisherFactory(conn: NatsConnection): interfaces.FactoryCreator<NatsPublisher> {
   return _context => {
     return () => {
-      return conn.jetstream();
+      return new NatsPublisher(conn.jetstream());
     };
   };
 }
