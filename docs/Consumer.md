@@ -164,9 +164,9 @@ import { createQueue, Queue } from "./amqp.helper";
 
 // NATS URL
 const natsUrl = "demo.nats.io:4443";
-const consumer: NatsConsumer;
-const logger: Logger;
-const publisher: NatsPublisher;
+let consumer: NatsConsumer;
+let logger: Logger;
+let publisher: NatsPublisher;
 
 // create a Logger instance
 const logger = new Logger({

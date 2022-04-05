@@ -159,16 +159,17 @@ Finally, we create the consumer instance
 ```js
 // index.ts
 
-import { Logger, ConnectionManager, AMQPQueue,defaultSerializers } from "@risemaxi/octonet";
+import { Logger, ConnectionManager, AMQPQueue,AMQPWorker,defaultSerializers } from "@risemaxi/octonet";
 import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";
 import { createQueue, Queue } from "./amqp.helper";
 
-// NATS URL
-const rabbitMQ = "demo.nats.io:4443";
-const consumer: NatsConsumer;
-const logger: Logger;
-const publisher: NatsPublisher;
+// RABBITMQ CONNECTION
+const amqpURL = "amqp://localhost:5672";
+let manager: ConnectionManager
+let logger: Logger;
+let queue: AMQPQueue;
+let worker: AMQPWorker
 
 // create a Logger instance
 const logger = new Logger({
@@ -179,20 +180,18 @@ const logger = new Logger({
 
 // immediately invoking function
 (async function(){
-    consumer = new Consumer(container, logger);
-    const natsConnection = await connect(natsUrl);
-    consumer.listen(nats,{
-      namespace: "wallets-namespace",
-      message_age: "1d",
-      batch_size: 10,
-      timeout: "1m"
-    });
+    manager = new ConnectionManager(logger);
+    worker = new AMQPWorker(container,logger)
+    await manager.connect('namespace',amqpUrl);
 
-    publisher = await publisherFactory(natsConnection) ;
+    const channel = await manager.createChannel('namespace')
+    worker.listen(channel)
+
+    queue = new AMQPQueue(channel)
 
     // testing the `WALLET` class
-    await publisher.publish('WALLET_FUND', 200);
-    await publisher.publish('WALLET_WITHDRAW', 100);
+    await queue.push('WALLET_FUND', 200);
+    await queue.push('WALLET_WITHDRAW', 100);
 })();
 
 ```
