@@ -65,7 +65,8 @@ yarn upgrade @risemaxi/octonet --latest
 Below are links to detailed explanations to the various features of Octonet as well as practical examples:
 
 - [HTTP (Interservice Comunication)](docs/HTTP.md)
-- [Consumer (subscribing to events)](docs/Consumer.md)
+- [NatsConsumer (subscribing to Nats topics)](docs/Consumer.md)
+- [QueueManager (subscribing to   RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
 

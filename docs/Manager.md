@@ -1,16 +1,16 @@
-# Consumer
+# Manager
 
-This describes the NatsConsumer API.
+This describes the Queue Manager API.
 
 ## Decorators
 
 Decorators are annotations required to support the event classes. The two decorators used in Octonet are as follows:
 
-- **stream** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
+- **jobs** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
 
-- **subscribe** [_@subscribe(event: string, ...middleware)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
+- **command** [_@subscribe(event: string, ...middleware)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
 
-## Consumer
+## Manager
 
 The Octonet Consumer is used to listen for events dispatched from different topics on the **NATS server**. These events are then handled by event classes containing handler functions.
 
@@ -84,24 +84,26 @@ import { eventGroup, handler } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
-@stream('wallet')
+@jobs('wallet')
 export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @subscribe('fund') //listens on topic = wallet.fund
+    @command('wallet.fund') //listens on topic = WALLET_FUND
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @subscribe('withdraw') //listens on topic = wallet.withdraw
+    @command('wallet.withdraw') //listens on topic = WALLET_WITHDRAW
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
 }
 ```
 
-The handlers listen on topics = `streamName.subscribeName`
+**@command** takes a string input. That string is capitalized and all '.' are converted to '_'. e,g `wallet.withdraw.user` becomes `WALLET_WITHDRAW_USER`
+
+The manager listens on this queue.
 
 ### Step 5: Creating group middleware and handler middleware
 
@@ -132,17 +134,17 @@ function walletFundingMiddleware(amount: number){
   return amount;
 }
 
-@stream('wallet', groupMiddleware)
+@jobs('wallet', groupMiddleware)
 export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @subscribe('fund') //listens on topic = wallet.fund
+    @command('wallet.fund') //listens on topic = WALLET_FUND
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @subscribe('withdraw', walletFundingMiddleware) //listens on topic = wallet.withdraw
+    @command('wallet.withdraw') //listens on topic = WALLET_WITHDRAW
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
@@ -157,13 +159,13 @@ Finally, we create the consumer instance
 ```js
 // index.ts
 
-import { Logger, NatsConsumer, NatsPublisher, publisherFactory,defaultSerializers } from "@risemaxi/octonet";
+import { Logger, ConnectionManager, AMQPQueue,defaultSerializers } from "@risemaxi/octonet";
 import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";
 import { createQueue, Queue } from "./amqp.helper";
 
 // NATS URL
-const natsUrl = "demo.nats.io:4443";
+const rabbitMQ = "demo.nats.io:4443";
 const consumer: NatsConsumer;
 const logger: Logger;
 const publisher: NatsPublisher;
@@ -189,8 +191,8 @@ const logger = new Logger({
     publisher = await publisherFactory(natsConnection) ;
 
     // testing the `WALLET` class
-    await publisher.publish('wallet.func', 200);
-    await publisher.publish('wallet.withdraw', 100);
+    await publisher.publish('WALLET_FUND', 200);
+    await publisher.publish('WALLET_WITHDRAW', 100);
 })();
 
 ```
