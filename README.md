@@ -8,7 +8,8 @@
 Octonet is an internal library (Rise) that provides utility functions for building microservices such as:
 
 - Interservice communication (via REST)
-- Subscribing to events from RabbitMQ queues.
+- Subscribing to events from RabbitMQ queues and NATS servers.
+- Logging
 - Authentication
 
 ## Getting Started
@@ -31,6 +32,16 @@ To install Octonet, run the following command in your terminal
 
 ```bash
 yarn install --save @risemaxi/octonet reflect-metadata inversify
+```   
+
+To upgrade to a specific version run this command
+```bash
+yarn upgrade @risemaxi/octonet@version
+```
+
+To upgrade to latest version  run this command     
+```bash
+yarn upgrade @risemaxi/octonet --latest
 ```
 
 > Note: Octonet requires Typescript (>= v4.4), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:
@@ -68,3 +79,5 @@ The following links would further aid the understanding of Octonet
 - [AMPQ Client docs for NodeJs](http://www.squaremobius.net/amqp.node/channel_api.html)
 - [Bunyan](https://github.com/trentm/node-bunyan#readme)
 - [Axios](https://axios-http.com/docs/intro)
+- [RabbitMQ messaging queues](https://www.rabbitmq.com/)
+- [NATS Messaging](https://docs.nats.io/nats-concepts/what-is-nats)
