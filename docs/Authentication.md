@@ -38,25 +38,25 @@ The _commission_ function creates a cryptographic token using a secret and a spe
 
 #### Parameters
 
-**key:** A unique key string for generating the token
-**value:** The value to be referenced with the token. Typically, this is the session object
-**time:** The lifespan (expiry time) of the token, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library (see reference section at the end of this document).
+  - **key:** A unique key string for generating the token   
+  - **value:** The value to be referenced with the token. Typically, this is the session object   
+  - **time:** The lifespan (expiry time) of the token, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library (see reference section at the end of this document).
 
-#### Return value
+  #### Return value
 
-It returns a promise that resolves to the created token.
+  - It returns a promise that resolves to the created token.<br/><br/>
 
 ### peek<T = any>(token: string): AsyncNullable<T>
 
-The _peak_ function retrieves the session object from Redis which the token points to. However, it doesn't change the validity of the token.
+The _peek_ function retrieves the session object from Redis which the token points to. However, it doesn't change the validity of the token.
 
 #### Parameters
 
-**token:** the cryptographic token
+- **token:** the cryptographic token
 
 #### Return value
 
-Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.
+- Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.<br/><br/>
 
 ### extend<T = any>(token: string, time: string): AsyncNullable<T>
 
@@ -64,12 +64,12 @@ The _extend_ function resets the expiry time of a specified token.
 
 #### Parameters
 
-**token:** The reference token
-**time:** The new expiry time, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library.
+- **token:** The reference token
+- **time:** The new expiry time, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library.
 
 #### Return value
 
-Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.
+- Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.<br/><br/>
 
 ### reset<T = any>(key: string, newVal: T): Promise<void>
 
@@ -77,12 +77,12 @@ The _reset_ function replaces the content a token points to with a new content. 
 
 #### Parameters
 
-**key:** The unique key with which the token was initially created
-**newVal:** The new content that the token should reference.
+- **key:** The unique key with which the token was initially created
+- **newVal:** The new content that the token should reference.
 
 #### Return value
 
-No return value
+- No return value<br/><br/>
 
 ### decommission<T = any>(token: string): AsyncNullable<T>
 
@@ -90,11 +90,11 @@ The _decomission_ function deletes a token from the Redis store and returns the 
 
 #### Parameters
 
-**token:** The token to be decomissioned
+- **token:** The token to be decomissioned
 
 #### Return value
 
-Returns the content referenced by the token (if it exists) or `null` otherwise.
+- Returns the content referenced by the token (if it exists) or `null` otherwise.<br/><br/>
 
 ### revoke(key: string): Promise<void>
 
@@ -102,11 +102,11 @@ The _revoke_ function deletes a token and its referenced content from Redis with
 
 #### Parameters
 
-**key:** The unique key with which the token was initially created
+- **key:** The unique key with which the token was initially created
 
 #### Return value
 
-No return value
+- No return value<br/><br/>
 
 ## Practical examples
 
@@ -188,3 +188,54 @@ const redisStore: RedisStore = new RedisStore(SECRET, Redis);
   await redisStore.revoke(key);
 })();
 ```
+### JWT Module
+
+Another utility in the authentication module is the encoding and decoding of JSON Web Tokens(JWTs)  
+See example below    
+```javascript
+import {jwt} from '@risemaxi/octonet'
+
+const mySecret = '12345678123456781234567812345678'; //32 character string
+const payload = {
+    email: 'email@rise.com',
+    username: 'risemaxi'
+  };
+const encodedSecret: Uint8Array = (new TextEncoder()).encode(mySecret);
+
+(async()=>{
+    const token = await jwt.encode(encodedSecret,'1h',payload);
+
+    console.log(token) //logs jwt token
+
+    const data = await jwt.decode(encodedSecret,token);
+
+    console.log(data) //should be equal to payload
+})()
+
+```
+
+The **jwt** module is sometimes used in conjunction with the **redis** module for authentication.   
+
+### Functions
+
+### encode(secret: Uint8Array, timeout: string, data: any): Promise<string>   
+It creates a new jwt.
+#### Parameters
+- **secret**: An encoded secret.
+- **timeout**: Amount of time after which the token should expire. It is a string in the format `${number}${unit}`. Some valid unit includes 
+  - s: second
+  - h: hours
+  - d:days
+- **data**: The data we want to encode into the jwt. 
+#### Returns
+- It returns a jwt(string)
+
+### decode(secret: Uint8Array, token: string):Promise<any>   
+Decodes a JWT. 
+
+#### Parameter
+- **secret**: An encoded secret. Should be equal to the secret used to encode.,
+- **token**:  JWT gotten after encryption
+
+#### Returns
+- Data which is encoded into the Token.
