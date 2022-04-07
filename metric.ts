@@ -1,15 +1,16 @@
 import { Request, Response } from "express";
 import client from "prom-client";
+import { AppConfig } from "./env";
 
 export class WebMetrics {
-    private histogram: any;
-    register: any;
-    constructor(config: any) {
+    private histogram;
+    register: client.Registry;
+    constructor(config: AppConfig) {
         this.register = new client.Registry()
         this.histogram = new client.Histogram({
-            name: "http_request_response_time",
-            help: "Response time of HTTP requests",
-            labelNames: ["method", "statusCode", "path"]
+            name: "http_request_response_time" as string,
+            help: "Response time of HTTP requests" as string,
+            labelNames: ["method", "statusCode", "path"] as string[]
         })
         this.register.registerMetric(this.histogram)
         this.register.setDefaultLabels({
@@ -32,8 +33,8 @@ export class WebMetrics {
      * @param res Express response object
      */
     record(req: Request, res: Response): void {
-        const responseTimeHeader: any = res.getHeader("X-Response-Time");
-        const time: number = parseFloat(responseTimeHeader) / 1000;
+        const responseTimeHeader: string | number | string[]  = res.getHeader("X-Response-Time");
+        const time: number = (Math.round((+responseTimeHeader + Number.EPSILON) * 100) /100)/ 1000;
         const url: string = `${req.baseUrl}${req.route.path}`;
         this.histogram
             .labels(req.method, String(res.statusCode), url)
