@@ -34,8 +34,8 @@ export class WebMetrics {
      * @param res Express response object
      */
     record(req: Request, res: Response): void {
-        const responseTimeHeader = res.getHeader("X-Response-Time");
-        const time = (Math.round((+responseTimeHeader + Number.EPSILON) * 100) /100)/ 1000;
+        const responseTimeHeader = Number(res.getHeader("X-Response-Time"));
+        const time = responseTimeHeader/ 1000;
         const url = `${req.baseUrl}${req.route.path}`;
         this.histogram
             .labels(req.method, String(res.statusCode), url)
