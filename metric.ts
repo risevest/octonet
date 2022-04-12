@@ -4,11 +4,11 @@ import { AppConfig } from "./env";
 
 export class WebMetrics {
     private histogram: Histogram<string>;
-    register: Registry;
+    public register: Registry;
     
     constructor(config: AppConfig) {
-        this.register = new client.Registry()
-        this.histogram = new client.Histogram({
+        this.register = new Registry()
+        this.histogram = new Histogram({
             name: "http_request_response_time",
             help: "Response time of HTTP requests",
             labelNames: ["method", "statusCode", "path"]
