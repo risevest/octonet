@@ -1,16 +1,17 @@
 import { Request, Response } from "express";
-import client from "prom-client";
+import client, { Histogram, Registry } from "prom-client";
 import { AppConfig } from "./env";
 
 export class WebMetrics {
-    private histogram;
-    register: client.Registry;
+    private histogram: Histogram<string>;
+    register: Registry;
+    
     constructor(config: AppConfig) {
         this.register = new client.Registry()
         this.histogram = new client.Histogram({
-            name: "http_request_response_time" as string,
-            help: "Response time of HTTP requests" as string,
-            labelNames: ["method", "statusCode", "path"] as string[]
+            name: "http_request_response_time",
+            help: "Response time of HTTP requests",
+            labelNames: ["method", "statusCode", "path"]
         })
         this.register.registerMetric(this.histogram)
         this.register.setDefaultLabels({
@@ -24,8 +25,8 @@ export class WebMetrics {
      * @param res Express response object
      */
     send(req: Request, res: Response): void {
-        res.setHeader("Content-Type", this.register.contentType);
-        res.send(this.register.metrics)
+        res.set("Content-Type", this.register.contentType);
+        res.end(this.register.metrics)
     }
     /**
      * Records a HTTP response
@@ -33,9 +34,9 @@ export class WebMetrics {
      * @param res Express response object
      */
     record(req: Request, res: Response): void {
-        const responseTimeHeader: string | number | string[]  = res.getHeader("X-Response-Time");
-        const time: number = (Math.round((+responseTimeHeader + Number.EPSILON) * 100) /100)/ 1000;
-        const url: string = `${req.baseUrl}${req.route.path}`;
+        const responseTimeHeader = res.getHeader("X-Response-Time");
+        const time = (Math.round((+responseTimeHeader + Number.EPSILON) * 100) /100)/ 1000;
+        const url = `${req.baseUrl}${req.route.path}`;
         this.histogram
             .labels(req.method, String(res.statusCode), url)
             .observe(time);
