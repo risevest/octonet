@@ -1,12 +1,11 @@
 import { Request, Response } from "express";
 import { Histogram, Registry, collectDefaultMetrics } from "prom-client";
-import { AppConfig } from "./env";
 
 export class WebMetrics {
     private histogram: Histogram<string>;
     private register: Registry;
     
-    constructor(config: AppConfig) {
+    constructor(service: string) {
         this.register = new Registry()
         this.histogram = new Histogram({
             name: "http_request_response_time",
@@ -15,7 +14,7 @@ export class WebMetrics {
         })
         this.register.registerMetric(this.histogram)
         this.register.setDefaultLabels({
-            app: config.app_name
+            app: service
         })
         collectDefaultMetrics({register: this.register})
     }
