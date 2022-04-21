@@ -28,9 +28,9 @@ req.headers.authorization = `Rise ${token}`;
 
 > Note that a user can only have a **single** token in Redis store at any point in time. This is because the cryptographic function for generating a token is **idempotent**. Hence, it returns the same value regardless of the number of times the function is being called.
 
-## Utility methods
+## Redis module and methods
 
-There are 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
+The redis module manages user sessions and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
 
 ### commision<T = any>(key: string, val: T, time: string): Promise<string>
 
@@ -38,13 +38,13 @@ The _commission_ function creates a cryptographic token using a secret and a spe
 
 #### Parameters
 
-  - **key:** A unique key string for generating the token   
-  - **value:** The value to be referenced with the token. Typically, this is the session object   
-  - **time:** The lifespan (expiry time) of the token, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library (see reference section at the end of this document).
+- **key:** A unique key string for generating the token
+- **value:** The value to be referenced with the token. Typically, this is the session object
+- **time:** The lifespan (expiry time) of the token, formatted in accordance with specifications contained in the [ms](https://github.com/vercel/ms#readme) library (see reference section at the end of this document).
 
-  #### Return value
+#### Return value
 
-  - It returns a promise that resolves to the created token.<br/><br/>
+- It returns a promise that resolves to the created token.<br/><br/>
 
 ### peek<T = any>(token: string): AsyncNullable<T>
 
@@ -188,54 +188,62 @@ const redisStore: RedisStore = new RedisStore(SECRET, Redis);
   await redisStore.revoke(key);
 })();
 ```
+
 ### JWT Module
 
-Another utility in the authentication module is the encoding and decoding of JSON Web Tokens(JWTs)  
-See example below    
+The JWT module is used for system session managemaent.
+It is used in the encoding and decoding of JSON Web Tokens(JWTs)  
+See example below
+
 ```javascript
-import {jwt} from '@risemaxi/octonet'
+import { jwt } from "@risemaxi/octonet";
 
-const mySecret = '12345678123456781234567812345678'; //32 character string
+const mySecret = "12345678123456781234567812345678"; //32 character string
 const payload = {
-    email: 'email@rise.com',
-    username: 'risemaxi'
-  };
-const encodedSecret: Uint8Array = (new TextEncoder()).encode(mySecret);
+  email: "email@rise.com",
+  username: "risemaxi"
+};
+const encodedSecret: Uint8Array = new TextEncoder().encode(mySecret);
 
-(async()=>{
-    const token = await jwt.encode(encodedSecret,'1h',payload);
+(async () => {
+  const token = await jwt.encode(encodedSecret, "1h", payload);
 
-    console.log(token) //logs jwt token
+  console.log(token); //logs jwt token
 
-    const data = await jwt.decode(encodedSecret,token);
+  const data = await jwt.decode(encodedSecret, token);
 
-    console.log(data) //should be equal to payload
-})()
-
+  console.log(data); //should be equal to payload
+})();
 ```
-
-The **jwt** module is sometimes used in conjunction with the **redis** module for authentication.   
 
 ### Functions
 
-### encode(secret: Uint8Array, timeout: string, data: any): Promise<string>   
+### encode(secret: Uint8Array, timeout: string, data: any): Promise<string>
+
 It creates a new jwt.
+
 #### Parameters
+
 - **secret**: An encoded secret.
-- **timeout**: Amount of time after which the token should expire. It is a string in the format `${number}${unit}`. Some valid unit includes 
+- **timeout**: Amount of time after which the token should expire. It is a string in the format `${number}${unit}`. Some valid unit includes
   - s: second
   - h: hours
   - d:days
-- **data**: The data we want to encode into the jwt. 
+- **data**: The data we want to encode into the jwt.
+
 #### Returns
+
 - It returns a jwt(string)
 
-### decode(secret: Uint8Array, token: string):Promise<any>   
-Decodes a JWT. 
+### decode(secret: Uint8Array, token: string):Promise<any>
+
+Decodes a JWT.
 
 #### Parameter
+
 - **secret**: An encoded secret. Should be equal to the secret used to encode.,
-- **token**:  JWT gotten after encryption
+- **token**: JWT gotten after encryption
 
 #### Returns
+
 - Data which is encoded into the Token.

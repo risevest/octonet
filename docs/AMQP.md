@@ -1,10 +1,12 @@
-# Manager
+# AMQP
 
-This describes the Queue Manager API.
+This describes the Queue Decorators.
 
 ## Decorators
 
-Decorators are annotations required to support the event classes. The two decorators used in Octonet are as follows:
+RabbitMQ is the messaging system used for message queues in Octonet. It sends messages usung its own unique protocol `amqp`
+It sends messages(data) on an event using a [channel](https://www.rabbitmq.com/channels.html)
+The two decorators used for Message queues in octonet are as follows:
 
 - **jobs** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
 
@@ -12,7 +14,25 @@ Decorators are annotations required to support the event classes. The two decora
 
 ## Manager
 
-The Octonet Consumer is used to listen for events dispatched from different topics on the **NATS server**. These events are then handled by event classes containing handler functions.
+The AMQP Connection Manager is used to connect to the AMQP queue, create channels for sending and receiving events and closing the connection.
+The AMQP Manager in octnet has the following functions
+
+- **connect(namespace: string, amqp_url: string)**: Connecting to the amqp queue. It supports multiple connections and hence you can connect to different queues using different namespaces.
+- **createChannel(namespace: string)**: Creating a channel on the connection with specified namespace. Through this channel, events from the publisher can be sent to a worker.
+- **close()**: closes all the ampq connection(s)
+- **withChannel(name: string, runner: (chan: Channel) => Promise<void>)**: Creates a channel, runs the runner function on that channel and closes that channel.
+
+## Worker
+
+The AMQP worker is used to listen on all the defined events (annotated with @eventgroup and @jobs). It has just one method
+
+- listen(): Listens for all events on a channel.
+
+## Queue
+
+The AMQP worker is used to publish to a channel. It has one method \
+
+- push(event:string, data:any): Pushes data on the channel to the specified event.
 
 ## Basic example
 
@@ -89,31 +109,35 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @command('wallet.fund') //listens on topic = WALLET_FUND
+    //listens on event = WALLET_FUND
+    @command('wallet.fund')
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @command('wallet.withdraw') //listens on topic = WALLET_WITHDRAW
+    //listens on event = WALLET_WITHDRAW
+    @command('wallet.withdraw')
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
 }
 ```
 
-**@command** takes a string input. That string is capitalized and all '.' are converted to '_'. e,g `wallet.withdraw.user` becomes `WALLET_WITHDRAW_USER`
+**@command** takes a string input. That string is capitalized and all '.' are converted to '\_'. e,g `wallet.withdraw.user` becomes `WALLET_WITHDRAW_USER`
 
 The manager listens on this queue.
 
 ### Step 5: Creating group middleware and handler middleware
 
-A middleware is a function that receives data from the stream, does some processes and and returns the updated data which would be used by the next middleware or the final handler function.  
+A middleware is a function that receives data from the stream, does some processes and and returns the updated data which would be used by the next middleware or the final handler function.
 
-We have 2 types of middleware   
-- **Handler middleware**:  These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
-- **Group middleware:** These middle are common to all handlers in a class and will run before all the handler middleware.   
+We have 2 types of middleware
 
-The order in which the function are run are 
+- **Handler middleware**: These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
+- **Group middleware:** These middle are common to all handlers in a class and will run before all the handler middleware.
+
+The order in which the function are run are
+
 ```
 groupMiddleware -> handlerMiddleware -> Handler
 ```
@@ -139,18 +163,19 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @command('wallet.fund') //listens on topic = WALLET_FUND
+    //listens on event = WALLET_FUND
+    @command('wallet.fund')
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @command('wallet.withdraw') //listens on topic = WALLET_WITHDRAW
+    //listens on event = WALLET_WITHDRAW
+    @command('wallet.withdraw')
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
 }
 ```
-
 
 ### Step 6: Creating the Consumer instance
 
@@ -159,39 +184,38 @@ Finally, we create the consumer instance
 ```js
 // index.ts
 
-import { Logger, ConnectionManager, AMQPQueue,AMQPWorker,defaultSerializers } from "@risemaxi/octonet";
+import { Logger, ConnectionManager, AMQPQueue, AMQPWorker, defaultSerializers } from "@risemaxi/octonet";
 import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";
 import { createQueue, Queue } from "./amqp.helper";
 
 // RABBITMQ CONNECTION
 const amqpURL = "amqp://localhost:5672";
-let manager: ConnectionManager
+let manager: ConnectionManager;
 let logger: Logger;
 let queue: AMQPQueue;
-let worker: AMQPWorker
+let worker: AMQPWorker;
 
 // create a Logger instance
 const logger = new Logger({
-    name: "wallet_demo",
-    serializers: defaultSerializers(),
-    verbose: false
+  name: "wallet_demo",
+  serializers: defaultSerializers(),
+  verbose: false
 });
 
 // immediately invoking function
-(async function(){
-    manager = new ConnectionManager(logger);
-    worker = new AMQPWorker(container,logger)
-    await manager.connect('namespace',amqpUrl);
+(async function () {
+  manager = new ConnectionManager(logger);
+  worker = new AMQPWorker(container, logger);
+  await manager.connect("namespace", amqpUrl);
 
-    const channel = await manager.createChannel('namespace')
-    worker.listen(channel)
+  const channel = await manager.createChannel("namespace");
+  worker.listen(channel);
 
-    queue = new AMQPQueue(channel)
+  queue = new AMQPQueue(channel);
 
-    // testing the `WALLET` class
-    await queue.push('WALLET_FUND', 200);
-    await queue.push('WALLET_WITHDRAW', 100);
+  // testing the `WALLET` class
+  await queue.push("WALLET_FUND", 200);
+  await queue.push("WALLET_WITHDRAW", 100);
 })();
-
 ```

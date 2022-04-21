@@ -4,15 +4,17 @@ This describes the NatsConsumer API.
 
 ## Decorators
 
-Decorators are annotations required to support the event classes. The two decorators used in Octonet are as follows:
+NATS is a **pub-sub** system and itr works using the [Subject messaging system](https://docs.nats.io/nats-concepts/subjects). It consists of **publishers** and **subscribers**. Subscribers listen for data on a specific **subject**, In our case a group of related subscribers are called **streams**.
 
-- **stream** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
+The following decorators are used for NATS in Octonet:
 
-- **subscribe** [_@subscribe(event: string, ...middleware)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
+- **stream** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict a stream. It's a way of grouping an subject and its related subscribers.
+
+- **subscribe** [_@subscribe(subject: string, ...middleware)_]: The subscriber decorator is annotated at the top of a subscriber function (contained in a stream class). It is executed when data is pushed to a particular subject is dispatched.
 
 ## Consumer
 
-The Octonet Consumer is used to listen for events dispatched from different topics on the **NATS server**. These events are then handled by event classes containing handler functions.
+The Octonet Consumer is used to listen for events dispatched from different subjects on the **NATS server**. These events are then handled by event classes containing handler functions.
 
 ## Basic example
 
@@ -89,29 +91,33 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @subscribe('fund') //listens on topic = wallet.fund
+    //listens on subject = wallet.fund
+    @subscribe('fund')
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @subscribe('withdraw') //listens on topic = wallet.withdraw
+    //listens on subject = wallet.withdraw
+    @subscribe('withdraw')
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
 }
 ```
 
-The handlers listen on topics = `streamName.subscribeName`
+The handlers listen on subject = `streamName.subscribeName`
 
 ### Step 5: Creating group middleware and handler middleware
 
-A middleware is a function that receives data from the stream, does some processes and and returns the updated data which would be used by the next middleware or the final handler function.  
+A middleware is a function that receives data from the stream, does some processes and and returns the updated data which would be used by the next middleware or the final handler function.
 
-We have 2 types of middleware   
-- **Handler middleware**:  These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
-- **Group middleware:** These middle are common to all handlers in a class and will run before all the handler middleware.   
+We have 2 types of middleware
 
-The order in which the function are run are 
+- **Handler middleware**: These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
+- **Group middleware:** These middle are common to all handlers in a class and will run before all the handler middleware.
+
+The order in which the function are run are
+
 ```
 groupMiddleware -> handlerMiddleware -> Handler
 ```
@@ -137,18 +143,17 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    @subscribe('fund') //listens on topic = wallet.fund
+    @subscribe('fund') //listens on subject = wallet.fund
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    @subscribe('withdraw', walletFundingMiddleware) //listens on topic = wallet.withdraw
+    @subscribe('withdraw', walletFundingMiddleware) //listens on subject = wallet.withdraw
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }
 }
 ```
-
 
 ### Step 6: Creating the Consumer instance
 
@@ -157,7 +162,7 @@ Finally, we create the consumer instance
 ```js
 // index.ts
 
-import { Logger, NatsConsumer, NatsPublisher, publisherFactory,defaultSerializers } from "@risemaxi/octonet";
+import { Logger, NatsConsumer, NatsPublisher, publisherFactory, defaultSerializers } from "@risemaxi/octonet";
 import "./wallet.ts"; // needed for initialization of the Wallet event class
 import { container } from "./invesify.config";
 import { createQueue, Queue } from "./amqp.helper";
@@ -170,27 +175,26 @@ let publisher: NatsPublisher;
 
 // create a Logger instance
 const logger = new Logger({
-    name: "wallet_demo",
-    serializers: defaultSerializers(),
-    verbose: false
+  name: "wallet_demo",
+  serializers: defaultSerializers(),
+  verbose: false
 });
 
 // immediately invoking function
-(async function(){
-    consumer = new Consumer(container, logger);
-    const natsConnection = await connect(natsUrl);
-    consumer.listen(nats,{
-      namespace: "wallets-namespace",
-      message_age: "1d",
-      batch_size: 10,
-      timeout: "1m"
-    });
+(async function () {
+  consumer = new Consumer(container, logger);
+  const natsConnection = await connect(natsUrl);
+  consumer.listen(nats, {
+    namespace: "wallets-namespace",
+    message_age: "1d",
+    batch_size: 10,
+    timeout: "1m"
+  });
 
-    publisher = await publisherFactory(natsConnection) ;
+  publisher = await publisherFactory(natsConnection);
 
-    // testing the `WALLET` class
-    await publisher.publish('wallet.func', 200);
-    await publisher.publish('wallet.withdraw', 100);
+  // testing the `WALLET` class
+  await publisher.publish("wallet.func", 200);
+  await publisher.publish("wallet.withdraw", 100);
 })();
-
 ```
