@@ -4,7 +4,7 @@ This describes the NatsConsumer API.
 
 ## Decorators
 
-NATS is a **pub-sub** system and itr works using the [Subject messaging system](https://docs.nats.io/nats-concepts/subjects). It consists of **publishers** and **subscribers**. Subscribers listen for data on a specific **subject**, In our case a group of related subscribers are called **streams**.
+NATS is a **pub-sub** system and it works using the [Subject messaging system](https://docs.nats.io/nats-concepts/subjects). It consists of **publishers** and **subscribers**. Subscribers listen for data on a specific **subject**. In our case a group of related subscribers are called **streams**.
 
 The following decorators are used for NATS in Octonet:
 
@@ -114,7 +114,7 @@ A middleware is a function that receives data from the stream, does some process
 We have 2 types of middleware
 
 - **Handler middleware**: These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
-- **Group middleware:** These middle are common to all handlers in a class and will run before all the handler middleware.
+- **Group middleware:** These middleware are common to all handlers in a class and will run before all the handler middleware.
 
 The order in which the function are run are
 
@@ -148,7 +148,8 @@ export class Wallet {
         this.walletRepo.fund(amount);
     }
 
-    @subscribe('withdraw', walletFundingMiddleware) //listens on subject = wallet.withdraw
+    //listens on subject = wallet.withdraw
+    @subscribe('withdraw', walletFundingMiddleware)
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
     }

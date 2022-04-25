@@ -28,9 +28,9 @@ req.headers.authorization = `Rise ${token}`;
 
 > Note that a user can only have a **single** token in Redis store at any point in time. This is because the cryptographic function for generating a token is **idempotent**. Hence, it returns the same value regardless of the number of times the function is being called.
 
-## Redis module and methods
+## User session management
 
-The redis module manages user sessions and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
+The redis module **manages user sessions** and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
 
 ### commision<T = any>(key: string, val: T, time: string): Promise<string>
 
@@ -189,7 +189,7 @@ const redisStore: RedisStore = new RedisStore(SECRET, Redis);
 })();
 ```
 
-### JWT Module
+### System session management(headless requests)
 
 The JWT module is used for system session managemaent.
 It is used in the encoding and decoding of JSON Web Tokens(JWTs)  

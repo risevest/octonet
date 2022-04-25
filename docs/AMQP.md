@@ -1,38 +1,35 @@
 # AMQP
 
-This describes the Queue Decorators.
+The AMQP Module is used for interservice communication via message queues.
+The AMQP module sends messages using the `amqp` protocol. One of the most popular providers of message queues using amqp protocol is `RabbitMQ` which is currently being used in octonet.
+It sends messages(data) to a queue using a [channel](https://www.rabbitmq.com/channels.html)
+The two decorators used for message queues in octonet are as follows:
 
-## Decorators
+- **jobs** [*@stream(**name**: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
 
-RabbitMQ is the messaging system used for message queues in Octonet. It sends messages usung its own unique protocol `amqp`
-It sends messages(data) on an event using a [channel](https://www.rabbitmq.com/channels.html)
-The two decorators used for Message queues in octonet are as follows:
-
-- **jobs** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
-
-- **command** [_@subscribe(event: string, ...middleware)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
+- **command** [_@subscribe(**queue**: string, ...middleware)_]: The handler decorator is annotated at the top of a handler function (contained in an event class). It is executed when a particular event is dispatched.
 
 ## Manager
 
 The AMQP Connection Manager is used to connect to the AMQP queue, create channels for sending and receiving events and closing the connection.
 The AMQP Manager in octnet has the following functions
 
-- **connect(namespace: string, amqp_url: string)**: Connecting to the amqp queue. It supports multiple connections and hence you can connect to different queues using different namespaces.
-- **createChannel(namespace: string)**: Creating a channel on the connection with specified namespace. Through this channel, events from the publisher can be sent to a worker.
+- **connect(namespace: _string_, amqp*url: \_string*)**: Connecting to the amqp queue. It supports multiple connections and hence you can connect to different queues using different namespaces.
+- **createChannel(namespace: _string_)**: Creating a channel on the connection with specified namespace. Through this channel, events from the publisher can be sent to a worker.
 - **close()**: closes all the ampq connection(s)
-- **withChannel(name: string, runner: (chan: Channel) => Promise<void>)**: Creates a channel, runs the runner function on that channel and closes that channel.
+- **withChannel(name: _string_, runner: _(chan: Channel) => Promise<void>_)**: Creates a channel, runs the runner function on that channel and closes that channel.
 
 ## Worker
 
 The AMQP worker is used to listen on all the defined events (annotated with @eventgroup and @jobs). It has just one method
 
-- listen(): Listens for all events on a channel.
+- **listen()**: Listens for messages on all queues on a channel.
 
 ## Queue
 
-The AMQP worker is used to publish to a channel. It has one method \
+The AMQP worker is used to publish to a channel. It has one method
 
-- push(event:string, data:any): Pushes data on the channel to the specified event.
+- **push(queue:_string_, data:_any_)**: Pushes data to the queue via the channel.
 
 ## Basic example
 
@@ -109,13 +106,13 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    //listens on event = WALLET_FUND
+    //listens on queue = WALLET_FUND
     @command('wallet.fund')
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    //listens on event = WALLET_WITHDRAW
+    //listens on queue = WALLET_WITHDRAW
     @command('wallet.withdraw')
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
@@ -163,13 +160,13 @@ export class Wallet {
 
     @inject(WALLET_TAG) private walletRepo: IFundWallet;
 
-    //listens on event = WALLET_FUND
+    //listens on queue = WALLET_FUND
     @command('wallet.fund')
     executeWalletFunding(amount: number): void {
         this.walletRepo.fund(amount);
     }
 
-    //listens on event = WALLET_WITHDRAW
+    //listens on queue = WALLET_WITHDRAW
     @command('wallet.withdraw')
     eexecuteWalletWithdrawal(amount): void {
         this.walletRepo.withdraw(amount);
@@ -214,7 +211,7 @@ const logger = new Logger({
 
   queue = new AMQPQueue(channel);
 
-  // testing the `WALLET` class
+  // testing the `WALLET` class by pushing data(messages) to the various queues
   await queue.push("WALLET_FUND", 200);
   await queue.push("WALLET_WITHDRAW", 100);
 })();
