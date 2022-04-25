@@ -8,9 +8,9 @@ NATS is a **pub-sub** system and it works using the [Subject messaging system](h
 
 The following decorators are used for NATS in Octonet:
 
-- **stream** [*@stream(name: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict a stream. It's a way of grouping an subject and its related subscribers.
+- **stream** [*@stream(**name**: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict a stream. It's a way of grouping an subject and its related subscribers.
 
-- **subscribe** [_@subscribe(subject: string, ...middleware)_]: The subscriber decorator is annotated at the top of a subscriber function (contained in a stream class). It is executed when data is pushed to a particular subject is dispatched.
+- **subscribe** [_@subscribe(**subject**: string, ...middleware)_]: The subscriber decorator is annotated at the top of a subscriber function (contained in a stream class). It is executed when data is pushed to a particular subject is dispatched.
 
 ## Consumer
 
@@ -105,7 +105,7 @@ export class Wallet {
 }
 ```
 
-The handlers listen on subject = `streamName.consumerSubject`
+The handler listens on subject = `streamName.consumerSubject`
 
 ### Step 5: Creating stream middleware and consumer middleware
 
@@ -114,7 +114,7 @@ A middleware is a function that receives data from the stream, does some process
 We have 2 types of middleware
 
 - **consumer middleware**: These functions run before the handler they are specified in. Then consumer function will be run only after all stream middleware are run.
-- **Stream middleware:** These middleware are common to all handlers in a class and will run before all the handler middleware.
+- **stream middleware:** These functions are common to all handlers in a class and will run before all the handler middleware.
 
 The order in which the function are run are
 

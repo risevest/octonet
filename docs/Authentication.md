@@ -32,7 +32,7 @@ req.headers.authorization = `Rise ${token}`;
 
 The redis module **manages user sessions** and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
 
-### commision<T = any>(key: string, val: T, time: string): Promise<string>
+### **commision**_<T = any>_**(key**: _string_, **val**: _T_, **time**: _string_**)**: _Promise\<string>_
 
 The _commission_ function creates a cryptographic token using a secret and a specified key, and saves the data for that key in Redis. The saved data can be accessed via the token.
 
@@ -46,7 +46,7 @@ The _commission_ function creates a cryptographic token using a secret and a spe
 
 - It returns a promise that resolves to the created token.<br/><br/>
 
-### peek<T = any>(token: string): AsyncNullable<T>
+### **peek**_<T = any>_**(token**: _string_**)**: _AsyncNullable\<T>_
 
 The _peek_ function retrieves the session object from Redis which the token points to. However, it doesn't change the validity of the token.
 
@@ -58,7 +58,7 @@ The _peek_ function retrieves the session object from Redis which the token poin
 
 - Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.<br/><br/>
 
-### extend<T = any>(token: string, time: string): AsyncNullable<T>
+### **extend**_<T = any>_**(token**: _string_, **time**: _string_**)**: _AsyncNullable\<T>_
 
 The _extend_ function resets the expiry time of a specified token.
 
@@ -71,7 +71,7 @@ The _extend_ function resets the expiry time of a specified token.
 
 - Returns the session object for the given token from Redis (if found) or `null` if there is no object referenced by that token.<br/><br/>
 
-### reset<T = any>(key: string, newVal: T): Promise<void>
+### **reset**_<T = any>_**(key**: _string_, **newVal**: _T_): _Promise\<void>_
 
 The _reset_ function replaces the content a token points to with a new content. The token is gotten from the unique _key_ with which it was initially created.
 
@@ -84,7 +84,7 @@ The _reset_ function replaces the content a token points to with a new content. 
 
 - No return value<br/><br/>
 
-### decommission<T = any>(token: string): AsyncNullable<T>
+### **decommission**_<T = any>_**(token**: _string_**)**: _AsyncNullable\<T>_
 
 The _decomission_ function deletes a token from the Redis store and returns the content the token was pointing to (if it exists) prior to being decomissioned.
 
@@ -96,7 +96,7 @@ The _decomission_ function deletes a token from the Redis store and returns the 
 
 - Returns the content referenced by the token (if it exists) or `null` otherwise.<br/><br/>
 
-### revoke(key: string): Promise<void>
+### **revoke(key**: _string_): _Promise\<void>_
 
 The _revoke_ function deletes a token and its referenced content from Redis without returning the referenced content.
 
@@ -189,9 +189,9 @@ const redisStore: RedisStore = new RedisStore(SECRET, Redis);
 })();
 ```
 
-### System session management(headless requests)
+### System session management (headless requests)
 
-The JWT module is used for system session managemaent.
+The JWT module is used for **system session management**.
 It is used in the encoding and decoding of JSON Web Tokens(JWTs)  
 See example below
 
@@ -218,7 +218,7 @@ const encodedSecret: Uint8Array = new TextEncoder().encode(mySecret);
 
 ### Functions
 
-### encode(secret: Uint8Array, timeout: string, data: any): Promise<string>
+### **encode(secret**: _Uint8Array_, **timeout**: _string_, **data**: _any_): _Promise\<string>_
 
 It creates a new jwt.
 
@@ -235,7 +235,7 @@ It creates a new jwt.
 
 - It returns a jwt(string)
 
-### decode(secret: Uint8Array, token: string):Promise<any>
+### **decode(secret**: _Uint8Array_, **token**: _string_):_Promise\<any>_
 
 Decodes a JWT.
 

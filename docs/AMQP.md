@@ -2,7 +2,7 @@
 
 The AMQP Module is used for interservice communication via message queues.
 The AMQP module sends messages using the `amqp` protocol. One of the most popular providers of message queues using amqp protocol is `RabbitMQ` which is currently being used in octonet.
-It sends messages(data) to a queue using a [channel](https://www.rabbitmq.com/channels.html)
+It sends messages(data) to a queue using a [channel](https://www.rabbitmq.com/channels.html).
 The two decorators used for message queues in octonet are as follows:
 
 - **jobs** [*@stream(**name**: string, ...groupMiddleware)*]: This decorator is annotated at the top of an event class (more on that later) to depict an event group. It's a way of grouping an event and its related handlers.
@@ -14,10 +14,10 @@ The two decorators used for message queues in octonet are as follows:
 The AMQP Connection Manager is used to connect to the AMQP queue, create channels for sending and receiving events and closing the connection.
 The AMQP Manager in octnet has the following functions
 
-- **connect(namespace: _string_, amqp*url: \_string*)**: Connecting to the amqp queue. It supports multiple connections and hence you can connect to different queues using different namespaces.
-- **createChannel(namespace: _string_)**: Creating a channel on the connection with specified namespace. Through this channel, events from the publisher can be sent to a worker.
+- **connect(namespace**: _string_, **amqp_url**: _string_ **)**: Connecting to the amqp queue. It supports multiple connections and hence you can connect to different queues using different namespaces.
+- **createChannel(namespace:** _string_ **)**: Creating a channel on the connection with specified namespace. Through this channel, events from the publisher can be sent to a worker.
 - **close()**: closes all the ampq connection(s)
-- **withChannel(name: _string_, runner: _(chan: Channel) => Promise<void>_)**: Creates a channel, runs the runner function on that channel and closes that channel.
+- **withChannel(name**: _string_, **runner**: _(chan: Channel) => Promise<void>_ **)**: Creates a channel, runs the runner function on that channel and closes that channel.
 
 ## Worker
 
@@ -29,7 +29,7 @@ The AMQP worker is used to listen on all the defined events (annotated with @eve
 
 The AMQP worker is used to publish to a channel. It has one method
 
-- **push(queue:_string_, data:_any_)**: Pushes data to the queue via the channel.
+- **push(queue**:_string_, **data**:_any_ **)**: Pushes data to the queue via the channel.
 
 ## Basic example
 
@@ -97,7 +97,7 @@ Next, we create the `Wallet` class for handling the `fund` and `withdrawal` even
 
 ```js
 // wallet.ts
-import { eventGroup, handler } from "@risemaxi/octonet";
+import { job, command } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
@@ -141,7 +141,7 @@ groupMiddleware -> handlerMiddleware -> Handler
 
 ```js
 // wallet.ts
-import { eventGroup, handler } from "@risemaxi/octonet";
+import { jobs, command } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
