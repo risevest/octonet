@@ -105,7 +105,7 @@ export class Wallet {
 }
 ```
 
-The handlers listen on subject = `streamName.subscribeName`
+The handlers listen on subject = `streamName.consumerSubject`
 
 ### Step 5: Creating stream middleware and consumer middleware
 

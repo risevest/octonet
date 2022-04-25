@@ -4,7 +4,7 @@ This section describes the HTTP module of Octonet as well as practical applicati
 
 ## About
 
-The HTTP module is used to make API requests such as:
+The HTTP module comprises of the HttpAgent which is used to make API requests such as:
 
 - User-initiated requests
 - System-level requests
@@ -12,34 +12,13 @@ The HTTP module is used to make API requests such as:
 
 Let's explain these in more detail.
 
-### Http Agent
-
-The http agent has the following methods
-
-- **useLogger(logger:_Logger_)**: Sets the logger to be used for logging requests
-
-The http agent also has the following methods to make requests
-
-- **get(url: _string_, params?: _object_): _RequestWrapper_**
-- **post(url: _string_, body?: _object_): _RequestWrapper_**
-- **put(url: _string_, body?: _object_): _RequestWrapper_**
-- **patch(url: _string_, body?: _object_): _RequestWrapper_**
-- **del(url: _string_, params?: _object_): _RequestWrapper_**
-
-which all return a **RequestWrapper** object to make requests.  
-The request wrapper can then be chained with the following methods to add more data to the request.
-
-- **do(timeout?: _number_)**: This is always the final function in the chain and returns the response from the request made. it takes a timeout parameter which ensures the request returns error if the specified time limit is exceeded
-- **track(req?:_Request_)**: Checks that a request has id or assigns value to the request.
-- **set(key:_string_, val: _string_)**: Sets value of request header
-- **auth(req:_Request_)**: checks for authorization token in request.
-- **type(t: _"json" | "form" | "urlencoded"_)**: sets the request Content-type
-
 ### User-initiated requests
 
 These are API requests initiated by the user, which typically requires a user session. A user session can only be accessed by a cryptographic token, and is uniquely differentiated from a system session by the `scheme` contained in the authorization header.
 
-An authorization header comprises of the `scheme` and the `token`, separated by a space in a single string. In this case, this could be:
+An authorization header comprises of the `scheme` and the `token`, separated by a space in a single string.
+Check [here](Authentication.md) for more explation  
+In this case, this could be:
 
 ```js
 // express request header
