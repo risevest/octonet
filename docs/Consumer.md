@@ -82,7 +82,7 @@ Next, we create the `Wallet` class for handling the `fund` and `withdrawal` even
 
 ```js
 // wallet.ts
-import { eventGroup, handler } from "@risemaxi/octonet";
+import { stream, subscribe } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
@@ -107,24 +107,24 @@ export class Wallet {
 
 The handlers listen on subject = `streamName.subscribeName`
 
-### Step 5: Creating group middleware and handler middleware
+### Step 5: Creating stream middleware and consumer middleware
 
 A middleware is a function that receives data from the stream, does some processes and and returns the updated data which would be used by the next middleware or the final handler function.
 
 We have 2 types of middleware
 
-- **Handler middleware**: These functions run before the handler they are specified in. Then handler function will be run only after all middleware are run.
-- **Group middleware:** These middleware are common to all handlers in a class and will run before all the handler middleware.
+- **consumer middleware**: These functions run before the handler they are specified in. Then consumer function will be run only after all stream middleware are run.
+- **Stream middleware:** These middleware are common to all handlers in a class and will run before all the handler middleware.
 
 The order in which the function are run are
 
 ```
-groupMiddleware -> handlerMiddleware -> Handler
+groupMiddleware -> handlerMiddleware -> handler
 ```
 
 ```js
 // wallet.ts
-import { eventGroup, handler } from "@risemaxi/octonet";
+import { stream, subscribe } from "@risemaxi/octonet";
 import { WALLET_TAG, container } from "./inversify.config";
 import { IFundWallet} from "./wallet.interface";
 
