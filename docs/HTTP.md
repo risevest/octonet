@@ -14,8 +14,7 @@ These are explained in more detail [here](Authentication.md)
 
 ### Http Agent
 
-The http agent has the following methods
-It is used for making external api requests.
+The http agent is used for making external API requests and has the following methods
 
 - **useLogger(logger:_Logger_)**: Sets the logger to be used for logging requests
 
