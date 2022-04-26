@@ -187,7 +187,6 @@ const logger = new Logger({
   const natsConnection = await connect(natsUrl);
   consumer.listen(nats, {
     namespace: "wallets-namespace",
-    message_age: "1d",
     batch_size: 10,
     timeout: "1m"
   });

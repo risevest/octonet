@@ -31,15 +31,17 @@ The following are required for the best use of Octonet:
 To install Octonet, run the following command in your terminal
 
 ```bash
-yarn install --save @risemaxi/octonet reflect-metadata inversify
-```   
+yarn install --save @risemaxi/octonet reflect-metadata
+```
 
 To upgrade to a specific version run this command
+
 ```bash
 yarn upgrade @risemaxi/octonet@version
 ```
 
-To upgrade to latest version  run this command     
+To upgrade to latest version run this command
+
 ```bash
 yarn upgrade @risemaxi/octonet --latest
 ```
@@ -66,7 +68,7 @@ Below are links to detailed explanations to the various features of Octonet as w
 
 - [HTTP (Interservice Comunication)](docs/HTTP.md)
 - [NatsConsumer (subscribing to Nats topics)](docs/Consumer.md)
-- [QueueManager (subscribing to   RabbitMQ queues)](docs/Manager.md)
+- [QueueManager (subscribing to RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
 

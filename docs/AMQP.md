@@ -72,26 +72,7 @@ export FundWallet implements IWallet{
 }
 ```
 
-### Step 3: Creating a container class
-
-Next, we create a container class for binding the necessary interfaces with their respective implementations.
-
-```js
-// inversify.config.ts
-
-import { Container } from "inversify";
-import { IFundWallet} from "./wallet.interface";
-import { FundWallet } from "./wallet.repo";
-
-export const WALLET_TAG = Symbol.for('Wallet');
-
-const container = new Container();
-container.bind<IFundWallet>(WALLET_TYPE).to(FundWallet);
-
-export container;
-```
-
-### Step 4: Creating the `Wallet` class
+### Step 3: Creating the `Wallet` class
 
 Next, we create the `Wallet` class for handling the `fund` and `withdrawal` event. Note that the `Wallet` class is `injectable()` by default;
 
@@ -118,6 +99,26 @@ export class Wallet {
         this.walletRepo.withdraw(amount);
     }
 }
+```
+
+### Step 4: Creating a container class
+
+Next, we create a container class for binding the necessary interfaces with their respective implementations.
+
+```js
+// inversify.config.ts
+
+import { Container } from "inversify";
+import { IFundWallet} from "./wallet.interface";
+import { FundWallet } from "./wallet.repo";
+import './wallet.ts'
+
+export const WALLET_TAG = Symbol.for('Wallet');
+
+const container = new Container();
+container.bind<IFundWallet>(WALLET_TYPE).to(FundWallet);
+
+export container;
 ```
 
 **@command** takes a string input. That string is capitalized and all '.' are converted to '\_'. e,g `wallet.withdraw.user` becomes `WALLET_WITHDRAW_USER`

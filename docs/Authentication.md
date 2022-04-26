@@ -23,14 +23,14 @@ req.headers.authorization = `${scheme} ${token}`;
 req.headers.authorization = `Bearer ${token}`;
 
 // request header for a system session with a custom-defined scheme
-req.headers.authorization = `Rise ${token}`;
+req.headers.authorization = `Custom ${token}`;
 ```
 
 > Note that a user can only have a **single** token in Redis store at any point in time. This is because the cryptographic function for generating a token is **idempotent**. Hence, it returns the same value regardless of the number of times the function is being called.
 
 ## User session management
 
-The redis module **manages user sessions** and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
+The **RedisStore** module **manages user sessions** and has 4 main utility functions through which token-related actions for authentication are performed in Octonet. They are discussed below:
 
 ### **commision**_<T = any>_**(key**: _string_, **val**: _T_, **time**: _string_**)**: _Promise\<string>_
 
