@@ -91,12 +91,7 @@ export class HttpAgent {
       return res;
     };
     const onErrorResponse = (err: any) => {
-      if (err.response) {
-        logger.axiosError(err);
-      } else {
-        logger.error(err);
-      }
-
+      logger.axiosError(err);
       return Promise.reject(err);
     };
 
