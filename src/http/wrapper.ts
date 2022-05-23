@@ -1,4 +1,5 @@
 import { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import { Request } from "express";
 import FormData from "form-data";
 import { each } from "lodash";
 import qs from "qs";
