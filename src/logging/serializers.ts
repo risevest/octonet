@@ -1,4 +1,5 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
+import { stdSerializers } from "bunyan";
 import { Request, Response } from "express";
 import unset from "lodash/unset";
 
@@ -18,7 +19,8 @@ export function defaultSerializers(...paths: string[]) {
     axios_res: axiosResponse,
     req: expressRequest(...paths),
     res: expressResponse,
-    event: sanitized(...paths)
+    event: sanitized(...paths),
+    err: stdSerializers.err
   };
 }
 
