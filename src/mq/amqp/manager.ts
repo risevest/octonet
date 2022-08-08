@@ -1,8 +1,6 @@
 import { Channel, Connection, connect } from "amqplib";
-import { interfaces } from "inversify";
 
 import { Logger } from "../../logging/logger";
-import { AMQPQueue } from "./queue";
 
 export class ChannelManager {
   private channels: Channel[] = [];
@@ -22,15 +20,13 @@ export class ChannelManager {
   }
 
   /**
-   * Creates an inversify queue provider so it can manage it's lifecycle
+   * Create a new AMQP Connection managed through connection manager
+   * @param url AMQP url
+   * @param logger bunyan logger for octonet errors
    */
-  provider(): interfaces.ProviderCreator<AMQPQueue> {
-    return _context => {
-      return async (name: string) => {
-        const channel = await this.createChannel(name);
-        return new AMQPQueue(channel);
-      };
-    };
+  static async connect(url: string, logger: Logger) {
+    const conn = await connect(url);
+    return new ChannelManager(conn, logger);
   }
 
   /**
