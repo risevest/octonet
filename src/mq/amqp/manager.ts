@@ -4,38 +4,21 @@ import { interfaces } from "inversify";
 import { Logger } from "../../logging/logger";
 import { AMQPQueue } from "./queue";
 
-export type QueueProvider = (name: string) => Promise<AMQPQueue>;
-
-export class ConnectionManager {
+export class ChannelManager {
   private channels: Channel[] = [];
-  private connections = new Map<string, Connection>();
-  /**
-   * tracks the health status of all connections. Marked false once
-   * one connection is lost
-   */
-  public is_healthy = true;
+  private connected: boolean;
 
-  constructor(private logger: Logger) {}
+  constructor(private conn: Connection, logger: Logger) {
+    this.connected = true;
 
-  /**
-   * Create a new AMQP Connection managed through connection manager
-   * @param name name to give this connection for future reference
-   * @param url AMQP url
-   */
-  async connect(name: string, url: string) {
-    const conn = await connect(url);
-
-    conn.on("error", err => {
-      this.is_healthy = false;
-      this.logger.error(err);
+    this.conn.on("error", err => {
+      this.connected = false;
+      logger.error(err);
     });
 
-    conn.on("close", () => {
-      this.is_healthy = false;
-      this.logger.error(new Error("Connection with AMQP closed"));
+    this.conn.on("close", () => {
+      this.connected = false;
     });
-
-    this.connections.set(name, conn);
   }
 
   /**
@@ -51,35 +34,30 @@ export class ConnectionManager {
   }
 
   /**
-   * Create a managed channel
-   * @param name name of the connection declared when calling `connect`
+   * Create a managed channel. Channel creation failure means the entire service needs
+   * to be restarted
    */
-  createChannel(name: string): Promise<Channel> {
-    if (!this.connections.has(name)) {
-      Promise.reject(new Error(`ConnectionManager is not connected to ${name}`));
-    }
-
-    const conn = this.connections.get(name);
+  createChannel(): Promise<Channel> {
     return new Promise((resolve, reject) => {
-      conn.createChannel().then(chan => {
-        this.channels.push(chan);
-        resolve(chan);
-      }, reject);
+      this.conn.createChannel().then(
+        chan => {
+          this.channels.push(chan);
+          resolve(chan);
+        },
+        err => {
+          this.connected = false;
+          reject(err);
+        }
+      );
     });
   }
 
   /**
    * Create a channel with a lifetime limited to running the given function.
-   * @param name name of connection
    * @param runner code that uses the channel
    */
-  async withChannel(name: string, runner: (chan: Channel) => Promise<void>) {
-    if (!this.connections.has(name)) {
-      throw new Error(`ConnectionManager is not connected to ${name}`);
-    }
-
-    const conn = this.connections.get(name);
-    const channel = await conn.createChannel();
+  async withChannel(runner: (chan: Channel) => Promise<void>) {
+    const channel = await this.conn.createChannel();
     await runner(channel);
     await channel.close();
   }
@@ -88,16 +66,12 @@ export class ConnectionManager {
    * Close all channels and connections
    */
   async close() {
-    if (!this.is_healthy) {
+    if (!this.connected) {
       return;
     }
 
     for (const chan of this.channels) {
       await chan.close();
-    }
-
-    for (const conn of this.connections.values()) {
-      await conn.close();
     }
   }
 }
