@@ -69,5 +69,7 @@ export class ChannelManager {
     for (const chan of this.channels) {
       await chan.close();
     }
+
+    return this.conn.close();
   }
 }
