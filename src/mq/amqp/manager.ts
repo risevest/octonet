@@ -4,7 +4,12 @@ import { Logger } from "../../logging/logger";
 
 export class ChannelManager {
   private channels: Channel[] = [];
-  private connected: boolean;
+
+  /**
+   * tracks the health status of all connections. Marked false once
+   * one connection is lost
+   */
+  public connected: boolean;
 
   constructor(private conn: Connection, logger: Logger) {
     this.connected = true;
