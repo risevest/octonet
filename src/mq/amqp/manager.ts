@@ -30,8 +30,8 @@ export class ChannelManager {
   }
 
   /**
-   * Create a managed channel. Channel creation failure means the entire service needs
-   * to be restarted
+   * Create a managed channel. Failure to create a single channel
+   * threatens the health of all the channels
    */
   createChannel(): Promise<Channel> {
     return new Promise((resolve, reject) => {
