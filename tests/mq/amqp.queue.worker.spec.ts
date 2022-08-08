@@ -5,7 +5,7 @@ import faker from "faker";
 import { Container } from "inversify";
 import sinon from "sinon";
 
-import { AMQPQueue, AMQPWorker, ConnectionManager, Logger, defaultSerializers } from "../../src";
+import { AMQPQueue, AMQPWorker, ChannelManager, Logger, defaultSerializers } from "../../src";
 import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
@@ -17,16 +17,16 @@ export const logger = new Logger({
 });
 
 let queue: AMQPQueue;
-let manager = new ConnectionManager(logger);
+let manager: ChannelManager;
 
 beforeAll(async () => {
   const container = new Container();
-  await manager.connect("base", amqpURL);
+  manager = await ChannelManager.connect(amqpURL, logger);
 
   const worker = new AMQPWorker(container, logger);
-  await worker.listen(await manager.createChannel("base"));
+  await worker.listen(await manager.createChannel());
 
-  queue = new AMQPQueue(await manager.createChannel("base"));
+  queue = new AMQPQueue(await manager.createChannel());
 });
 
 afterAll(async () => {
