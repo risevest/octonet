@@ -1,6 +1,7 @@
-
 {
-    "trailingComma": "none",
-    "printWidth": 120,
-    "arrowParens": "avoid"
-  }
+  "trailingComma": "none",
+  "printWidth": 120,
+  "arrowParens": "avoid",
+  "tabWidth": 2,
+  "useTabs": false
+}
