@@ -2,12 +2,12 @@ import { Container, decorate, injectable } from "inversify";
 import { keyBy } from "lodash";
 import nodecron from "node-cron";
 
-interface QueryMetadata {
+export interface QueryMetadata {
   name: string;
   method: string;
 }
 
-interface JobMetadata {
+export interface JobMetadata {
   name: string;
   method: string;
   schedule: string;

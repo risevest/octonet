@@ -1,9 +1,9 @@
 import { Container, injectable } from "inversify";
 import { Redis } from "ioredis";
 import cron from "node-cron";
-import { retryOnError, retryOnRequest, wrapHandler } from "retry";
 
 import { Logger } from "../logging/logger";
+import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
 
 @injectable()
