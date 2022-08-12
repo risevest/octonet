@@ -68,7 +68,7 @@ export async function retryOnRequest(maxRetries: number, minTimeout: string, fn:
     try {
       await fn();
     } catch (err) {
-      if (err instanceof ExitError) {
+      if (!(err instanceof RetryError)) {
         return;
       }
 
