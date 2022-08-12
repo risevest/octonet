@@ -19,7 +19,7 @@ export class ExitError extends Error {}
  * exponenetial backoff
  * @param maxRetries maximum number of retries past the first attempt. 0 does not retry
  * at all.
- * @param minTimeout minimum amount of timeout for each attempt. minimum is 1s
+ * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
 export function retryOnError(maxRetries: number, minTimeout: string, fn: () => Promise<void>) {
@@ -27,7 +27,7 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: () => P
     return fn();
   }
 
-  const timeoutInMS = Math.max(ms(minTimeout), 1000);
+  const timeoutInMS = ms(minTimeout);
   const timeouts = retryTimeouts(maxRetries, timeoutInMS);
 
   async function run() {
@@ -42,7 +42,7 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: () => P
         throw err;
       }
 
-      setTimeout(run, timeouts.shift());
+      return delay(timeouts.shift(), run);
     }
   }
 
@@ -53,7 +53,7 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: () => P
  * Another version of `retryOnError` but it only retries when `RetryError` is thrown.
  * @param maxRetries maximum number of retries past the first attempt. 0 does not retry
  * at all.
- * @param minTimeout minimum amount of timeout for each attempt. minimum is 1s
+ * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
 export async function retryOnRequest(maxRetries: number, minTimeout: string, fn: () => Promise<void>): Promise<void> {
@@ -61,7 +61,7 @@ export async function retryOnRequest(maxRetries: number, minTimeout: string, fn:
     return fn();
   }
 
-  const timeoutInMS = Math.max(ms(minTimeout), 1000);
+  const timeoutInMS = ms(minTimeout);
   const timeouts = retryTimeouts(maxRetries, timeoutInMS);
 
   async function run() {
@@ -76,7 +76,7 @@ export async function retryOnRequest(maxRetries: number, minTimeout: string, fn:
         throw err;
       }
 
-      setTimeout(run, timeouts.shift());
+      return delay(timeouts.shift(), run);
     }
   }
 
@@ -103,5 +103,18 @@ export function wrapHandler<T = any>(logger: Logger, fn: (t: T) => Promise<void>
 function retryTimeouts(max: number, timeout: number) {
   return Array.from({ length: max }).map((_, i) => {
     return Math.round(timeout * Math.pow(2, i));
+  });
+}
+
+function delay(t: number, fn: () => Promise<void>) {
+  return new Promise<void>((resolve, reject) => {
+    setTimeout(async () => {
+      try {
+        await fn();
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    }, t);
   });
 }
