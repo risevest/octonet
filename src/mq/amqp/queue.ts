@@ -1,10 +1,12 @@
 import { Channel } from "amqplib";
+import { injectable } from "inversify";
 
 interface BufferEntry {
   queue: string;
   data: any;
 }
 
+@injectable()
 export class AMQPQueue {
   private internalBuffer: BufferEntry[] = [];
 
