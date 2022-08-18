@@ -5,8 +5,8 @@ import sinon from "sinon";
 
 import { Logger, defaultSerializers } from "../../src";
 import { JobRunner } from "../../src/jobs/runner";
-import { jumpBy, sleep } from "../helpers";
-import { dataSpy, normalSpy, querySpy } from "./helpers/decorators";
+import { jumpBy, sleep, withTimePaused } from "../helpers";
+import { GROUP_NAME, dataSpy, normalSpy, querySpy } from "./helpers/decorators";
 
 const redisURL = "redis://localhost:6379";
 const logger = new Logger({
@@ -27,6 +27,8 @@ afterEach(() => {
   sinon.resetBehavior();
   sinon.resetHistory();
   runner.stop();
+
+  return redis.flushdb();
 });
 
 afterAll(async () => {
@@ -34,7 +36,7 @@ afterAll(async () => {
 });
 
 describe("JobRunner.CronGroup#normalJob", () => {
-  it("calls job first thing in the morning", async () => {
+  it("should call job first thing in the morning", async () => {
     const dailyExpr = "0 0 * * *";
     const jump = jumpBy(dailyExpr);
     await runner.start(redis, logger);
@@ -47,7 +49,7 @@ describe("JobRunner.CronGroup#normalJob", () => {
 });
 
 describe("JobRunner.CronGroup#dataJob", () => {
-  it("calls job first thing in the morning", async () => {
+  it("should call job right before midnight", async () => {
     const dailyExpr = "0 23 * * *";
     const jump = jumpBy(dailyExpr);
     await runner.start(redis, logger);
@@ -60,6 +62,22 @@ describe("JobRunner.CronGroup#dataJob", () => {
     expect(dataSpy.callCount).to.eq(4);
     dataSpy.getCalls().forEach((call, i) => {
       expect(call.args[0]).to.eq(i + 1);
+    });
+  });
+
+  it("should call job to handle existing work", async () => {
+    await withTimePaused(async _f => {
+      redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(20));
+      redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(30));
+
+      await runner.start(redis, logger);
+
+      await sleep(1000);
+
+      expect(querySpy.called).to.be.false;
+      expect(dataSpy.callCount).to.eq(2);
+      expect(dataSpy.firstCall.firstArg).to.eq(20);
+      expect(dataSpy.secondCall.firstArg).to.eq(30);
     });
   });
 });

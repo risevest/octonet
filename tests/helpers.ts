@@ -53,6 +53,24 @@ export async function repeat(n: number, fn: (i?: number) => Promise<any>): Promi
   return Promise.all(jobs);
 }
 
+type JumpFn = (time: string) => void;
+
+/**
+ * Runs the given function while time is reset to the beginning
+ * @param f function to be run with paused time. It accepts a function that can be
+ * used to jump further
+ */
+export async function withTimePaused(f: (j: JumpFn) => Promise<void>) {
+  sinonClock = sinon.useFakeTimers();
+
+  await f((t: string) => {
+    sinonClock?.tick(ms(t));
+  });
+
+  sinonClock?.restore();
+  sinonClock = null;
+}
+
 /**
  * Jump to specific time and pass it by `extra`. It restores time once you call
  * the `jump` method.
