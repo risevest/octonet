@@ -51,13 +51,14 @@ describe("retryOnError", () => {
 
   it("should space retries using exponential backoff", async () => {
     let timeouts: number[] = [];
-    let now = new Date().getTime();
+    const inMillis = (time: number[]) => time[0] * 1000 + time[1] / 1000000;
+    let now = process.hrtime();
 
     try {
       await retryOnError(2, "10ms", async () => {
         const temp = now;
-        now = new Date().getTime();
-        timeouts.push(now - temp);
+        now = process.hrtime();
+        timeouts.push(inMillis(now) - inMillis(temp));
 
         throw new Error("error");
       });
