@@ -19,10 +19,18 @@ export class JobRunner {
     this.jobs = getJobs(container);
   }
 
+  /**
+   * Schedule the jobs that have been extracted. Will run query job handlers
+   * immediately if they have pending jobs on the queue
+   * @param redis redis for storing pending jobs
+   * @param logger logger to track jobs
+   */
   async start(redis: Redis, logger: Logger) {
-    this.jobs.forEach(j => {
+    for (const j of this.jobs) {
       j.job = wrapHandler(logger, j.job);
-      cron.schedule(j.schedule, async () => {
+
+      // schedule job for later
+      const task = cron.schedule(j.schedule, async () => {
         // run the job directly if there's no query
         if (!j.query) {
           return retryOnRequest(this.retries, this.timeout, () => j.job());
@@ -44,7 +52,7 @@ export class JobRunner {
 
       // only immediately run if a setup exists.
       if (j.query) {
-        return retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
+        await retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
       }
     });
   }
