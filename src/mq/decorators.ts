@@ -4,7 +4,7 @@ import { Container, decorate, injectable } from "inversify";
 
 import { Middleware } from "./handlers";
 
-type Constructor = new (...args: never[]) => any;
+export type Constructor = new (...args: never[]) => any;
 
 /**
  * Metadata extracted by group decorator
