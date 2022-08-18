@@ -1,6 +1,6 @@
 import { Container } from "inversify";
 import { Redis } from "ioredis";
-import cron from "node-cron";
+import cron, { ScheduledTask } from "node-cron";
 
 import { Logger } from "../logging/logger";
 import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
@@ -8,6 +8,7 @@ import { Job, getJobs } from "./decorators";
 
 export class JobRunner {
   private jobs: Job<any>[];
+  private tasks: ScheduledTask[];
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -50,11 +51,18 @@ export class JobRunner {
         return retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
       });
 
+      // track so we can cancel later
+      this.tasks.push(task);
+
       // only immediately run if a setup exists.
       if (j.query) {
         await retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
       }
-    });
+    }
+  }
+
+  stop() {
+    return this.tasks.forEach(t => t.stop());
   }
 
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
