@@ -5,9 +5,10 @@ import { Container } from "inversify";
 import { keyBy } from "lodash";
 import sinon from "sinon";
 
-import { JobMetadata, QueryMetadata, getJobs } from "../../src";
+import { CronMetadata, JobMetadata, QueryMetadata, getJobs } from "../../src";
 import {
   CronGroup,
+  GROUP_NAME,
   GroupTag,
   NeedsCronGroup,
   NeedsGroupTag,
@@ -23,13 +24,13 @@ afterEach(() => {
 
 describe("Decorators#cron", () => {
   it("should save a class as a cron group", () => {
-    const constructors: any[] = Reflect.getMetadata(cronKey, Reflect);
+    const groups: CronMetadata[] = Reflect.getMetadata(cronKey, Reflect);
 
-    expect(constructors).to.have.length(1);
-    const [constructor] = constructors;
+    expect(groups).to.have.length(1);
+    const [group] = groups;
 
-    expect(constructor.name).to.eq(CronGroup.name);
-    expect(constructor).to.be.a("function");
+    expect(group.name).to.eq(GROUP_NAME);
+    expect(group.constructor).to.be.a("function");
   });
 
   it("should make the class injectable", () => {
@@ -72,28 +73,26 @@ describe("Decorators#job", () => {
 describe("Decorators#getJob", () => {
   it("generate jobs from loaded code", () => {
     const jobs = getJobs(new Container());
-    const prefix = CronGroup.name.toLowerCase();
 
     expect(jobs).to.have.length(2);
     const jobMap = keyBy(jobs, "name");
 
-    expect(jobMap[`${prefix}.normal`].query).to.undefined;
-    expect(jobMap[`${prefix}.normal`].schedule).to.eq("0 0 * * *");
-    expect(jobMap[`${prefix}.normal`].retries).to.eq(2);
-    expect(jobMap[`${prefix}.normal`].timeout).to.eq("5s");
+    expect(jobMap[`${GROUP_NAME}.normal`].query).to.undefined;
+    expect(jobMap[`${GROUP_NAME}.normal`].schedule).to.eq("0 0 * * *");
+    expect(jobMap[`${GROUP_NAME}.normal`].retries).to.eq(2);
+    expect(jobMap[`${GROUP_NAME}.normal`].timeout).to.eq("5s");
 
-    expect(jobMap[`${prefix}.data`].query).to.be.a("function");
-    expect(jobMap[`${prefix}.data`].schedule).to.eq("0 23 * * *");
-    expect(jobMap[`${prefix}.data`].retries).to.eq(3);
-    expect(jobMap[`${prefix}.data`].timeout).to.eq("10s");
+    expect(jobMap[`${GROUP_NAME}.data`].query).to.be.a("function");
+    expect(jobMap[`${GROUP_NAME}.data`].schedule).to.eq("0 23 * * *");
+    expect(jobMap[`${GROUP_NAME}.data`].retries).to.eq(3);
+    expect(jobMap[`${GROUP_NAME}.data`].timeout).to.eq("10s");
   });
 
   it("should ensure the handler still acts like a method", () => {
     const jobs = getJobs(new Container());
     const jobMap = keyBy(jobs, "name");
 
-    const prefix = CronGroup.name.toLowerCase();
-    const normalJob = jobMap[`${prefix}.normal`];
+    const normalJob = jobMap[`${GROUP_NAME}.normal`];
 
     normalJob.job();
     expect(normalSpy.called).to.be.true;

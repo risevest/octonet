@@ -13,7 +13,9 @@ export const normalSpy = sinon.spy();
 export const querySpy = sinon.spy();
 export const dataSpy = sinon.spy();
 
-@cron()
+export const GROUP_NAME = "test-jobs";
+
+@cron(GROUP_NAME)
 export class CronGroup {
   public counter = 0;
 

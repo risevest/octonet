@@ -2,6 +2,11 @@ import { Container, decorate, injectable } from "inversify";
 import { keyBy } from "lodash";
 import nodecron from "node-cron";
 
+export interface CronMetadata {
+  name: string;
+  constructor: any;
+}
+
 export interface QueryMetadata {
   name: string;
   method: string;
@@ -62,14 +67,15 @@ export const monthly = (name: string, retries = 0, timeout = "10s") => job(name,
 
 /**
  * Tag a class as containing cron jobs
+ * @param name name of the group of cron jobs. helps with referencing the job later
  */
-export function cron() {
+export function cron(name: string) {
   return function (constructor: any) {
     decorate(injectable(), constructor);
 
-    const constructors: any[] = Reflect.getMetadata(cronKey, Reflect) || [];
-    const allConstructors = [constructor, ...constructors];
-    Reflect.defineMetadata(cronKey, allConstructors, Reflect);
+    const cronGroups: CronMetadata[] = Reflect.getMetadata(cronKey, Reflect) || [];
+    const allGroups = [{ name, constructor }, ...cronGroups];
+    Reflect.defineMetadata(cronKey, allGroups, Reflect);
   };
 }
 
@@ -118,22 +124,22 @@ export function job(name: string, schedule: string, retries = 0, timeout = "10s"
 
 export function getJobs(container: Container) {
   const genericTag = Symbol("constructor.instance");
-  const constructors: any[] = Reflect.getMetadata(cronKey, Reflect) || [];
+  const groups: CronMetadata[] = Reflect.getMetadata(cronKey, Reflect) || [];
   const jobs: Job<any>[] = [];
 
-  constructors.forEach(constructor => {
-    if (container.isBoundNamed(genericTag, constructor.name)) {
-      throw new Error("You can't declare multiple cron jobs groups using the same class or class name 😔");
+  groups.forEach(group => {
+    if (container.isBoundNamed(genericTag, group.name)) {
+      throw new Error("You can't declare multiple cron jobs groups using the same name");
     }
 
-    container.bind<any>(genericTag).to(constructor).whenTargetNamed(constructor.name);
+    container.bind<any>(genericTag).to(group.constructor).whenTargetNamed(group.name);
 
-    const queryMetadata: QueryMetadata[] = Reflect.getMetadata(queryKey, constructor);
+    const queryMetadata: QueryMetadata[] = Reflect.getMetadata(queryKey, group.constructor);
     const queryMap = keyBy(queryMetadata, "name");
 
-    const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, constructor);
+    const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, group.constructor);
     jobMetadata.forEach(({ method, name, schedule, retries, timeout }) => {
-      const instance = container.getNamed<any>(genericTag, constructor.name);
+      const instance = container.getNamed<any>(genericTag, group.name);
       const possibleQuery = queryMap[name];
       const queryFn = !!possibleQuery ? instance[possibleQuery.method].bind(instance) : undefined;
 
@@ -141,7 +147,7 @@ export function getJobs(container: Container) {
         schedule,
         retries,
         timeout,
-        name: `${constructor.name.toLowerCase()}.${name}`,
+        name: `${group.name.toLowerCase()}.${name}`,
         query: queryFn,
         job: instance[method].bind(instance)
       });
