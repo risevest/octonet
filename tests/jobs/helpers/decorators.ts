@@ -26,6 +26,7 @@ export class CronGroup {
 
   @query("data")
   async generateData() {
+    querySpy();
     return [1, 2, 3, 4];
   }
 
