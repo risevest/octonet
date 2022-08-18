@@ -1,6 +1,12 @@
 import crypto from "crypto";
 import { promisify } from "util";
 
+import parser from "cron-parser";
+import ms from "ms";
+import sinon, { SinonFakeTimers } from "sinon";
+
+let sinonClock: SinonFakeTimers | null;
+
 /**
  * Generates random HEX string
  * @param length lenght of random string
@@ -45,4 +51,45 @@ export function multiply<T>(n: number, fn: () => T): T[] {
 export async function repeat(n: number, fn: (i?: number) => Promise<any>): Promise<any[]> {
   const jobs = Array.from({ length: n }).map((_x, i) => fn(i));
   return Promise.all(jobs);
+}
+
+type JumpFn = (time: string) => void;
+
+/**
+ * Runs the given function while time is reset to the beginning
+ * @param f function to be run with paused time. It accepts a function that can be
+ * used to jump further
+ */
+export async function withTimePaused(f: (j: JumpFn) => Promise<void>) {
+  sinonClock = sinon.useFakeTimers();
+
+  await f((t: string) => {
+    sinonClock?.tick(ms(t));
+  });
+
+  sinonClock?.restore();
+  sinonClock = null;
+}
+
+/**
+ * Jump to specific time and pass it by `extra`. It restores time once you call
+ * the `jump` method.
+ * @param cronExpr cron expression used to determine where to jump to
+ * @param extra how long past the execution time should it jump to
+ * @returns a function you call to actually jump time
+ */
+export function jumpBy(cronExpr: string, extra = "1m") {
+  const gap = ms("1m");
+  const interval = parser.parseExpression(cronExpr);
+  const nextExec = interval.next().toDate();
+  const preface = new Date(nextExec.getTime() - gap);
+
+  sinonClock = sinon.useFakeTimers(preface);
+  const extraTime = gap + ms(extra);
+
+  return function () {
+    sinonClock?.tick(extraTime);
+    sinonClock?.restore();
+    sinonClock = null;
+  };
 }

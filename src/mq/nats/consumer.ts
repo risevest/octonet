@@ -3,8 +3,9 @@ import ms from "ms";
 import { JSONCodec, JetStreamPullSubscription, NatsConnection, consumerOpts } from "nats";
 
 import { Logger } from "../../logging/logger";
+import { RetryError } from "../../retry";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
-import { RetryError, collapse, loggerMiddleware } from "../handlers";
+import { collapse, loggerMiddleware } from "../handlers";
 
 export const groupKey = Symbol.for("nats.streams");
 export const handlerKey = Symbol.for("nats.streams.subscribers");

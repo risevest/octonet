@@ -2,8 +2,9 @@ import { Channel } from "amqplib";
 import { Container } from "inversify";
 
 import { Logger } from "../../logging/logger";
+import { RetryError } from "../../retry";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
-import { RetryError, collapse, loggerMiddleware } from "../handlers";
+import { collapse, loggerMiddleware } from "../handlers";
 
 export const groupKey = Symbol.for("amqp.job.groups");
 export const handlerKey = Symbol.for("amqp.job.handler");
