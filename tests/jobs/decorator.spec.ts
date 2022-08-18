@@ -5,7 +5,7 @@ import { Container } from "inversify";
 import { keyBy } from "lodash";
 import sinon from "sinon";
 
-import { CronMetadata, JobMetadata, QueryMetadata, getJobs } from "../../src";
+import { CronMetadata, JobMetadata, QueryMetadata, getJobs } from "../../src/jobs/decorators";
 import {
   CronGroup,
   GROUP_NAME,
