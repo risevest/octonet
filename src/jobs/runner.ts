@@ -72,7 +72,7 @@ export class JobRunner {
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
     for (let index = 0; index < length; index++) {
-      const entries = await redis.lrange(j.name, -1, -1);
+      const entries = await redis.lrange(j.name, 0, 0);
 
       // first empty entry is sign we should skip
       if (entries.length === 0) {
@@ -82,7 +82,7 @@ export class JobRunner {
       await j.job(JSON.parse(entries[0]));
 
       // clean it off
-      await redis.rpop(j.name);
+      await redis.lpop(j.name);
     }
   }
 }

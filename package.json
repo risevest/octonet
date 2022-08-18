@@ -39,7 +39,7 @@
     "@types/uuid": "^8.3.3",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
-    "date-fns": "^2.29.1",
+    "cron-parser": "^4.6.0",
     "faker": "^5.5.3",
     "jest": "^27.5.1",
     "multer": "^1.4.3",
