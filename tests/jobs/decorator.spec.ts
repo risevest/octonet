@@ -79,9 +79,13 @@ describe("Decorators#getJob", () => {
 
     expect(jobMap[`${prefix}.normal`].query).to.undefined;
     expect(jobMap[`${prefix}.normal`].schedule).to.eq("0 0 * * *");
+    expect(jobMap[`${prefix}.normal`].retries).to.eq(2);
+    expect(jobMap[`${prefix}.normal`].timeout).to.eq("5s");
 
     expect(jobMap[`${prefix}.data`].query).to.be.a("function");
     expect(jobMap[`${prefix}.data`].schedule).to.eq("0 23 * * *");
+    expect(jobMap[`${prefix}.data`].retries).to.eq(3);
+    expect(jobMap[`${prefix}.data`].timeout).to.eq("10s");
   });
 
   it("should ensure the handler still acts like a method", () => {

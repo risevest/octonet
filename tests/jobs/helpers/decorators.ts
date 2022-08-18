@@ -17,7 +17,7 @@ export const dataSpy = sinon.spy();
 export class CronGroup {
   public counter = 0;
 
-  @daily("normal")
+  @daily("normal", 2, "5s")
   async normalJob() {
     normalSpy(this.counter);
   }
@@ -27,7 +27,7 @@ export class CronGroup {
     return [1, 2, 3, 4];
   }
 
-  @job("data", "0 23 * * *")
+  @job("data", "0 23 * * *", 3)
   async scheduledJob(num: number) {
     dataSpy(num);
   }

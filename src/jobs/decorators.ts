@@ -11,6 +11,8 @@ export interface JobMetadata {
   name: string;
   method: string;
   schedule: string;
+  retries: number;
+  timeout: string;
 }
 
 export interface Job<T> {
@@ -18,6 +20,8 @@ export interface Job<T> {
   schedule: string;
   query?(): Promise<T[]>;
   job(t?: T): Promise<void>;
+  retries: number;
+  timeout: string;
 }
 
 const queryKey = Symbol.for("cron.job.query");
@@ -27,26 +31,34 @@ const cronKey = Symbol.for("cron");
 /**
  * Tag a method as handler for hourly jobs
  * @param name name of the job. see `job`
+ * @param retries number of times to retry failed jobs. set to 0 to run single attempts
+ * @param timeout minimum timeout before first retry.
  */
-export const hourly = (name: string) => job(name, "0 * * * *");
+export const hourly = (name: string, retries = 0, timeout = "10s") => job(name, "0 * * * *", retries, timeout);
 
 /**
  * Tag a method as handler for daily jobs
  * @param name name of the job. see `job`
+ * @param retries number of times to retry failed jobs. set to 0 to run single attempts
+ * @param timeout minimum timeout before first retry.
  */
-export const daily = (name: string) => job(name, "0 0 * * *");
+export const daily = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * *", retries, timeout);
 
 /**
  * Tag a method as handler for weekly jobs
  * @param name name of the job. see `job`
+ * @param retries number of times to retry failed jobs. set to 0 to run single attempts
+ * @param timeout minimum timeout before first retry.
  */
-export const weekly = (name: string) => job(name, "0 0 * * Sun");
+export const weekly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * Sun", retries, timeout);
 
 /**
  * Tag a method as handler for monthly jobs
  * @param name name of the job. see `job`
+ * @param retries number of times to retry failed jobs. set to 0 to run single attempts
+ * @param timeout minimum timeout before first retry.
  */
-export const monthly = (name: string) => job(name, "0 0 1 * *");
+export const monthly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 1 * *", retries, timeout);
 
 /**
  * Tag a class as containing cron jobs
@@ -84,8 +96,10 @@ export function query(name: string): MethodDecorator {
  * @param name name of the job this query generates data for. Make sure it's
  * the same name as the `query's`
  * @param schedule the cron schedule to use
+ * @param retries number of times to retry failed jobs. set to 0 to run single attempts
+ * @param timeout minimum timeout before first retry.
  */
-export function job(name: string, schedule: string): MethodDecorator {
+export function job(name: string, schedule: string, retries = 0, timeout = "10s"): MethodDecorator {
   if (!nodecron.validate(schedule)) {
     throw new Error(`${schedule} is not a valid cron expression`);
   }
@@ -98,7 +112,7 @@ export function job(name: string, schedule: string): MethodDecorator {
       queries = Reflect.getMetadata(jobKey, prototype.constructor);
     }
 
-    queries.push({ method, name, schedule });
+    queries.push({ method, name, schedule, retries, timeout });
   };
 }
 
@@ -118,14 +132,19 @@ export function getJobs(container: Container) {
     const queryMap = keyBy(queryMetadata, "name");
 
     const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, constructor);
-    jobMetadata.forEach(({ method, name, schedule }) => {
+    jobMetadata.forEach(({ method, name, schedule, retries, timeout }) => {
       const instance = container.getNamed<any>(genericTag, constructor.name);
-      const jobFn = instance[method].bind(instance);
       const possibleQuery = queryMap[name];
       const queryFn = !!possibleQuery ? instance[possibleQuery.method].bind(instance) : undefined;
-      const fullName = `${constructor.name.toLowerCase()}.${name}`;
 
-      jobs.push({ name: fullName, schedule, query: queryFn, job: jobFn });
+      jobs.push({
+        schedule,
+        retries,
+        timeout,
+        name: `${constructor.name.toLowerCase()}.${name}`,
+        query: queryFn,
+        job: instance[method].bind(instance)
+      });
     });
   });
 
