@@ -6,9 +6,12 @@ import { Logger } from "../logging/logger";
 import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
 
+interface ScheduledJob<T> extends Job<T> {
+  task: ScheduledTask;
+}
+
 export class JobRunner {
-  private jobs: Job<any>[];
-  private tasks: ScheduledTask[];
+  private jobs: ScheduledJob<any>[];
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -17,7 +20,7 @@ export class JobRunner {
    * @param timeout minimum timeout before first retry
    */
   constructor(container: Container, private retries = 3, private timeout = "1ms") {
-    this.jobs = getJobs(container);
+    this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
   }
 
   /**
@@ -31,7 +34,7 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      const task = cron.schedule(j.schedule, async () => {
+      j.task = cron.schedule(j.schedule, async () => {
         // run the job directly if there's no query
         if (!j.query) {
           return retryOnRequest(this.retries, this.timeout, () => j.job());
@@ -51,9 +54,6 @@ export class JobRunner {
         return retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
       });
 
-      // track so we can cancel later
-      this.tasks.push(task);
-
       // only immediately run if a setup exists.
       if (j.query) {
         await retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
@@ -61,8 +61,12 @@ export class JobRunner {
     }
   }
 
+  /**
+   * Cancel all pending scheduled tasks. Bare in mind jobs being run
+   * while this method is called will still complete.
+   */
   stop() {
-    return this.tasks.forEach(t => t.stop());
+    return this.jobs.forEach(j => j.task?.stop());
   }
 
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
