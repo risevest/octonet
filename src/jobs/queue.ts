@@ -17,7 +17,7 @@ export class RedisQueue<T> {
   async work(f: (t: T) => Promise<void>) {
     const length = await this.length();
     for (let index = 0; index < length; index++) {
-      const entries = await this.redis.lrange(this.name, -1, -1);
+      const entries = await this.redis.lrange(this.name, 0, 0);
 
       // first empty entry is sign we should skip
       if (entries.length === 0) {
@@ -27,7 +27,7 @@ export class RedisQueue<T> {
       await f(JSON.parse(entries[0]));
 
       // clean it off
-      await this.redis.rpop(this.name);
+      await this.redis.lpop(this.name);
     }
   }
 }
