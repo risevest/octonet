@@ -1,9 +1,9 @@
 import "reflect-metadata";
 
-import { expect } from "chai";
 import IORedis, { Redis } from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
+import { expect } from "chai";
 
 const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
@@ -28,6 +28,24 @@ describe("RedisQueue#fill", () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
 
     await queue.fill(jobs);
+
+    const entries = await redis.lrange(queueName, 0, -1);
+    expect(entries).to.have.length(10);
+    entries.forEach((e, i) => {
+      expect(e).to.eq(String(i + 1));
+    });
+  });
+
+  it("should not write any new jobs if list not empty", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+
+    await queue.fill(jobs);
+
+    const newJobs = Array.from({ length: 10 }).map((_x, i) => i + 2);
+
+    const filled = await queue.fill(newJobs);
+
+    expect(filled).to.be.false;
 
     const entries = await redis.lrange(queueName, 0, -1);
     expect(entries).to.have.length(10);
