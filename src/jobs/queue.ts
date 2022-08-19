@@ -1,11 +1,16 @@
-import { injectable } from "inversify";
 import { Redis } from "ioredis";
+import { injectable } from "inversify";
 
 @injectable()
 export class RedisQueue<T> {
   constructor(private name: string, private redis: Redis) {}
 
   async fill(ts: T[]) {
+    const length = await this.length();
+    if (length > 0) {
+      return false;
+    }
+
     const instructions = ts.map(t => ["rpush", this.name, JSON.stringify(t)]);
     return await this.redis.multi(instructions).exec();
   }

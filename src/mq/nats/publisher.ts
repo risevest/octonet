@@ -1,8 +1,7 @@
-import { injectable } from "inversify";
 import { JSONCodec, JetStreamClient } from "nats";
-import { v4 as uuidV4 } from "uuid";
 
-export type PublisherFactory = () => NatsPublisher;
+import { injectable } from "inversify";
+import { v4 as uuidV4 } from "uuid";
 
 @injectable()
 export class NatsPublisher {
