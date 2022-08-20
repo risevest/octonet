@@ -1,6 +1,5 @@
-import ms from "ms";
-
 import { Logger } from "./logging/logger";
+import ms from "ms";
 
 /**
  * Custom error instance to allow handlers request a retry
@@ -22,9 +21,9 @@ export class ExitError extends Error {}
  * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
-export function retryOnError(maxRetries: number, minTimeout: string, fn: () => Promise<void>) {
+export function retryOnError(maxRetries: number, minTimeout: string, fn: (attempt: number) => Promise<void>) {
   if (maxRetries === 0) {
-    return fn();
+    return fn(1);
   }
 
   const timeoutInMS = ms(minTimeout);
@@ -32,7 +31,8 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: () => P
 
   async function run() {
     try {
-      await fn();
+      const currentAttempt = maxRetries - timeouts.length + 1;
+      await fn(currentAttempt);
     } catch (err) {
       if (err instanceof ExitError) {
         return;
@@ -56,9 +56,13 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: () => P
  * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
-export async function retryOnRequest(maxRetries: number, minTimeout: string, fn: () => Promise<void>): Promise<void> {
+export async function retryOnRequest(
+  maxRetries: number,
+  minTimeout: string,
+  fn: (attempt: number) => Promise<void>
+): Promise<void> {
   if (maxRetries === 0) {
-    return fn();
+    return fn(1);
   }
 
   const timeoutInMS = ms(minTimeout);
@@ -66,7 +70,8 @@ export async function retryOnRequest(maxRetries: number, minTimeout: string, fn:
 
   async function run() {
     try {
-      await fn();
+      const currentAttempt = maxRetries - timeouts.length + 1;
+      await fn(currentAttempt);
     } catch (err) {
       if (!(err instanceof RetryError)) {
         return;
