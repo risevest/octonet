@@ -38,11 +38,13 @@ export class RedisQueue<T> {
       const skip = async () => {
         await this.redis.lpop(this.name);
         action = "skipped";
+        return;
       };
 
       const requeue = async () => {
         await this.redis.rpush(this.name, entries[0]);
         action = "requeued";
+        return;
       };
 
       await f(JSON.parse(entries[0]), skip, requeue);

@@ -4,6 +4,7 @@ import IORedis, { Redis } from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
 import { expect } from "chai";
+import { random } from "lodash";
 
 const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
@@ -55,7 +56,7 @@ describe("RedisQueue#fill", () => {
   });
 });
 
-describe("RedisQueue#work", () => {
+describe.only("RedisQueue#work", () => {
   it("should run a function on job entries", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
@@ -91,6 +92,50 @@ describe("RedisQueue#work", () => {
 
     await queue.work(async j => {
       results.push(j);
+    });
+
+    expect(results).to.have.length(10);
+  });
+
+  it("should skip an element on calling skip()", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
+
+    const results: number[] = [];
+    await queue.work(async (j, skip) => {
+      try {
+        if (j === 7) {
+          throw new Error();
+        }
+        results.push(j);
+      } catch (err) {
+        if (skip) {
+          await skip();
+        }
+      }
+    });
+
+    expect(results).to.have.length(9);
+  });
+
+  it("should requeue an element on calling requeue()", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
+
+    const results: number[] = [];
+    await queue.work(async (j, _, requeue) => {
+      try {
+        const randomNum = random(1, 10, false);
+        if (j === randomNum) {
+          throw new Error();
+        }
+
+        results.push(j);
+      } catch (err) {
+        if (requeue) {
+          await requeue();
+        }
+      }
     });
 
     expect(results).to.have.length(10);
