@@ -1,7 +1,7 @@
 import { Redis } from "ioredis";
 import { injectable } from "inversify";
 
-const queueAction = <const>["processed", "skipped", "requeued"];
+const queueAction = <const>["skipped", "requeued"];
 export type QueueAction = typeof queueAction[number];
 
 @injectable()
@@ -22,7 +22,7 @@ export class RedisQueue<T> {
     return await this.redis.llen(this.name);
   }
 
-  async work(f: (t: T, skip?: () => Promise<string>, requeue?: () => Promise<number>) => Promise<QueueAction>) {
+  async work(f: (t: T, skip?: () => Promise<void>, requeue?: () => Promise<void>) => Promise<void>) {
     const length = await this.length();
 
     for (let index = 0; index < length; index++) {
@@ -33,20 +33,30 @@ export class RedisQueue<T> {
         return;
       }
 
-      const skip = () => this.redis.lpop(this.name);
-      const requeue = () => this.redis.rpush(this.name, entries[0]);
+      let action: QueueAction;
 
-      const action = await f(JSON.parse(entries[0]), skip, requeue);
+      const skip = async () => {
+        await this.redis.lpop(this.name);
+        action = "skipped";
+      };
+
+      const requeue = async () => {
+        await this.redis.rpush(this.name, entries[0]);
+        action = "requeued";
+      };
+
+      await f(JSON.parse(entries[0]), skip, requeue);
+
       switch (action) {
-        case "processed":
-          await this.redis.lpop(this.name);
-          break;
         case "skipped":
           continue;
         case "requeued":
           await this.redis.lpop(this.name);
           // adds an additional loop
           index -= 1;
+          break;
+        default:
+          await this.redis.lpop(this.name);
           break;
       }
     }

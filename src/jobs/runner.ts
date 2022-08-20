@@ -4,6 +4,7 @@ import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
 
 import { Container } from "inversify";
 import { Logger } from "../logging/logger";
+import { QueueAction } from "./queue";
 import { Redis } from "ioredis";
 
 interface ScheduledJob<T> extends Job<T> {
@@ -80,20 +81,29 @@ export class JobRunner {
         return;
       }
 
-      const skip = () => redis.lpop(j.name);
-      const requeue = () => redis.rpush(j.name, entries[0]);
+      let action: QueueAction;
 
-      const action = await j.job(JSON.parse(entries[0]), skip, requeue);
+      const skip = async () => {
+        await redis.lpop(j.name);
+        action = "skipped";
+      };
+
+      const requeue = async () => {
+        await redis.rpush(j.name, entries[0]);
+        action = "requeued";
+      };
+
+      await j.job(JSON.parse(entries[0]), skip, requeue);
       switch (action) {
-        case "processed":
-          await redis.lpop(j.name);
-          break;
         case "skipped":
           continue;
         case "requeued":
           await redis.lpop(j.name);
           // adds an additional loop
           index -= 1;
+          break;
+        default:
+          await redis.lpop(j.name);
           break;
       }
     }
