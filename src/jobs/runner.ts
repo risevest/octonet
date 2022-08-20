@@ -1,10 +1,10 @@
-import { Container } from "inversify";
-import { Redis } from "ioredis";
-import cron, { ScheduledTask } from "node-cron";
-
-import { Logger } from "../logging/logger";
-import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
+import cron, { ScheduledTask } from "node-cron";
+import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
+
+import { Container } from "inversify";
+import { Logger } from "../logging/logger";
+import { Redis } from "ioredis";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -31,7 +31,7 @@ export class JobRunner {
    */
   async start(redis: Redis, logger: Logger) {
     for (const j of this.jobs) {
-      j.job = wrapHandler(logger, j.job);
+      j.job = wrapHandler(logger, j.job());
 
       // schedule job for later
       j.task = cron.schedule(j.schedule, async () => {
@@ -71,6 +71,7 @@ export class JobRunner {
 
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
+
     for (let index = 0; index < length; index++) {
       const entries = await redis.lrange(j.name, 0, 0);
 
@@ -79,10 +80,22 @@ export class JobRunner {
         return;
       }
 
-      await j.job(JSON.parse(entries[0]));
+      const skip = () => redis.lpop(j.name);
+      const requeue = () => redis.rpush(j.name, entries[0]);
 
-      // clean it off
-      await redis.lpop(j.name);
+      const action = await j.job(JSON.parse(entries[0]), skip, requeue);
+      switch (action) {
+        case "processed":
+          await redis.lpop(j.name);
+          break;
+        case "skipped":
+          continue;
+        case "requeued":
+          await redis.lpop(j.name);
+          // adds an additional loop
+          index -= 1;
+          break;
+      }
     }
   }
 }

@@ -1,4 +1,6 @@
 import { Container, decorate, injectable } from "inversify";
+
+import { QueueAction } from "./queue";
 import { keyBy } from "lodash";
 import nodecron from "node-cron";
 
@@ -24,7 +26,7 @@ export interface Job<T> {
   name: string;
   schedule: string;
   query?(): Promise<T[]>;
-  job(t?: T): Promise<void>;
+  job(t?: T, skip?: () => Promise<string>, requeue?: () => Promise<number>): Promise<QueueAction | void>;
   retries: number;
   timeout: string;
 }
