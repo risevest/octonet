@@ -56,7 +56,7 @@ describe("RedisQueue#fill", () => {
   });
 });
 
-describe.only("RedisQueue#work", () => {
+describe("RedisQueue#work", () => {
   it("should run a function on job entries", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
@@ -139,5 +139,27 @@ describe.only("RedisQueue#work", () => {
     });
 
     expect(results).to.have.length(10);
+  });
+
+  it("should skip requeue for an element after max attempts (2)", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
+
+    const results: number[] = [];
+    await queue.work(async (j, _, requeue) => {
+      try {
+        if (j === 4) {
+          throw new Error();
+        }
+
+        results.push(j);
+      } catch (err) {
+        if (requeue) {
+          await requeue();
+        }
+      }
+    });
+
+    expect(results).to.have.length(9);
   });
 });

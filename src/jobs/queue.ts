@@ -6,7 +6,7 @@ export type QueueAction = typeof queueAction[number];
 
 @injectable()
 export class RedisQueue<T> {
-  constructor(private name: string, private redis: Redis) {}
+  constructor(private name: string, private redis: Redis, private maxRequeuePerElement = 2) {}
 
   async fill(ts: T[]) {
     const length = await this.length();
@@ -25,12 +25,21 @@ export class RedisQueue<T> {
   async work(f: (t: T, skip?: () => Promise<void>, requeue?: () => Promise<void>) => Promise<void>) {
     const length = await this.length();
 
+    const requeuedElements: Record<string, number> = {};
+
     for (let index = 0; index < length; index++) {
       const entries = await this.redis.lrange(this.name, 0, 0);
 
       // first empty entry is sign we should skip
       if (entries.length === 0) {
         return;
+      }
+
+      // prevent infinite loop from repeated requeues of a particular element
+      if (requeuedElements[entries[0]] && requeuedElements[entries[0]] === this.maxRequeuePerElement) {
+        await this.redis.lpop(this.name);
+        delete requeuedElements[entries[0]];
+        continue;
       }
 
       let action: QueueAction;
@@ -53,6 +62,11 @@ export class RedisQueue<T> {
         case "skipped":
           continue;
         case "requeued":
+          if (!requeuedElements[entries[0]]) {
+            requeuedElements[entries[0]] = 1;
+          } else {
+            requeuedElements[entries[0]] += 1;
+          }
           await this.redis.lpop(this.name);
           // adds an additional loop
           index -= 1;
