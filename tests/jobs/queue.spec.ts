@@ -13,7 +13,7 @@ let queue: RedisQueue<number>;
 
 beforeAll(() => {
   redis = new IORedis(redisURL);
-  queue = new RedisQueue(queueName, redis);
+  queue = new RedisQueue(queueName, redis, 5);
 });
 
 afterAll(async () => {
@@ -141,7 +141,7 @@ describe("RedisQueue#work", () => {
     expect(results).to.have.length(10);
   });
 
-  it("should skip requeue for an element after max attempts (2)", async () => {
+  it("should skip requeue for an element after max attempts", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
 

@@ -73,12 +73,22 @@ export class JobRunner {
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
 
+    const requeuedElements: Record<string, number> = {};
+    const maxRequeuePerElement = 2;
+
     for (let index = 0; index < length; index++) {
       const entries = await redis.lrange(j.name, 0, 0);
 
       // first empty entry is sign we should skip
       if (entries.length === 0) {
         return;
+      }
+
+      // prevent infinite loop from repeated requeues of a particular element
+      if (requeuedElements[entries[0]] && requeuedElements[entries[0]] === maxRequeuePerElement) {
+        await redis.lpop(j.name);
+        delete requeuedElements[entries[0]];
+        continue;
       }
 
       let action: QueueAction;
@@ -98,6 +108,11 @@ export class JobRunner {
         case "skipped":
           continue;
         case "requeued":
+          if (!requeuedElements[entries[0]]) {
+            requeuedElements[entries[0]] = 1;
+          } else {
+            requeuedElements[entries[0]] += 1;
+          }
           await redis.lpop(j.name);
           // adds an additional loop
           index -= 1;
