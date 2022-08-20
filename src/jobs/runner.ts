@@ -32,7 +32,7 @@ export class JobRunner {
    */
   async start(redis: Redis, logger: Logger) {
     for (const j of this.jobs) {
-      j.job = wrapHandler(logger, j.job());
+      j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
       j.task = cron.schedule(j.schedule, async () => {
