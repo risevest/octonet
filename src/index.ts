@@ -4,7 +4,7 @@ export * from "./http/agent";
 export * from "./http/errors";
 export * as jwt from "./http/jwt";
 export * from "./http/wrapper";
-export { cron, daily, hourly, job, monthly, query, weekly } from "./jobs/decorators";
+export { cron, daily, hourly, job, monthly, query, weekly, getCronGroup } from "./jobs/decorators";
 export { RedisQueue } from "./jobs/queue";
 export { JobRunner } from "./jobs/runner";
 export * from "./logging/logger";
