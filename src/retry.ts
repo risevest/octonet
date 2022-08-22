@@ -1,5 +1,6 @@
-import { Logger } from "./logging/logger";
 import ms from "ms";
+
+import { Logger } from "./logging/logger";
 
 /**
  * Custom error instance to allow handlers request a retry
@@ -21,32 +22,15 @@ export class ExitError extends Error {}
  * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
-export function retryOnError(maxRetries: number, minTimeout: string, fn: (attempt: number) => Promise<void>) {
-  if (maxRetries === 0) {
-    return fn(1);
-  }
+export function retryOnError<T = any>(
+  maxRetries: number,
+  minTimeout: string,
+  fn: (attempt: number) => Promise<T>
+): Promise<T> {
+  const timeouts = retryTimeouts(maxRetries, ms(minTimeout));
+  const shouldRetry = (err: Error) => !(err instanceof ExitError);
 
-  const timeoutInMS = ms(minTimeout);
-  const timeouts = retryTimeouts(maxRetries, timeoutInMS);
-
-  async function run() {
-    try {
-      const currentAttempt = maxRetries - timeouts.length + 1;
-      await fn(currentAttempt);
-    } catch (err) {
-      if (err instanceof ExitError) {
-        return;
-      }
-
-      if (timeouts.length === 0) {
-        throw err;
-      }
-
-      return delay(timeouts.shift(), run);
-    }
-  }
-
-  return run();
+  return retry(timeouts, shouldRetry, fn);
 }
 
 /**
@@ -56,36 +40,15 @@ export function retryOnError(maxRetries: number, minTimeout: string, fn: (attemp
  * @param minTimeout minimum amount of timeout for each attempt
  * @param fn function to be retried
  */
-export async function retryOnRequest(
+export async function retryOnRequest<T = any>(
   maxRetries: number,
   minTimeout: string,
-  fn: (attempt: number) => Promise<void>
-): Promise<void> {
-  if (maxRetries === 0) {
-    return fn(1);
-  }
+  fn: (attempt: number) => Promise<T>
+): Promise<T> {
+  const timeouts = retryTimeouts(maxRetries, ms(minTimeout));
+  const shouldRetry = (err: Error) => err instanceof RetryError;
 
-  const timeoutInMS = ms(minTimeout);
-  const timeouts = retryTimeouts(maxRetries, timeoutInMS);
-
-  async function run() {
-    try {
-      const currentAttempt = maxRetries - timeouts.length + 1;
-      await fn(currentAttempt);
-    } catch (err) {
-      if (!(err instanceof RetryError)) {
-        return;
-      }
-
-      if (timeouts.length === 0) {
-        throw err;
-      }
-
-      return delay(timeouts.shift(), run);
-    }
-  }
-
-  return run();
+  return retry<T>(timeouts, shouldRetry, fn);
 }
 
 /**
@@ -111,15 +74,43 @@ function retryTimeouts(max: number, timeout: number) {
   });
 }
 
-function delay(t: number, fn: () => Promise<void>) {
-  return new Promise<void>((resolve, reject) => {
+function delay<T = any>(t: number, fn: () => Promise<T>) {
+  return new Promise<T>((resolve, reject) => {
     setTimeout(async () => {
       try {
-        await fn();
-        resolve();
+        resolve(await fn());
       } catch (err) {
         reject(err);
       }
     }, t);
   });
+}
+
+async function retry<T = any>(
+  timeouts: number[],
+  shouldRetry: (err: Error) => boolean,
+  fn: (a: number) => Promise<T>
+): Promise<T> {
+  if (timeouts.length === 0) {
+    return fn(1);
+  }
+
+  const copy = [...timeouts];
+  async function run() {
+    try {
+      return await fn(timeouts.length - copy.length + 1);
+    } catch (err) {
+      if (!shouldRetry(err)) {
+        return;
+      }
+
+      if (timeouts.length === 0) {
+        throw err;
+      }
+
+      return delay(copy.shift(), run);
+    }
+  }
+
+  return run();
 }
