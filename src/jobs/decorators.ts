@@ -32,6 +32,7 @@ export interface Job<T> {
 const queryKey = Symbol.for("cron.job.query");
 const jobKey = Symbol.for("cron.job");
 const cronKey = Symbol.for("cron");
+const cronInstanceKey = Symbol.for("cron.instance");
 
 /**
  * Tag a method as handler for hourly jobs
@@ -123,23 +124,22 @@ export function job(name: string, schedule: string, retries = 0, timeout = "10s"
 }
 
 export function getJobs(container: Container) {
-  const genericTag = Symbol("constructor.instance");
   const groups: CronMetadata[] = Reflect.getMetadata(cronKey, Reflect) || [];
   const jobs: Job<any>[] = [];
 
   groups.forEach(group => {
-    if (container.isBoundNamed(genericTag, group.name)) {
+    if (container.isBoundNamed(cronInstanceKey, group.name)) {
       throw new Error("You can't declare multiple cron jobs groups using the same name");
     }
 
-    container.bind<any>(genericTag).to(group.constructor).whenTargetNamed(group.name);
+    container.bind<any>(cronInstanceKey).to(group.constructor).whenTargetNamed(group.name);
 
     const queryMetadata: QueryMetadata[] = Reflect.getMetadata(queryKey, group.constructor);
     const queryMap = keyBy(queryMetadata, "name");
 
     const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, group.constructor);
     jobMetadata.forEach(({ method, name, schedule, retries, timeout }) => {
-      const instance = container.getNamed<any>(genericTag, group.name);
+      const instance = container.getNamed<any>(cronInstanceKey, group.name);
       const possibleQuery = queryMap[name];
       const queryFn = !!possibleQuery ? instance[possibleQuery.method].bind(instance) : undefined;
 
@@ -155,4 +155,17 @@ export function getJobs(container: Container) {
   });
 
   return jobs;
+}
+
+/**
+ * Get the instance of a cron group declared with `cron`
+ * @param container inversify container used to register the jobs
+ * @param group name of the cron group
+ */
+export function getCronGroup<T>(container: Container, group: string): T {
+  try {
+    return container.getNamed<any>(cronInstanceKey, group);
+  } catch (err) {
+    throw new Error(`Either ${group} has not been declared as a job or no job has been registered.`);
+  }
 }
