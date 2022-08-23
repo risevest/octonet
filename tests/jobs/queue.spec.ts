@@ -143,13 +143,9 @@ describe("RedisQueue#work", () => {
     const results: number[] = [];
     await queue.work(async j => {
       if (j === 4) {
-        throw new Error("exit");
+        throw new Error();
       }
 
-      results.push(j);
-    });
-
-    await queue.work(async j => {
       results.push(j);
     });
 
