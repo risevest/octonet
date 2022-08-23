@@ -71,6 +71,7 @@ export class JobRunner {
 
   private async processItems<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
+
     for (let index = 0; index < length; index++) {
       const entries = await redis.lrange(j.name, 0, 0);
 
@@ -79,10 +80,13 @@ export class JobRunner {
         return;
       }
 
-      await retryOnRequest(j.retries, j.timeout, () => j.job(JSON.parse(entries[0])));
-
-      // clean it off
-      await redis.lpop(j.name);
+      try {
+        await retryOnRequest(j.retries, j.timeout, () => j.job(JSON.parse(entries[0])));
+      } catch (err) {
+        // no-op
+      } finally {
+        await redis.lpop(j.name);
+      }
     }
   }
 }

@@ -12,7 +12,7 @@ let queue: RedisQueue<number>;
 
 beforeAll(() => {
   redis = new Redis(redisURL);
-  queue = new RedisQueue(queueName, redis);
+  queue = new RedisQueue(queueName, redis, 0);
 });
 
 afterAll(async () => {
@@ -74,7 +74,7 @@ describe("RedisQueue#work", () => {
     expect(jobsLeft).to.be.eq(0);
   });
 
-  it("should continue on retry", async () => {
+  it("should skip poisonous items", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
 
@@ -89,10 +89,7 @@ describe("RedisQueue#work", () => {
       });
     } catch (err) {}
 
-    await queue.work(async j => {
-      results.push(j);
-    });
-
-    expect(results).to.have.length(10);
+    expect(results).to.have.length(9);
+    expect(results.includes(5)).to.be.false;
   });
 });
