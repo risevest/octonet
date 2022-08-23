@@ -1,5 +1,5 @@
-import { Redis } from "ioredis";
 import { injectable } from "inversify";
+import Redis from "ioredis";
 
 @injectable()
 export class RedisQueue<T> {

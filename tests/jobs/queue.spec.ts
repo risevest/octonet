@@ -1,9 +1,9 @@
 import "reflect-metadata";
 
-import IORedis, { Redis } from "ioredis";
+import { expect } from "chai";
+import Redis from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
-import { expect } from "chai";
 
 const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
@@ -11,7 +11,7 @@ let redis: Redis;
 let queue: RedisQueue<number>;
 
 beforeAll(() => {
-  redis = new IORedis(redisURL);
+  redis = new Redis(redisURL);
   queue = new RedisQueue(queueName, redis);
 });
 
