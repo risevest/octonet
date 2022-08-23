@@ -44,14 +44,10 @@ describe("RedisQueue#fill", () => {
     const newJobs = Array.from({ length: 10 }).map((_x, i) => i + 2);
 
     const filled = await queue.fill(newJobs);
-
     expect(filled).to.be.false;
 
     const entries = await redis.lrange(queueName, 0, -1);
     expect(entries).to.have.length(10);
-    entries.forEach((e, i) => {
-      expect(e).to.eq(String(i + 1));
-    });
   });
 });
 
