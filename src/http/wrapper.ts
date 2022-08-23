@@ -180,7 +180,7 @@ export class RequestWrapper<T extends object> {
         if (err.response) {
           throw new APIError(err.config.url, err.response.status, err.response.data);
         } else if (err.request) {
-          if (/timeout/.test(err.message)) {
+          if (err.code === AxiosError.ETIMEDOUT || err.code === AxiosError.ECONNABORTED) {
             throw new TimeoutError(err.config.url, err.config.timeout);
           }
           throw new HttpError(err.config.url, err);

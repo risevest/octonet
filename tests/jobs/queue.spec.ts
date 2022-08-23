@@ -1,7 +1,7 @@
 import "reflect-metadata";
 
 import { expect } from "chai";
-import IORedis, { Redis } from "ioredis";
+import Redis from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
 
@@ -11,8 +11,8 @@ let redis: Redis;
 let queue: RedisQueue<number>;
 
 beforeAll(() => {
-  redis = new IORedis(redisURL);
-  queue = new RedisQueue(queueName, redis);
+  redis = new Redis(redisURL);
+  queue = new RedisQueue(queueName, redis, 0);
 });
 
 afterAll(async () => {
@@ -35,6 +35,20 @@ describe("RedisQueue#fill", () => {
       expect(e).to.eq(String(i + 1));
     });
   });
+
+  it("should not write any new jobs if list not empty", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+
+    await queue.fill(jobs);
+
+    const newJobs = Array.from({ length: 10 }).map((_x, i) => i + 2);
+
+    const filled = await queue.fill(newJobs);
+    expect(filled).to.be.false;
+
+    const entries = await redis.lrange(queueName, 0, -1);
+    expect(entries).to.have.length(10);
+  });
 });
 
 describe("RedisQueue#work", () => {
@@ -56,7 +70,7 @@ describe("RedisQueue#work", () => {
     expect(jobsLeft).to.be.eq(0);
   });
 
-  it("should continue on retry", async () => {
+  it("should skip poisonous items", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
 
@@ -71,10 +85,7 @@ describe("RedisQueue#work", () => {
       });
     } catch (err) {}
 
-    await queue.work(async j => {
-      results.push(j);
-    });
-
-    expect(results).to.have.length(10);
+    expect(results).to.have.length(9);
+    expect(results.includes(5)).to.be.false;
   });
 });

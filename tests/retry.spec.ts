@@ -3,6 +3,23 @@ import { expect } from "chai";
 import { ExitError, RetryError, retryOnError, retryOnRequest } from "../src/retry";
 
 describe("retryOnError", () => {
+  it("should increment attempt number on each retry", async () => {
+    let attempts: number[] = [];
+
+    try {
+      await retryOnError(2, "10ms", async attempt => {
+        attempts.push(attempt);
+
+        throw new Error("error");
+      });
+    } catch (error) {}
+
+    expect(attempts).to.have.length(3);
+    attempts.forEach((a, i) => {
+      expect(a).to.eql(i + 1);
+    });
+  });
+
   it("should not retry when maxRetries is 0", async () => {
     let count = 0;
 
@@ -93,6 +110,23 @@ describe("retryOnError", () => {
 });
 
 describe("retryOnRequest", () => {
+  it("should increment attempt number on each retry", async () => {
+    let attempts: number[] = [];
+
+    try {
+      await retryOnRequest(5, "10ms", async attempt => {
+        attempts.push(attempt);
+
+        throw new RetryError("error");
+      });
+    } catch (error) {}
+
+    expect(attempts).to.have.length(6);
+    attempts.forEach((a, i) => {
+      expect(a).to.eql(i + 1);
+    });
+  });
+
   it("should try only one attempt by default", async () => {
     let count = 0;
 
