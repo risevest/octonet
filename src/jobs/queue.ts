@@ -15,8 +15,10 @@ export class RedisQueue<T> {
   constructor(private name: string, private redis: Redis, private retries = 3, private timeout = "1ms") {}
 
   /**
-   * Fill job queue
+   * Fill job queue with work items. It avoids filling the queue if
+   * there's still work left.
    * @param ts list of items to add to the queue
+   * @returns a boolean signifying whether the items we written to the queue
    */
   async fill(ts: T[]) {
     const length = await this.length();
@@ -27,7 +29,7 @@ export class RedisQueue<T> {
     const instructions = ts.map(t => ["rpush", this.name, JSON.stringify(t)]);
     await this.redis.multi(instructions).exec();
 
-    return;
+    return true;
   }
 
   /**
