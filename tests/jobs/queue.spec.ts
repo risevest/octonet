@@ -104,17 +104,11 @@ describe("RedisQueue#work", () => {
 
     const results: number[] = [];
     await queue.work(async (j, skip) => {
-      try {
-        if (j === 7 && skip) {
-          return skip();
-        }
-
-        results.push(j);
-      } catch (err) {
-        if (skip) {
-          await skip();
-        }
+      if (j === 7 && skip) {
+        return skip();
       }
+
+      results.push(j);
     });
 
     expect(results).to.have.length(9);
@@ -138,20 +132,20 @@ describe("RedisQueue#work", () => {
     expect(results).to.have.length(10);
   });
 
-  // it("should skip requeue for an element after max attempts", async () => {
-  //   const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
-  //   await queue.fill(jobs);
+  it("should skip requeue for an element after max attempts", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
 
-  //   const results: number[] = [];
-  //   await queue.work(async j => {
-  //     if (j === 4) {
-  //       throw new Error();
-  //     }
+    const results: number[] = [];
+    await queue.work(async j => {
+      if (j === 4) {
+        throw new Error();
+      }
 
-  //     results.push(j);
-  //   });
+      results.push(j);
+    });
 
-  //   expect(results).to.have.length(9);
-  //   expect(results.includes(4)).to.be.false;
-  // });
+    expect(results).to.have.length(9);
+    expect(results.includes(4)).to.be.false;
+  });
 });
