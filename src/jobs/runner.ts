@@ -1,11 +1,10 @@
-import { Job, getJobs } from "./decorators";
-import cron, { ScheduledTask } from "node-cron";
-import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
-
 import { Container } from "inversify";
-import { Logger } from "../logging/logger";
-import { QueueAction } from "./queue";
 import { Redis } from "ioredis";
+import cron, { ScheduledTask } from "node-cron";
+
+import { Logger } from "../logging/logger";
+import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
+import { Job, getJobs } from "./decorators";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -52,12 +51,12 @@ export class JobRunner {
           return;
         });
 
-        return retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
+        return this.processItems(redis, j);
       });
 
       // only immediately run if a setup exists.
       if (j.query) {
-        await retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
+        await this.processItems(redis, j);
       }
     }
   }
@@ -70,7 +69,7 @@ export class JobRunner {
     return this.jobs.forEach(j => j.task?.stop());
   }
 
-  private async runJob<T = any>(redis: Redis, j: Job<T>) {
+  private async processItems<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
 
     for (let index = 0; index < length; index++) {
@@ -81,23 +80,11 @@ export class JobRunner {
         return;
       }
 
-      let action: QueueAction;
-
-      const skip = async () => {
-        await redis.lpop(j.name);
-        action = "skipped";
-      };
-
       try {
-        await retryOnError(3, "0.3s", () => j.job(JSON.parse(entries[0]), skip));
-        switch (action) {
-          case "skipped":
-            continue;
-          default:
-            await redis.lpop(j.name);
-            break;
-        }
-      } catch (error) {
+        await retryOnRequest(j.retries, j.timeout, () => j.job(JSON.parse(entries[0])));
+      } catch (err) {
+        // no-op
+      } finally {
         await redis.lpop(j.name);
       }
     }

@@ -1,5 +1,4 @@
 import { Container, decorate, injectable } from "inversify";
-
 import { keyBy } from "lodash";
 import nodecron from "node-cron";
 
@@ -25,7 +24,7 @@ export interface Job<T> {
   name: string;
   schedule: string;
   query?(): Promise<T[]>;
-  job(t?: T, skip?: () => Promise<void>): Promise<void>;
+  job(t?: T): Promise<void>;
   retries: number;
   timeout: string;
 }

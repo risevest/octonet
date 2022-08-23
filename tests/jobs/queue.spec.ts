@@ -1,10 +1,9 @@
 import "reflect-metadata";
 
-import IORedis, { Redis } from "ioredis";
+import { expect } from "chai";
+import Redis from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
-import { expect } from "chai";
-import { random } from "lodash";
 
 const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
@@ -12,8 +11,8 @@ let redis: Redis;
 let queue: RedisQueue<number>;
 
 beforeAll(() => {
-  redis = new IORedis(redisURL);
-  queue = new RedisQueue(queueName, redis);
+  redis = new Redis(redisURL);
+  queue = new RedisQueue(queueName, redis, 0);
 });
 
 afterAll(async () => {
@@ -75,7 +74,7 @@ describe("RedisQueue#work", () => {
     expect(jobsLeft).to.be.eq(0);
   });
 
-  it("should continue on retry", async () => {
+  it("should skip poisonous items", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
 
@@ -90,62 +89,7 @@ describe("RedisQueue#work", () => {
       });
     } catch (err) {}
 
-    await queue.work(async j => {
-      results.push(j);
-    });
-
     expect(results).to.have.length(9);
     expect(results.includes(5)).to.be.false;
-  });
-
-  it("should skip an element on calling skip()", async () => {
-    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
-    await queue.fill(jobs);
-
-    const results: number[] = [];
-    await queue.work(async (j, skip) => {
-      if (j === 7 && skip) {
-        return skip();
-      }
-
-      results.push(j);
-    });
-
-    expect(results).to.have.length(9);
-    expect(results.includes(7)).to.be.false;
-  });
-
-  it("should requeue an element", async () => {
-    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
-    await queue.fill(jobs);
-
-    const results: number[] = [];
-    await queue.work(async j => {
-      const randomNum = random(1, 10, false);
-      if (j === randomNum) {
-        throw new Error();
-      }
-
-      results.push(j);
-    });
-
-    expect(results).to.have.length(10);
-  });
-
-  it("should skip requeue for an element after max attempts", async () => {
-    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
-    await queue.fill(jobs);
-
-    const results: number[] = [];
-    await queue.work(async j => {
-      if (j === 4) {
-        throw new Error();
-      }
-
-      results.push(j);
-    });
-
-    expect(results).to.have.length(9);
-    expect(results.includes(4)).to.be.false;
   });
 });

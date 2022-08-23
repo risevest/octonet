@@ -1,6 +1,6 @@
-import { ExitError, RetryError, retryOnError, retryOnRequest } from "../src/retry";
-
 import { expect } from "chai";
+
+import { ExitError, RetryError, retryOnError, retryOnRequest } from "../src/retry";
 
 describe("retryOnError", () => {
   it("should increment attempt number on each retry", async () => {

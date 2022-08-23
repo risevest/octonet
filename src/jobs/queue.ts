@@ -1,14 +1,23 @@
-import { Redis } from "ioredis";
 import { injectable } from "inversify";
-import { retryOnError } from "../retry";
+import Redis from "ioredis";
 
-const queueAction = <const>["skipped"];
-export type QueueAction = typeof queueAction[number];
+import { retryOnRequest } from "../retry";
 
 @injectable()
 export class RedisQueue<T> {
-  constructor(private name: string, private redis: Redis) {}
+  /**
+   * Creates a redis queue to work jobs in serial order.
+   * @param name name of the queue to use to run the job
+   * @param redis redis instance to hold job items
+   * @param retries number of times to retry failed work calls. set to 0 to run single attempts
+   * @param timeout minimum timeout before first retry
+   */
+  constructor(private name: string, private redis: Redis, private retries = 3, private timeout = "1ms") {}
 
+  /**
+   * Fill job queue
+   * @param ts list of items to add to the queue
+   */
   async fill(ts: T[]) {
     const length = await this.length();
     if (length > 0) {
@@ -16,14 +25,23 @@ export class RedisQueue<T> {
     }
 
     const instructions = ts.map(t => ["rpush", this.name, JSON.stringify(t)]);
-    return await this.redis.multi(instructions).exec();
+    await this.redis.multi(instructions).exec();
+
+    return;
   }
 
+  /**
+   * Return the number of items left in the queue
+   */
   async length() {
     return await this.redis.llen(this.name);
   }
 
-  async work(f: (t: T, skip?: () => Promise<void>) => Promise<void>) {
+  /**
+   * Run the given function on all the items on the queue
+   * @param f function works on each item
+   */
+  async work(f: (t: T) => Promise<void>) {
     const length = await this.length();
 
     for (let index = 0; index < length; index++) {
@@ -34,23 +52,11 @@ export class RedisQueue<T> {
         return;
       }
 
-      let action: QueueAction;
-
-      const skip = async () => {
-        await this.redis.lpop(this.name);
-        action = "skipped";
-      };
-
       try {
-        await retryOnError(3, "0.3s", () => f(JSON.parse(entries[0]), skip));
-        switch (action) {
-          case "skipped":
-            continue;
-          default:
-            await this.redis.lpop(this.name);
-            break;
-        }
-      } catch (error) {
+        await retryOnRequest(this.retries, this.timeout, _n => f(JSON.parse(entries[0])));
+      } catch (err) {
+        // no-op
+      } finally {
         await this.redis.lpop(this.name);
       }
     }
