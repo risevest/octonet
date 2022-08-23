@@ -51,12 +51,12 @@ export class JobRunner {
           return;
         });
 
-        return retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
+        return this.processItems(redis, j);
       });
 
       // only immediately run if a setup exists.
       if (j.query) {
-        await retryOnRequest(j.retries, j.timeout, () => this.runJob(redis, j));
+        await this.processItems(redis, j);
       }
     }
   }
@@ -69,7 +69,7 @@ export class JobRunner {
     return this.jobs.forEach(j => j.task?.stop());
   }
 
-  private async runJob<T = any>(redis: Redis, j: Job<T>) {
+  private async processItems<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
     for (let index = 0; index < length; index++) {
       const entries = await redis.lrange(j.name, 0, 0);
@@ -79,7 +79,7 @@ export class JobRunner {
         return;
       }
 
-      await j.job(JSON.parse(entries[0]));
+      await retryOnRequest(j.retries, j.timeout, () => j.job(JSON.parse(entries[0])));
 
       // clean it off
       await redis.lpop(j.name);
