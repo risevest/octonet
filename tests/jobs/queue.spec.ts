@@ -13,7 +13,7 @@ let queue: RedisQueue<number>;
 
 beforeAll(() => {
   redis = new IORedis(redisURL);
-  queue = new RedisQueue(queueName, redis, 5);
+  queue = new RedisQueue(queueName, redis);
 });
 
 afterAll(async () => {
@@ -118,24 +118,18 @@ describe("RedisQueue#work", () => {
     expect(results).to.have.length(9);
   });
 
-  it("should requeue an element on calling requeue()", async () => {
+  it("should requeue an element", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
 
     const results: number[] = [];
-    await queue.work(async (j, _, requeue) => {
-      try {
-        const randomNum = random(1, 10, false);
-        if (j === randomNum) {
-          throw new Error();
-        }
-
-        results.push(j);
-      } catch (err) {
-        if (requeue) {
-          await requeue();
-        }
+    await queue.work(async j => {
+      const randomNum = random(1, 10, false);
+      if (j === randomNum) {
+        throw new Error();
       }
+
+      results.push(j);
     });
 
     expect(results).to.have.length(10);
@@ -146,18 +140,12 @@ describe("RedisQueue#work", () => {
     await queue.fill(jobs);
 
     const results: number[] = [];
-    await queue.work(async (j, _, requeue) => {
-      try {
-        if (j === 4) {
-          throw new Error();
-        }
-
-        results.push(j);
-      } catch (err) {
-        if (requeue) {
-          await requeue();
-        }
+    await queue.work(async j => {
+      if (j === 4) {
+        throw new Error();
       }
+
+      results.push(j);
     });
 
     expect(results).to.have.length(9);
