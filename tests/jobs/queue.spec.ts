@@ -94,7 +94,8 @@ describe("RedisQueue#work", () => {
       results.push(j);
     });
 
-    expect(results).to.have.length(10);
+    expect(results).to.have.length(9);
+    expect(results.includes(5)).to.be.false;
   });
 
   it("should skip an element on calling skip()", async () => {
@@ -142,12 +143,17 @@ describe("RedisQueue#work", () => {
     const results: number[] = [];
     await queue.work(async j => {
       if (j === 4) {
-        throw new Error();
+        throw new Error("exit");
       }
 
       results.push(j);
     });
 
+    await queue.work(async j => {
+      results.push(j);
+    });
+
     expect(results).to.have.length(9);
+    expect(results.includes(4)).to.be.false;
   });
 });

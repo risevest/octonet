@@ -41,14 +41,17 @@ export class RedisQueue<T> {
         action = "skipped";
       };
 
-      await retryOnError(3, "0.3s", () => f(JSON.parse(entries[0]), skip));
-
-      switch (action) {
-        case "skipped":
-          continue;
-        default:
-          await this.redis.lpop(this.name);
-          break;
+      try {
+        await retryOnError(3, "0.3s", () => f(JSON.parse(entries[0]), skip));
+        switch (action) {
+          case "skipped":
+            continue;
+          default:
+            await this.redis.lpop(this.name);
+            break;
+        }
+      } catch (error) {
+        await this.redis.lpop(this.name);
       }
     }
   }

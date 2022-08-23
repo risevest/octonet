@@ -25,7 +25,7 @@ export interface Job<T> {
   name: string;
   schedule: string;
   query?(): Promise<T[]>;
-  job(t?: T, skip?: () => Promise<void>, requeue?: () => Promise<void>): Promise<void>;
+  job(t?: T, skip?: () => Promise<void>): Promise<void>;
   retries: number;
   timeout: string;
 }

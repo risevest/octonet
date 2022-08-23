@@ -73,22 +73,12 @@ export class JobRunner {
   private async runJob<T = any>(redis: Redis, j: Job<T>) {
     const length = await redis.llen(j.name);
 
-    const requeuedElements: Record<string, number> = {};
-    const maxRequeuePerElement = 2;
-
     for (let index = 0; index < length; index++) {
       const entries = await redis.lrange(j.name, 0, 0);
 
       // first empty entry is sign we should skip
       if (entries.length === 0) {
         return;
-      }
-
-      // prevent infinite loop from repeated requeues of a particular element
-      if (requeuedElements[entries[0]] && requeuedElements[entries[0]] === maxRequeuePerElement) {
-        await redis.lpop(j.name);
-        delete requeuedElements[entries[0]];
-        continue;
       }
 
       let action: QueueAction;
@@ -98,28 +88,17 @@ export class JobRunner {
         action = "skipped";
       };
 
-      const requeue = async () => {
-        await redis.rpush(j.name, entries[0]);
-        action = "requeued";
-      };
-
-      await j.job(JSON.parse(entries[0]), skip, requeue);
-      switch (action) {
-        case "skipped":
-          continue;
-        case "requeued":
-          if (!requeuedElements[entries[0]]) {
-            requeuedElements[entries[0]] = 1;
-          } else {
-            requeuedElements[entries[0]] += 1;
-          }
-          await redis.lpop(j.name);
-          // adds an additional loop
-          index -= 1;
-          break;
-        default:
-          await redis.lpop(j.name);
-          break;
+      try {
+        await retryOnError(3, "0.3s", () => j.job(JSON.parse(entries[0]), skip));
+        switch (action) {
+          case "skipped":
+            continue;
+          default:
+            await redis.lpop(j.name);
+            break;
+        }
+      } catch (error) {
+        await redis.lpop(j.name);
       }
     }
   }
