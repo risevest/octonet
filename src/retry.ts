@@ -104,7 +104,7 @@ async function retry<T = any>(
         return;
       }
 
-      if (timeouts.length === 0) {
+      if (copy.length === 0) {
         throw err;
       }
 
