@@ -5,7 +5,7 @@
 
 ## About
 
-Octonet is an internal library (Rise) that provides utility functions for building microservices such as:
+octonet is a library that provides utility functions for building microservices such as:
 
 - Interservice communication (via REST)
 - Subscribing to events from RabbitMQ queues and NATS servers.
