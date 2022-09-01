@@ -117,7 +117,7 @@ describe("retryOnRequest", () => {
       await retryOnRequest(5, "10ms", async attempt => {
         attempts.push(attempt);
 
-        throw new RetryError("error");
+        throw new RetryError();
       });
     } catch (error) {}
 
@@ -152,7 +152,7 @@ describe("retryOnRequest", () => {
           throw new Error();
         }
 
-        throw new RetryError("error");
+        throw new RetryError();
       });
     } catch (err) {}
 
