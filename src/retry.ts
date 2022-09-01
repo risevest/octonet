@@ -71,7 +71,7 @@ export function wrapHandler<T = any>(logger: Logger, fn: (t: T) => Promise<void>
     try {
       await fn(data);
     } catch (error) {
-      logger.error(error);
+      logger.error(error, { data });
       throw error;
     }
   };
