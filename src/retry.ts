@@ -7,7 +7,7 @@ import { Logger } from "./logging/logger";
  */
 export class RetryError extends Error {
   constructor(public readonly wrapped?: Error) {
-    super(wrapped.message);
+    super(wrapped?.message);
   }
 }
 
@@ -18,7 +18,7 @@ export class RetryError extends Error {
  */
 export class ExitError extends Error {
   constructor(public readonly wrapped?: Error) {
-    super(wrapped.message);
+    super(wrapped?.message);
   }
 }
 
