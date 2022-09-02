@@ -1,4 +1,4 @@
-import { Channel } from "amqplib";
+import { Channel, Connection, connect } from "amqplib";
 import { Container } from "inversify";
 
 import { Logger } from "../../logging/logger";
@@ -28,6 +28,9 @@ export const command = handlerDecorator(handlerKey);
  * Link commandGroups and their corresponding commands to rabbitmq.
  */
 export class AMQPWorker {
+  private connected: boolean;
+  private conn: Connection;
+  private channel: Channel;
   private commands = new Map<string, Function>();
 
   /**
@@ -36,7 +39,7 @@ export class AMQPWorker {
    * @param container for loading dependencies
    * @param logger for logger middleware
    */
-  constructor(container: Container, logger: Logger) {
+  constructor(container: Container, private logger: Logger) {
     const handlers = parseHandlers(container, groupKey, handlerKey);
     handlers.forEach(({ handler_tag: tag, handler, group_middleware, handler_middleware }) => {
       const middleware = [loggerMiddleware(logger), ...group_middleware, ...handler_middleware];
@@ -46,16 +49,30 @@ export class AMQPWorker {
 
   /**
    * Connect the handlers to their AMQP queues.
-   * @param channel AMQP channel
+   * @param url AMQP connection string
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async listen(channel: Channel, parallel = 5) {
-    await channel.prefetch(parallel);
+  async listen(url: string, parallel = 5) {
+    this.conn = await connect(url);
+    this.channel = await this.conn.createChannel();
+
+    this.connected = true;
+
+    this.conn.on("error", err => {
+      this.connected = false;
+      this.logger.error(err);
+    });
+
+    this.conn.on("close", () => {
+      this.connected = false;
+    });
+
+    await this.channel.prefetch(parallel);
 
     for (const [job, handler] of this.commands.entries()) {
       const queue = job.split(".").join("_").toUpperCase();
-      channel.assertQueue(queue, { durable: true });
-      channel.consume(queue, async msg => {
+      this.channel.assertQueue(queue, { durable: true });
+      this.channel.consume(queue, async msg => {
         if (msg === null) {
           return;
         }
@@ -63,14 +80,35 @@ export class AMQPWorker {
         const data = JSON.parse(msg.content.toString());
         try {
           await handler(data);
-          channel.ack(msg);
+          this.channel.ack(msg);
         } catch (err) {
           if (!(err instanceof RetryError)) {
-            channel.ack(msg);
+            this.channel.ack(msg);
           }
           // no-op for normal errors
         }
       });
     }
+  }
+
+  /**
+   * Tracks the health status of connection to RabbitMQ. Returns false once
+   * one connection is lost
+   */
+  isConnected() {
+    return this.connected;
+  }
+
+  /**
+   * Shutdown all workers
+   */
+  async close() {
+    if (!this.connected) {
+      return;
+    }
+
+    await this.channel.close();
+    await this.conn.close();
+    return;
   }
 }

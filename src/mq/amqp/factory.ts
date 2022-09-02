@@ -60,7 +60,7 @@ export class QueueFactory {
   }
 
   /**
-   * Close all channels and connections
+   * Close the queue connection
    */
   async close() {
     if (!this.connected) {
@@ -68,6 +68,7 @@ export class QueueFactory {
     }
 
     await this.channel.close();
-    return this.conn.close();
+    await this.conn.close();
+    return;
   }
 }
