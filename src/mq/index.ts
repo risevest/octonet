@@ -1,6 +1,6 @@
 export * from "./amqp/factory";
 export * from "./amqp/queue";
-export { Worker, command, jobs } from "./amqp/worker";
+export { Worker, command, worker } from "./amqp/worker";
 export { groupDecorator, handlerDecorator, ParsedHandler, parseHandlers } from "./decorators";
 export * from "./handlers";
 export { NatsConfig, NatsConsumer, stream, subscribe } from "./nats/consumer";

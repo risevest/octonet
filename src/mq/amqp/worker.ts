@@ -14,7 +14,7 @@ export const handlerKey = Symbol.for("amqp.job.handler");
  * @param tag there for decorative reasons
  * @param middleware optional list of middleware to run on all commands
  */
-export const jobs = groupDecorator(groupKey);
+export const worker = groupDecorator(groupKey);
 /**
  * Create handler for a queue.
  * @param tag queue name which can either be in dot format (my.queue) or just standard name(MY_QUEUE).
