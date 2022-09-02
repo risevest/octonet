@@ -37,7 +37,7 @@ export class QueueFactory {
    * @param size maximum number of items(number) or maximum amount of
    * time spent on the queue
    */
-  async queue(name: string, size?: number | string) {
+  async queue<T>(name: string, size?: number | string) {
     const opts = { durable: true };
     if (size) {
       if (typeof size === "string") {
@@ -48,7 +48,7 @@ export class QueueFactory {
     }
 
     await this.channel.assertQueue(name, opts);
-    return new Queue(this.channel, name);
+    return new Queue<T>(this.channel, name);
   }
 
   /**
