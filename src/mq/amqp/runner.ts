@@ -25,9 +25,9 @@ export const worker = groupDecorator(groupKey);
 export const command = handlerDecorator(handlerKey);
 
 /**
- * Link commandGroups and their corresponding commands to rabbitmq.
+ * Link workers and their corresponding commands to rabbitmq.
  */
-export class Worker {
+export class WorkerRunner {
   private connected: boolean;
   private conn: Connection;
   private channel: Channel;
@@ -52,7 +52,7 @@ export class Worker {
    * @param url AMQP connection string
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async listen(url: string, parallel = 5) {
+  async start(url: string, parallel = 5) {
     this.conn = await connect(url);
     this.channel = await this.conn.createChannel();
 
@@ -95,14 +95,14 @@ export class Worker {
    * Tracks the health status of connection to RabbitMQ. Returns false once
    * one connection is lost
    */
-  isConnected() {
+  isRunning() {
     return this.connected;
   }
 
   /**
    * Shutdown all workers
    */
-  async close() {
+  async stop() {
     if (!this.connected) {
       return;
     }
