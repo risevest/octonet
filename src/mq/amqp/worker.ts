@@ -27,7 +27,7 @@ export const command = handlerDecorator(handlerKey);
 /**
  * Link commandGroups and their corresponding commands to rabbitmq.
  */
-export class AMQPWorker {
+export class Worker {
   private connected: boolean;
   private conn: Connection;
   private channel: Channel;
