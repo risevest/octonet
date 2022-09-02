@@ -5,11 +5,7 @@ import { Logger } from "../../logging/logger";
 import { Queue } from "./queue";
 
 export class QueueFactory {
-  /**
-   * tracks the health status of all connections. Marked false once
-   * one connection is lost
-   */
-  public connected: boolean;
+  private connected: boolean;
 
   private constructor(private conn: Connection, private channel: Channel, logger: Logger) {
     this.connected = true;
@@ -53,6 +49,14 @@ export class QueueFactory {
 
     await this.channel.assertQueue(name, opts);
     return new Queue(this.channel, name);
+  }
+
+  /**
+   * Tracks the health status of connection. Returns false once
+   * one connection is lost
+   */
+  isConnected() {
+    return this.connected;
   }
 
   /**
