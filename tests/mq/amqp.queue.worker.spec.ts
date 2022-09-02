@@ -5,7 +5,9 @@ import faker from "faker";
 import { Container } from "inversify";
 import sinon from "sinon";
 
-import { AMQPQueue, AMQPWorker, ChannelManager, Logger, defaultSerializers } from "../../src";
+import { Logger } from "../../src/logging/logger";
+import { defaultSerializers } from "../../src/logging/serializers";
+import { Queue, QueueFactory, Worker } from "../../src/mq";
 import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
@@ -16,21 +18,25 @@ export const logger = new Logger({
   verbose: false
 });
 
-let queue: AMQPQueue;
-let manager: ChannelManager;
+let factory: QueueFactory;
+let worker: Worker;
+let doQueue: Queue<string>;
+let customQueue: Queue<string>;
 
 beforeAll(async () => {
   const container = new Container();
-  manager = await ChannelManager.connect(amqpURL, logger);
+  factory = await QueueFactory.connect(amqpURL, logger);
 
-  const worker = new AMQPWorker(container, logger);
-  await worker.listen(await manager.createChannel());
+  worker = new Worker(container, logger);
+  await worker.listen(amqpURL);
 
-  queue = new AMQPQueue(await manager.createChannel());
+  doQueue = await factory.queue("DO_JOB");
+  customQueue = await factory.queue("CUSTOM_JOB");
 });
 
 afterAll(async () => {
-  await manager.close();
+  await factory.close();
+  await worker.close();
 });
 
 afterEach(() => {
@@ -42,7 +48,7 @@ describe("Worker", () => {
   it("should run path based job name", async () => {
     const amount = faker.finance.amount(100);
 
-    await queue.push("DO_JOB", amount);
+    await doQueue.push(amount);
     await sleep(300);
 
     expect(doSpy.called).to.be.true;
@@ -52,7 +58,7 @@ describe("Worker", () => {
   it("should run job regardless of naming structure", async () => {
     const amount = faker.finance.amount(100);
 
-    await queue.push("CUSTOM_JOB", amount);
+    await customQueue.push(amount);
     await sleep(300);
 
     expect(customSpy.called).to.be.true;
@@ -62,7 +68,7 @@ describe("Worker", () => {
   it("should run middleware in the right order", async () => {
     const amount = faker.finance.amount(100);
 
-    await queue.push("DO_JOB", amount);
+    await doQueue.push(amount);
     await sleep(300);
 
     expect(groupBefore.calledBefore(handlerBefore)).to.be.true;
