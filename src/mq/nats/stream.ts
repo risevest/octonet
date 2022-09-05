@@ -125,6 +125,8 @@ export class StreamFactory {
       await this.manager.streams.add({
         name,
         subjects: [`${name}.>`],
+        retention: RetentionPolicy.Limits,
+        discard: DiscardPolicy.Old,
         ...parsedConf
       });
     }
