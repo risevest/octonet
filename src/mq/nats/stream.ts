@@ -97,7 +97,6 @@ export class StreamFactory {
       // num_replicas: TODO: should be based on number of servers
       max_age: conf.stream_type === "log" ? ms(conf.retention_period) * 1_000_000 : undefined,
       max_msgs: conf.stream_type === "broadcast" ? conf.buffer_size : undefined,
-      retention: conf.stream_type === "broadcast" ? RetentionPolicy.Interest : RetentionPolicy.Limits,
       storage: conf.stream_type === "broadcast" ? StorageType.Memory : StorageType.File
     };
 
