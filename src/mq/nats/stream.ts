@@ -104,7 +104,7 @@ export class StreamFactory {
       const streamInfo = await this.manager.streams.info(name);
       if (streamInfo.config.storage !== parsedConf.storage) {
         throw new Error(
-          `The type of the exiting ${name} stream was defined with a different stream type(${
+          `The ${name} stream is already defined with a different stream type(${
             conf.stream_type === "log" ? "broadcast" : "log"
           })`
         );
