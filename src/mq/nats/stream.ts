@@ -112,6 +112,7 @@ export class StreamFactory {
 
       // just incase buffer size/retention period has changes
       await this.manager.streams.update(name, {
+        subjects: [`${name}.>`],
         max_msgs: parsedConf.max_msgs,
         max_age: parsedConf.max_age
       });
