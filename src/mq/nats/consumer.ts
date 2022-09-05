@@ -77,7 +77,7 @@ export class Consumers {
       opts.replayInstantly();
       opts.sample(100);
       opts.filterSubject(topic);
-      opts.durable(consumerName(stream, cfg.namespace, topic));
+      opts.durable(durableName(stream, cfg.namespace, topic));
 
       const sub = await client.pullSubscribe(topic, opts);
       const done = pullSmart(cfg.batch_size, sub);
@@ -89,7 +89,7 @@ export class Consumers {
   }
 }
 
-function consumerName(stream: string, namespace: string, topic: string) {
+export function durableName(stream: string, namespace: string, topic: string) {
   const invalidChars = { ".": "_", "*": "opts", ">": "spread" };
   const safeTopic = topic.replace(/[\.\*\>]/g, c => invalidChars[c]);
   return `${stream}_${namespace}_${safeTopic}`;
