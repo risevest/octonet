@@ -42,7 +42,7 @@ export interface NatsConfig {
   timeout: string;
 }
 
-export class NatsConsumer {
+export class Consumers {
   private streams: Set<string> = new Set();
   private subsribers: Map<string, Function> = new Map();
 

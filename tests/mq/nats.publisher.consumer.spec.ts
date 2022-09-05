@@ -6,7 +6,7 @@ import { Container } from "inversify";
 import { JetStreamManager, NatsConnection, StorageType, connect } from "nats";
 import sinon from "sinon";
 
-import { Logger, NatsConsumer, NatsPublisher, defaultSerializers } from "../../src";
+import { Consumers, Logger, NatsPublisher, defaultSerializers } from "../../src";
 import { repeat, sleep } from "../helpers";
 import {
   allCredits,
@@ -36,7 +36,7 @@ beforeAll(async () => {
   // create the stream to listen to
   await jm.streams.add({ name: "transactions", storage: StorageType.Memory, subjects: ["transactions.>"] });
 
-  const consumer = new NatsConsumer(container, logger);
+  const consumer = new Consumers(container, logger);
   await consumer.listen(natsConn, { namespace: "octonet", batch_size: 10, timeout: "1m" });
   publisher = new NatsPublisher(natsConn.jetstream());
 });

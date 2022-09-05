@@ -27,7 +27,7 @@ export const command = handlerDecorator(handlerKey);
 /**
  * Link workers and their corresponding commands to rabbitmq.
  */
-export class WorkerRunner {
+export class Workers {
   private connected: boolean;
   private conn: Connection;
   private channel: Channel;
