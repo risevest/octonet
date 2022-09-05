@@ -2,10 +2,12 @@ import { injectable } from "inversify";
 import ms from "ms";
 import {
   ConnectionOptions,
+  DiscardPolicy,
   JSONCodec,
   JetStreamClient,
   JetStreamManager,
   NatsConnection,
+  NatsError,
   RetentionPolicy,
   StorageType,
   connect
@@ -58,20 +60,20 @@ export class StreamFactory {
    * Creates a stream factoriy using an existing nats connection
    * @param conn nats connection
    */
-  async init(conn: NatsConnection): Promise<StreamFactory>;
+  static async init(conn: NatsConnection): Promise<StreamFactory>;
   /**
    * Creates a stream factory and manages the nats connection for streams
    * @param url a nats URL or a list of URLs separated by comma
    * @param opts nats connection options
    */
-  async init(url: string, opts: ConnectionOptions): Promise<StreamFactory>;
+  static async init(url: string, opts?: ConnectionOptions): Promise<StreamFactory>;
   /**
    * Creates a stream factory and manages the nats connection for streams
    * @param urls a list of urls pointing to nats servers
    * @param opts nats connection options
    */
-  async init(urls: string[], opts: ConnectionOptions): Promise<StreamFactory>;
-  async init(arg: string | string[] | NatsConnection, opts?: ConnectionOptions) {
+  static async init(urls: string[], opts?: ConnectionOptions): Promise<StreamFactory>;
+  static async init(arg: string | string[] | NatsConnection, opts?: ConnectionOptions) {
     if (typeof arg === "string" || Array.isArray(arg)) {
       const conn = await connect({
         ...opts,
