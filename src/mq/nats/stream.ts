@@ -116,7 +116,11 @@ export class StreamFactory {
         max_msgs: parsedConf.max_msgs,
         max_age: parsedConf.max_age
       });
-    } catch (error) {
+    } catch (err) {
+      if (!(err instanceof NatsError) || err.message !== "stream not found") {
+        throw err;
+      }
+
       // create a new one
       await this.manager.streams.add({
         name,
