@@ -5,3 +5,4 @@ export { groupDecorator, handlerDecorator, ParsedHandler, parseHandlers } from "
 export * from "./handlers";
 export { Consumers, NatsConfig, stream, subscribe } from "./nats/consumer";
 export { NatsPublisher } from "./nats/publisher";
+export { Stream, StreamConfig, StreamFactory } from "./nats/stream";
