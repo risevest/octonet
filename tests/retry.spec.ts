@@ -5,7 +5,19 @@ import sinon from "sinon";
 
 import { Logger } from "../src/logging/logger";
 import { defaultSerializers } from "../src/logging/serializers";
-import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../src/retry";
+import { ExitError, RetryError, retryOnError, retryOnRequest, retryTimeouts, wrapHandler } from "../src/retry";
+
+describe("retryTimeouts", () => {
+  it("should generate timeouts of exponential distance", () => {
+    const timeout = faker.datatype.number({ min: 5, max: 30 });
+    const timeouts = retryTimeouts(5, timeout);
+
+    timeouts.forEach((t, i) => {
+      const expectedT = timeout * Math.pow(2, i);
+      expect(t).to.be.eq(expectedT);
+    });
+  });
+});
 
 describe("retryOnError", () => {
   it("should increment attempt number on each retry", async () => {
@@ -69,30 +81,6 @@ describe("retryOnError", () => {
     } catch (err) {}
 
     expect(count).to.eq(2);
-  });
-
-  it("should space retries using exponential backoff", async () => {
-    let timeouts: number[] = [];
-    const inMillis = (time: number[]) => time[0] * 1000 + time[1] / 1000000;
-    let now = process.hrtime();
-
-    try {
-      await retryOnError(2, "10ms", async () => {
-        const temp = now;
-        now = process.hrtime();
-        timeouts.push(inMillis(now) - inMillis(temp));
-
-        throw new Error("error");
-      });
-    } catch (error) {}
-
-    expect(timeouts).to.have.length(3);
-    timeouts.slice(1).forEach((t, i) => {
-      const expectedT = 10 * Math.pow(2, i);
-
-      // we give an error of 5 extra ms
-      expect(t).to.be.within(expectedT, expectedT + 5);
-    });
   });
 
   it("should exit early", async () => {
