@@ -1,20 +1,21 @@
 import { Channel } from "amqplib";
 import { injectable } from "inversify";
 
-interface BufferEntry {
-  queue: string;
-  data: any;
-}
-
 @injectable()
-export class AMQPQueue {
-  private internalBuffer: BufferEntry[] = [];
+export class Queue<T> {
+  private internalBuffer: T[] = [];
 
-  constructor(private chan: Channel) {
+  /**
+   * Create an abstraction to manage pushing to rabbitmq queues. Assumes the
+   * queue has already been setup.
+   * @param chan amqp virtual connection
+   * @param queue name of the queue
+   */
+  constructor(private chan: Channel, private queue: string) {
     chan.on("drain", async () => {
       while (this.internalBuffer.length !== 0) {
-        const top = this.internalBuffer[0];
-        const succeeded = await this.internalQueue(top.queue, top.data);
+        const top = Buffer.from(JSON.stringify(this.internalBuffer[0]));
+        const succeeded = this.chan.sendToQueue(this.queue, top);
 
         // break out if we need to wait again
         if (!succeeded) {
@@ -27,20 +28,14 @@ export class AMQPQueue {
   }
 
   /**
-   * Push data to a particular queue, handling serilization and buffering
-   * @param queue queue to push to
+   * Push data to the queue, handling serilization and buffering
    * @param data data to write on queue
    */
-  async push(queue: string, data: any) {
-    const succeded = await this.internalQueue(queue, data);
+  async push(data: T) {
+    const succeded = this.chan.sendToQueue(this.queue, Buffer.from(JSON.stringify(data)));
     // queue for later
     if (!succeded) {
-      this.internalBuffer.push({ queue, data });
+      this.internalBuffer.push(data);
     }
-  }
-
-  private async internalQueue(queue: string, data: any) {
-    await this.chan.assertQueue(queue, { durable: true });
-    return this.chan.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
   }
 }

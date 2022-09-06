@@ -1,7 +1,8 @@
 import { injectable } from "inversify";
 import Redis from "ioredis";
 
-import { retryOnRequest } from "../retry";
+import { Logger } from "../logging/logger";
+import { retryOnRequest, wrapHandler } from "../retry";
 
 @injectable()
 export class RedisQueue<T> {
@@ -42,9 +43,14 @@ export class RedisQueue<T> {
   /**
    * Run the given function on all the items on the queue
    * @param f function works on each item
+   * @param logger optional logger for tracking jobs
    */
-  async work(f: (t: T) => Promise<void>) {
+  async work(f: (t: T) => Promise<void>, logger?: Logger) {
     const length = await this.length();
+
+    if (logger) {
+      f = wrapHandler(logger, f);
+    }
 
     for (let index = 0; index < length; index++) {
       const entries = await this.redis.lrange(this.name, 0, 0);

@@ -5,13 +5,22 @@ import { Logger } from "./logging/logger";
 /**
  * Custom error instance to allow handlers request a retry
  */
-export class RetryError extends Error {}
+export class RetryError extends Error {
+  constructor(public readonly wrapped?: Error) {
+    super(wrapped?.message);
+  }
+}
 
 /**
  * Custom error instance to allow functions request a bail out
  * in a retry sequence
+ * @param
  */
-export class ExitError extends Error {}
+export class ExitError extends Error {
+  constructor(public readonly wrapped?: Error) {
+    super(wrapped?.message);
+  }
+}
 
 /**
  * Retry a given function based on the configuration on all errors, only
@@ -62,13 +71,13 @@ export function wrapHandler<T = any>(logger: Logger, fn: (t: T) => Promise<void>
     try {
       await fn(data);
     } catch (error) {
-      logger.error(error);
+      logger.error(error, { data });
       throw error;
     }
   };
 }
 
-function retryTimeouts(max: number, timeout: number) {
+export function retryTimeouts(max: number, timeout: number) {
   return Array.from({ length: max }).map((_, i) => {
     return Math.round(timeout * Math.pow(2, i));
   });

@@ -110,9 +110,20 @@ export class Logger {
   /**
    * Log internal application error
    * @param err actual error being logged
-   * @param message custom error message
+   * @param extras anything else to log with the error
    */
-  error(err: Error, message?: string) {
-    this.logger.error(err, message);
+  error(err: Error, extras?: object): void;
+  /**
+   * Log internal application error
+   * @param err actual error being logged
+   * @param message optional custom error message
+   */
+  error(err: Error, message?: string): void;
+  error(err: Error, extras?: object | string) {
+    if (typeof extras === "string") {
+      this.logger.error(err, extras);
+    } else {
+      this.logger.error({ err, ...extras });
+    }
   }
 }

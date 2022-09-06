@@ -5,7 +5,7 @@ import { Container } from "inversify";
 import { keyBy } from "lodash";
 import sinon from "sinon";
 
-import { CronMetadata, JobMetadata, QueryMetadata, getCronGroup, getJobs } from "../../src/jobs/decorators";
+import { CronMetadata, JobMetadata, QueryMetadata, getJobs } from "../../src/jobs/decorators";
 import {
   CronGroup,
   GROUP_NAME,
@@ -97,22 +97,5 @@ describe("Decorators#getJobs", () => {
     normalJob.job();
     expect(normalSpy.called).to.be.true;
     expect(normalSpy.firstCall.firstArg).to.eq(0);
-  });
-});
-
-describe("Decorators#getCronGroup", () => {
-  it("get the instance of the cron group", () => {
-    const container = new Container();
-    getJobs(container);
-
-    const cronGroup = getCronGroup<CronGroup>(container, GROUP_NAME);
-    expect(cronGroup).to.be.instanceOf(CronGroup);
-  });
-
-  it("should throw error if cron group not yet declared", () => {
-    const container = new Container();
-
-    const getGroup = () => getCronGroup<CronGroup>(container, GROUP_NAME);
-    expect(getGroup).to.throw(`Either ${GROUP_NAME} has not been declared as a job or no job has been registered.`);
   });
 });
