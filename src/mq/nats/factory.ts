@@ -121,6 +121,16 @@ export class StreamFactory {
   }
 
   /**
+   * Returns true is the nats connection still exists. Like `stop` you might not need this
+   * unless connection is managed by the factory. Also, keep in mind nats has reconnection
+   * mechanisms already
+   */
+  async isConnected() {
+    const err = await this.conn.closed();
+    return !err;
+  }
+
+  /**
    * Close the nats connection. Only do this `init` is called with a URL(hence
    * the connection is entirely managed by the stream factory), else it will close
    * a connection that might be in use by others
