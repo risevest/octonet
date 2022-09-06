@@ -12,7 +12,7 @@ import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
 const amqpURL = "amqp://localhost:5672";
-export const logger = new Logger({
+const logger = new Logger({
   name: "amqp.worker.tests",
   serializers: defaultSerializers(),
   verbose: false

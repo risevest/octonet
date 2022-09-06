@@ -57,28 +57,16 @@ export async function repeat(n: number, fn: (i?: number) => Promise<any>): Promi
   return Promise.all(jobs);
 }
 
-export async function popFromQueue<T>(channel: Channel, queue: string): Promise<T> {
-  await channel.assertQueue(queue, { durable: true });
-  return new Promise(async (resolve, reject) => {
-    const handler = (data: any, tag: string) => {
-      channel.cancel(tag);
-      resolve(data);
-    };
+export async function popFromQueue<T>(channel: Channel, queue: string): Promise<T | null> {
+  const result = await channel.get(queue, { noAck: true });
+  if (typeof result === "boolean") {
+    return null;
+  }
 
-    await channel.consume(queue, msg => {
-      if (msg === null) {
-        return;
-      }
-
-      channel.ack(msg);
-      const tag = msg.fields.consumerTag;
-      handler(JSON.parse(msg.content.toString()), tag);
-    });
-  });
+  return JSON.parse(result.content.toString());
 }
 
-export async function drainQueue<T>(channel: Channel, queue: string): Promise<void> {
-  await channel.assertQueue(queue);
+export async function drainQueue(channel: Channel, queue: string): Promise<void> {
   await channel.purgeQueue(queue);
 }
 
