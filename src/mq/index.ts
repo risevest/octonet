@@ -4,5 +4,6 @@ export { command, worker, Workers } from "./amqp/runner";
 export { groupDecorator, handlerDecorator, ParsedHandler, parseHandlers } from "./decorators";
 export * from "./handlers";
 export { Consumers, NatsConfig, stream, subscribe } from "./nats/consumer";
+export { StreamConfig, StreamFactory } from "./nats/factory";
 export { NatsPublisher } from "./nats/publisher";
-export { Stream, StreamConfig, StreamFactory } from "./nats/stream";
+export { Stream } from "./nats/stream";
