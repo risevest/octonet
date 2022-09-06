@@ -156,16 +156,3 @@ export function getJobs(container: Container) {
 
   return jobs;
 }
-
-/**
- * Get the instance of a cron group declared with `cron`
- * @param container inversify container used to register the jobs
- * @param group name of the cron group
- */
-export function getCronGroup<T>(container: Container, group: string): T {
-  try {
-    return container.getNamed<any>(cronInstanceKey, group);
-  } catch (err) {
-    throw new Error(`Either ${group} has not been declared as a job or no job has been registered.`);
-  }
-}
