@@ -7,19 +7,19 @@ import sinon from "sinon";
 
 import { Logger } from "../../src/logging/logger";
 import { defaultSerializers } from "../../src/logging/serializers";
-import { Queue, QueueFactory, WorkerRunner } from "../../src/mq";
+import { Queue, QueueFactory, Workers } from "../../src/mq";
 import { sleep } from "../helpers";
 import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
 const amqpURL = "amqp://localhost:5672";
-export const logger = new Logger({
+const logger = new Logger({
   name: "amqp.worker.tests",
   serializers: defaultSerializers(),
   verbose: false
 });
 
 let factory: QueueFactory;
-let runner: WorkerRunner;
+let runner: Workers;
 let doQueue: Queue<string>;
 let customQueue: Queue<string>;
 
@@ -27,7 +27,7 @@ beforeAll(async () => {
   const container = new Container();
   factory = await QueueFactory.connect(amqpURL, logger);
 
-  runner = new WorkerRunner(container, logger);
+  runner = new Workers(container, logger);
   await runner.start(amqpURL);
 
   doQueue = await factory.queue("DO_JOB");

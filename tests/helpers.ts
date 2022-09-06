@@ -1,8 +1,10 @@
 import crypto from "crypto";
 import { promisify } from "util";
 
+import { Channel } from "amqplib";
 import parser from "cron-parser";
 import ms from "ms";
+import { JSONCodec, JetStreamManager } from "nats";
 import sinon, { SinonFakeTimers } from "sinon";
 
 let sinonClock: SinonFakeTimers | null;
@@ -27,6 +29,8 @@ export const asyncRandomString = promisify<number, string>(randomString);
  * @param delay how long in milliseconds to wait
  */
 export const sleep = promisify(setTimeout);
+
+type JumpFn = (time: string) => void;
 
 /**
  * Generate multiple version using a mock data function.
@@ -53,7 +57,25 @@ export async function repeat(n: number, fn: (i?: number) => Promise<any>): Promi
   return Promise.all(jobs);
 }
 
-type JumpFn = (time: string) => void;
+export async function popFromQueue<T>(channel: Channel, queue: string): Promise<T | null> {
+  const result = await channel.get(queue, { noAck: true });
+  if (typeof result === "boolean") {
+    return null;
+  }
+
+  return JSON.parse(result.content.toString());
+}
+
+export async function drainQueue(channel: Channel, queue: string): Promise<void> {
+  await channel.purgeQueue(queue);
+}
+
+export async function getFromStream<T>(manager: JetStreamManager, topic: string) {
+  const [stream] = topic.split(".");
+  const msg = await manager.streams.getMessage(stream, { last_by_subj: topic });
+
+  return JSONCodec<T>().decode(msg.data);
+}
 
 /**
  * Runs the given function while time is reset to the beginning
@@ -62,13 +84,16 @@ type JumpFn = (time: string) => void;
  */
 export async function withTimePaused(f: (j: JumpFn) => Promise<void>) {
   sinonClock = sinon.useFakeTimers();
-
-  await f((t: string) => {
-    sinonClock?.tick(ms(t));
-  });
-
-  sinonClock?.restore();
-  sinonClock = null;
+  try {
+    await f((t: string) => {
+      sinonClock?.tick(ms(t));
+    });
+  } catch (err) {
+    throw err;
+  } finally {
+    sinonClock?.restore();
+    sinonClock = null;
+  }
 }
 
 /**
@@ -87,9 +112,12 @@ export function jumpBy(cronExpr: string, extra = "1m") {
   sinonClock = sinon.useFakeTimers(preface);
   const extraTime = gap + ms(extra);
 
-  return function () {
+  return async function (ms?: number) {
     sinonClock?.tick(extraTime);
     sinonClock?.restore();
     sinonClock = null;
+    if (ms) {
+      return sleep(ms);
+    }
   };
 }

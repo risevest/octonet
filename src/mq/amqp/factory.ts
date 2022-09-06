@@ -1,4 +1,4 @@
-import { Channel, Connection, connect } from "amqplib";
+import { Channel, Connection, Options, connect } from "amqplib";
 import ms from "ms";
 
 import { Logger } from "../../logging/logger";
@@ -38,12 +38,12 @@ export class QueueFactory {
    * time spent on the queue
    */
   async queue<T>(name: string, size?: number | string) {
-    const opts = { durable: true };
+    const opts: Options.AssertQueue = { durable: true };
     if (size) {
       if (typeof size === "string") {
-        opts["messageTtl"] = ms(size);
+        opts.messageTtl = ms(size);
       } else {
-        opts["maxLength"] = Math.abs(size);
+        opts.maxLength = Math.abs(size);
       }
     }
 
