@@ -90,8 +90,9 @@ describe("retryOnError", () => {
     timeouts.slice(1).forEach((t, i) => {
       const expectedT = 10 * Math.pow(2, i);
 
-      // we give an error of 5 extra ms
-      expect(t).to.be.within(expectedT, expectedT + 5);
+      // actual time is exp - 1 <= t <= exp + 5 due to the inaccuracy of
+      // setTimeout and inconsistent execution times
+      expect(t).to.be.within(expectedT - 1, expectedT + 5);
     });
   });
 
