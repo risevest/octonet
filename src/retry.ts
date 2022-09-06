@@ -77,7 +77,7 @@ export function wrapHandler<T = any>(logger: Logger, fn: (t: T) => Promise<void>
   };
 }
 
-function retryTimeouts(max: number, timeout: number) {
+export function retryTimeouts(max: number, timeout: number) {
   return Array.from({ length: max }).map((_, i) => {
     return Math.round(timeout * Math.pow(2, i));
   });
