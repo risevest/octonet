@@ -19,7 +19,7 @@ const logger = new Logger({
 });
 
 let factory: QueueFactory;
-let runner: Workers;
+let workers: Workers;
 let doQueue: Queue<string>;
 let customQueue: Queue<string>;
 
@@ -27,8 +27,8 @@ beforeAll(async () => {
   const container = new Container();
   factory = await QueueFactory.connect(amqpURL, logger);
 
-  runner = new Workers(container, logger);
-  await runner.start(amqpURL);
+  workers = new Workers(container, logger);
+  await workers.start(amqpURL);
 
   doQueue = await factory.queue("DO_JOB");
   customQueue = await factory.queue("CUSTOM_JOB");
@@ -36,7 +36,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await factory.close();
-  await runner.stop();
+  await workers.stop();
 });
 
 afterEach(() => {
