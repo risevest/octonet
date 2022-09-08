@@ -45,7 +45,6 @@ describe("QueueFactory#queue", () => {
   });
 
   afterAll(async () => {
-    await factory.close();
     await conn.close();
   });
 
