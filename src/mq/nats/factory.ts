@@ -122,6 +122,24 @@ export class StreamFactory {
   }
 
   /**
+   * Helper for creating broadcast streams
+   * @param name name of the stream and prefix for topics
+   * @param buffer number of items to hold for disconnected consumers.
+   */
+  broadcastStream<T>(name: string, buffer = 100) {
+    return this.stream<T>(name, { stream_type: "broadcast", buffer_size: buffer });
+  }
+
+  /**
+   * Helper for creating log stream
+   * @param name name of the stream and prefix for topics
+   * @param period how long each item should be retained defaults to 1 year
+   */
+  logStream<T>(name: string, period = "1y") {
+    return this.stream<T>(name, { stream_type: "log", retention_period: period });
+  }
+
+  /**
    * Returns true is the nats connection still exists. Like `stop` you might not need this
    * unless connection is managed by the factory. Also, keep in mind nats has reconnection
    * mechanisms already
