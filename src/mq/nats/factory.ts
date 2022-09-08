@@ -20,7 +20,7 @@ export interface BroadcastConfig {
   stream_type: "broadcast";
   /**
    * maximum number of messages to store when that have not been consumed by all
-   * customers. Bear in mind this has an effect on the memory usage of the server so makes
+   * consumers. Bear in mind this has an effect on the memory usage of the server so makes
    * sense to keep it small when possible
    */
   buffer_size: number;
@@ -98,6 +98,7 @@ export class StreamFactory {
 
       // just incase buffer size/retention period has changes
       await this.manager.streams.update(name, {
+        ...streamInfo.config,
         subjects: [`${name}.>`],
         max_msgs: parsedConf.max_msgs,
         max_age: parsedConf.max_age
@@ -118,6 +119,24 @@ export class StreamFactory {
     }
 
     return new Stream<T>(name, this.conn.jetstream());
+  }
+
+  /**
+   * Helper for creating broadcast streams
+   * @param name name of the stream and prefix for topics
+   * @param buffer number of items to hold for disconnected consumers.
+   */
+  broadcastStream<T>(name: string, buffer = 100) {
+    return this.stream<T>(name, { stream_type: "broadcast", buffer_size: buffer });
+  }
+
+  /**
+   * Helper for creating log stream
+   * @param name name of the stream and prefix for topics
+   * @param period how long each item should be retained defaults to 1 year
+   */
+  logStream<T>(name: string, period = "1y") {
+    return this.stream<T>(name, { stream_type: "log", retention_period: period });
   }
 
   /**

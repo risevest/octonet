@@ -60,7 +60,7 @@ export class Consumers {
    * @param nats the nats connection to link with
    * @param cfg configuration for the subscribers
    */
-  async listen(nats: NatsConnection, cfg: NatsConfig) {
+  async start(nats: NatsConnection, cfg: NatsConfig) {
     const manager = await nats.jetstreamManager();
     const client = nats.jetstream();
     for (const stream of this.streams) {

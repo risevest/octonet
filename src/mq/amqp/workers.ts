@@ -52,10 +52,24 @@ export class Workers {
    * @param url AMQP connection string
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async start(url: string, parallel = 5) {
-    this.conn = await connect(url);
-    this.channel = await this.conn.createChannel();
+  async start(url: string, parallel?: number): Promise<void>;
+  /**
+   * Connect the handlers to their AMQP queues.
+   * @param conn AMQP connection managed externally
+   * @param parallel how many jobs requests to receive simultaneously
+   */
+  async start(conn: Connection, parallel?: number): Promise<void>;
+  async start(connUrl: string | Connection, parallel = 5): Promise<void> {
+    if (typeof connUrl === "string") {
+      this.conn = await connect(connUrl);
+      this.conn.on("error", err => {
+        this.logger.error(err);
+      });
+    } else {
+      this.conn = connUrl;
+    }
 
+    this.channel = await this.conn.createChannel();
     this.connected = true;
 
     this.conn.on("error", err => {

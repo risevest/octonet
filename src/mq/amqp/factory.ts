@@ -21,12 +21,25 @@ export class QueueFactory {
   }
 
   /**
-   * Create a new AMQP Connection managed through connection manager
+   * Create a factory for AMQP queues
    * @param url AMQP url
-   * @param logger bunyan logger for octonet errors
+   * @param logger bunyan logger for errors
    */
-  static async connect(url: string, logger: Logger) {
-    const conn = await connect(url);
+  static async connect(url: string, logger: Logger): Promise<QueueFactory>;
+  /**
+   * Create a factory for AMQP queues
+   * @param conn AMQP connection managed externally
+   * @param logger bunyan logger for errors
+   */
+  static async connect(conn: Connection, logger: Logger): Promise<QueueFactory>;
+  static async connect(connUrl: string | Connection, logger: Logger) {
+    let conn: Connection;
+    if (typeof connUrl === "string") {
+      conn = await connect(connUrl);
+    } else {
+      conn = connUrl;
+    }
+
     const channel = await conn.createChannel();
     return new QueueFactory(conn, channel, logger);
   }

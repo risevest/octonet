@@ -19,7 +19,7 @@ const logger = new Logger({
 });
 
 let factory: QueueFactory;
-let runner: Workers;
+let workers: Workers;
 let doQueue: Queue<string>;
 let customQueue: Queue<string>;
 
@@ -27,8 +27,8 @@ beforeAll(async () => {
   const container = new Container();
   factory = await QueueFactory.connect(amqpURL, logger);
 
-  runner = new Workers(container, logger);
-  await runner.start(amqpURL);
+  workers = new Workers(container, logger);
+  await workers.start(amqpURL);
 
   doQueue = await factory.queue("DO_JOB");
   customQueue = await factory.queue("CUSTOM_JOB");
@@ -36,7 +36,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await factory.close();
-  await runner.stop();
+  await workers.stop();
 });
 
 afterEach(() => {
@@ -48,7 +48,7 @@ describe("Worker", () => {
   it("should run path based job name", async () => {
     const amount = faker.finance.amount(100);
 
-    await doQueue.push(amount);
+    doQueue.push(amount);
     await sleep(300);
 
     expect(doSpy.called).to.be.true;
@@ -58,7 +58,7 @@ describe("Worker", () => {
   it("should run job regardless of naming structure", async () => {
     const amount = faker.finance.amount(100);
 
-    await customQueue.push(amount);
+    customQueue.push(amount);
     await sleep(300);
 
     expect(customSpy.called).to.be.true;
@@ -68,7 +68,7 @@ describe("Worker", () => {
   it("should run middleware in the right order", async () => {
     const amount = faker.finance.amount(100);
 
-    await doQueue.push(amount);
+    doQueue.push(amount);
     await sleep(300);
 
     expect(groupBefore.calledBefore(handlerBefore)).to.be.true;
