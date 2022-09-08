@@ -36,7 +36,7 @@ describe("QueueFactory#queue", () => {
 
   beforeAll(async () => {
     conn = await connect(amqpURL);
-    factory = await QueueFactory.connect(amqpURL, logger);
+    factory = await QueueFactory.connect(conn, logger);
     channel = await conn.createChannel();
   });
 
@@ -45,14 +45,13 @@ describe("QueueFactory#queue", () => {
   });
 
   afterAll(async () => {
-    await factory.close();
     await conn.close();
   });
 
   it("should create a new queue", async () => {
     const queue = await factory.queue(queueName);
     await repeat(10, async () => {
-      await queue.push(Number(faker.finance.amount()));
+      queue.push(Number(faker.finance.amount()));
     });
 
     await sleep(500);
@@ -66,7 +65,7 @@ describe("QueueFactory#queue", () => {
     const amounts = multiply(30, () => Number(faker.finance.amount()));
 
     for (const a of amounts) {
-      await queue.push(a);
+      queue.push(a);
     }
 
     await sleep(500);
@@ -86,7 +85,7 @@ describe("QueueFactory#queue", () => {
     const amounts = multiply(30, () => Number(faker.finance.amount()));
 
     for (const a of amounts) {
-      await queue.push(a);
+      queue.push(a);
     }
 
     await sleep(500);
@@ -104,7 +103,7 @@ describe("QueueFactory#queue", () => {
   it("should restrict queue length based on fixed number of items", async () => {
     const queue = await factory.queue(queueName, "100ms");
     await repeat(10, async () => {
-      await queue.push(Number(faker.finance.amount()));
+      queue.push(Number(faker.finance.amount()));
     });
 
     await sleep(500);

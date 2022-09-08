@@ -31,7 +31,7 @@ export class Queue<T> {
    * Push data to the queue, handling serilization and buffering
    * @param data data to write on queue
    */
-  async push(data: T) {
+  push(data: T) {
     const succeded = this.chan.sendToQueue(this.queue, Buffer.from(JSON.stringify(data)));
     // queue for later
     if (!succeded) {

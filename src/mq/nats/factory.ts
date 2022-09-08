@@ -20,7 +20,7 @@ export interface BroadcastConfig {
   stream_type: "broadcast";
   /**
    * maximum number of messages to store when that have not been consumed by all
-   * customers. Bear in mind this has an effect on the memory usage of the server so makes
+   * consumers. Bear in mind this has an effect on the memory usage of the server so makes
    * sense to keep it small when possible
    */
   buffer_size: number;
