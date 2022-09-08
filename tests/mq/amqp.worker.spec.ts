@@ -48,7 +48,7 @@ describe("Worker", () => {
   it("should run path based job name", async () => {
     const amount = faker.finance.amount(100);
 
-    await doQueue.push(amount);
+    doQueue.push(amount);
     await sleep(300);
 
     expect(doSpy.called).to.be.true;
@@ -58,7 +58,7 @@ describe("Worker", () => {
   it("should run job regardless of naming structure", async () => {
     const amount = faker.finance.amount(100);
 
-    await customQueue.push(amount);
+    customQueue.push(amount);
     await sleep(300);
 
     expect(customSpy.called).to.be.true;
@@ -68,7 +68,7 @@ describe("Worker", () => {
   it("should run middleware in the right order", async () => {
     const amount = faker.finance.amount(100);
 
-    await doQueue.push(amount);
+    doQueue.push(amount);
     await sleep(300);
 
     expect(groupBefore.calledBefore(handlerBefore)).to.be.true;
