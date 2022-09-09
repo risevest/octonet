@@ -44,29 +44,28 @@ export class RedisQueue<T> {
    * Run the given function on all the items on the queue
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
+   * @param parallelism how many workers should handle the jobs at any given time
    */
-  async work(f: (t: T) => Promise<void>, logger?: Logger) {
-    const length = await this.length();
-
+  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
     if (logger) {
       f = wrapHandler(logger, f);
     }
 
-    for (let index = 0; index < length; index++) {
-      const entries = await this.redis.lrange(this.name, 0, 0);
+    const work = Array.from({ length: parallelism }).map(async (_i, x) => {
+      while (true) {
+        const data = await this.redis.lpop(this.name);
+        if (!data) {
+          return;
+        }
 
-      // first empty entry is sign we should skip
-      if (entries.length === 0) {
-        return;
+        try {
+          await retryOnRequest(this.retries, this.timeout, _n => f(JSON.parse(data)));
+        } catch (err) {
+          // no-op
+        }
       }
+    });
 
-      try {
-        await retryOnRequest(this.retries, this.timeout, _n => f(JSON.parse(entries[0])));
-      } catch (err) {
-        // no-op
-      } finally {
-        await this.redis.lpop(this.name);
-      }
-    }
+    return Promise.all(work);
   }
 }

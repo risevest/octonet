@@ -70,6 +70,29 @@ describe("RedisQueue#work", () => {
     expect(jobsLeft).to.be.eq(0);
   });
 
+  it("should run a work in parallel", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
+
+    const results: number[] = [];
+    await queue.work(
+      async j => {
+        results.push(j);
+      },
+      undefined,
+      5
+    );
+
+    // confirm fifo
+    expect(results).to.have.length(jobs.length);
+    jobs.forEach((e, i) => {
+      expect(e).to.eq(results[i]);
+    });
+
+    const jobsLeft = await queue.length();
+    expect(jobsLeft).to.be.eq(0);
+  });
+
   it("should skip poisonous items", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);

@@ -18,6 +18,7 @@ export interface JobMetadata {
   schedule: string;
   retries: number;
   timeout: string;
+  lockPeriod: string;
 }
 
 export interface Job<T> {
@@ -27,6 +28,7 @@ export interface Job<T> {
   job(t?: T): Promise<void>;
   retries: number;
   timeout: string;
+  lockPeriod: string;
 }
 
 const queryKey = Symbol.for("cron.job.query");
@@ -39,32 +41,43 @@ const cronInstanceKey = Symbol.for("cron.instance");
  * @param name name of the job. see `job`
  * @param retries number of times to retry failed jobs. set to 0 to run single attempts
  * @param timeout minimum timeout before first retry.
+ * @param lockPeriod how long to lock job so it only one runs once. You won't need to set this unless
+ * your job runs over short intervals(1s, 1m)
  */
-export const hourly = (name: string, retries = 0, timeout = "10s") => job(name, "0 * * * *", retries, timeout);
+export const hourly = (name: string, retries = 0, timeout = "10s", lockPeriod = "10s") =>
+  job(name, "0 * * * *", retries, timeout, lockPeriod);
 
 /**
  * Tag a method as handler for daily jobs
  * @param name name of the job. see `job`
  * @param retries number of times to retry failed jobs. set to 0 to run single attempts
  * @param timeout minimum timeout before first retry.
+ * @param lockPeriod how long to lock job so it only one runs once. You won't need to set this unless
+ * your job runs over short intervals(1s, 1m)
  */
-export const daily = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * *", retries, timeout);
+export const daily = (name: string, retries = 0, timeout = "10s", lockPeriod = "10s") =>
+  job(name, "0 0 * * *", retries, timeout, lockPeriod);
 
 /**
  * Tag a method as handler for weekly jobs
  * @param name name of the job. see `job`
  * @param retries number of times to retry failed jobs. set to 0 to run single attempts
  * @param timeout minimum timeout before first retry.
+ * @param lockPeriod how long to lock job so it only one runs once. You won't need to set this unless
+ * your job runs over short intervals(1s, 1m)
  */
-export const weekly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * Sun", retries, timeout);
-
+export const weekly = (name: string, retries = 0, timeout = "10s", lockPeriod = "10s") =>
+  job(name, "0 0 * * Sun", retries, timeout, lockPeriod);
 /**
  * Tag a method as handler for monthly jobs
  * @param name name of the job. see `job`
  * @param retries number of times to retry failed jobs. set to 0 to run single attempts
  * @param timeout minimum timeout before first retry.
+ * @param lockPeriod how long to lock job so it only one runs once. You won't need to set this unless
+ * your job runs over short intervals(1s, 1m)
  */
-export const monthly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 1 * *", retries, timeout);
+export const monthly = (name: string, retries = 0, timeout = "10s", lockPeriod = "10s") =>
+  job(name, "0 0 1 * *", retries, timeout, lockPeriod);
 
 /**
  * Tag a class as containing cron jobs
@@ -105,8 +118,10 @@ export function query(name: string): MethodDecorator {
  * @param schedule the cron schedule to use
  * @param retries number of times to retry failed jobs. set to 0 to run single attempts
  * @param timeout minimum timeout before first retry.
+ * @param lockPeriod how long to lock job so it only one runs once. You won't need to set this unless
+ * your job runs over short intervals(1s, 1m)
  */
-export function job(name: string, schedule: string, retries = 0, timeout = "10s"): MethodDecorator {
+export function job(name: string, schedule: string, retries = 0, timeout = "10s", lockPeriod = "10s"): MethodDecorator {
   if (!nodecron.validate(schedule)) {
     throw new Error(`${schedule} is not a valid cron expression`);
   }
@@ -119,7 +134,7 @@ export function job(name: string, schedule: string, retries = 0, timeout = "10s"
       queries = Reflect.getMetadata(jobKey, prototype.constructor);
     }
 
-    queries.push({ method, name, schedule, retries, timeout });
+    queries.push({ method, name, schedule, retries, timeout, lockPeriod });
   };
 }
 
@@ -138,7 +153,7 @@ export function getJobs(container: Container) {
     const queryMap = keyBy(queryMetadata, "name");
 
     const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, group.constructor);
-    jobMetadata.forEach(({ method, name, schedule, retries, timeout }) => {
+    jobMetadata.forEach(({ method, name, schedule, retries, timeout, lockPeriod }) => {
       const instance = container.getNamed<any>(cronInstanceKey, group.name);
       const possibleQuery = queryMap[name];
       const queryFn = !!possibleQuery ? instance[possibleQuery.method].bind(instance) : undefined;
@@ -147,6 +162,7 @@ export function getJobs(container: Container) {
         schedule,
         retries,
         timeout,
+        lockPeriod,
         name: `${group.name.toLowerCase()}.${name}`,
         query: queryFn,
         job: instance[method].bind(instance)

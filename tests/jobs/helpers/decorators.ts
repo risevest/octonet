@@ -30,7 +30,7 @@ export class CronGroup {
     return [1, 2, 3, 4];
   }
 
-  @job("data", "0 23 * * *", 3)
+  @job("data", "0 23 * * *", 3, "5s")
   async scheduledJob(num: number) {
     dataSpy(num);
   }
