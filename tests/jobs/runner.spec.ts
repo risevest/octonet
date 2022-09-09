@@ -51,8 +51,8 @@ describe("acquireLock", () => {
     const firstOwner = faker.datatype.uuid();
     const latestOwner = faker.datatype.uuid();
 
-    const acceptedFirst = await acquireLock(redis, "locks", firstOwner, "1s");
-    await sleep(1000);
+    const acceptedFirst = await acquireLock(redis, "locks", firstOwner, "500ms");
+    await sleep(500);
     const acceptedLatest = await acquireLock(redis, "locks", latestOwner, "4s");
 
     expect(acceptedFirst).to.be.true;
@@ -92,11 +92,10 @@ describe("releaseLock", () => {
 
 describe("JobRunner.CronGroup#normalJob", () => {
   it("should call job first thing in the morning", async () => {
-    const dailyExpr = "0 0 * * *";
-    const jump = jumpBy(dailyExpr);
+    const jump = jumpBy("0 0 * * *");
     await runner.start(redis, logger);
 
-    await jump(1000);
+    await jump(500);
 
     expect(normalSpy.called).to.be.true;
     expect(normalSpy.firstCall.firstArg).to.eq(0);
@@ -105,11 +104,10 @@ describe("JobRunner.CronGroup#normalJob", () => {
 
 describe("JobRunner.CronGroup#dataJob", () => {
   it("should call job right before midnight", async () => {
-    const dailyExpr = "0 23 * * *";
-    const jump = jumpBy(dailyExpr);
+    const jump = jumpBy("0 23 * * *");
     await runner.start(redis, logger);
 
-    await jump(1000);
+    await jump(500);
 
     expect(querySpy.called).to.be.true;
     expect(dataSpy.callCount).to.eq(4);
@@ -125,7 +123,7 @@ describe("JobRunner.CronGroup#dataJob", () => {
 
       await runner.start(redis, logger);
 
-      await sleep(1000);
+      await sleep(500);
 
       expect(querySpy.called).to.be.false;
       expect(dataSpy.callCount).to.eq(2);

@@ -103,23 +103,30 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
 
   // only run queryless jobs and queries if we own the lock
   if (ownsLock) {
-    // run the job directly if there's no query
-    if (!j.query) {
-      await retryOnRequest(j.retries, j.timeout, () => j.job());
-      await releaseLock(redis, j.name, lockID);
-      return;
-    }
-    // write jobs to queue for safe consumption
-    // this entire operation is seen as one atomic op.
-    await retryOnError(retries, timeout, async () => {
-      const filled = await queue.fill(await j.query());
-
-      if (!filled) {
-        throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
+    try {
+      // run the job directly if there's no query
+      if (!j.query) {
+        await retryOnRequest(j.retries, j.timeout, () => j.job());
+        return;
       }
-    });
 
-    await releaseLock(redis, j.name, lockID);
+      // write jobs to queue for safe consumption
+      // this entire operation is seen as one atomic op.
+      await retryOnError(retries, timeout, async () => {
+        const filled = await queue.fill(await j.query());
+
+        if (!filled) {
+          throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
+        }
+      });
+    } catch (err) {
+      if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
+        throw err.wrapped;
+      }
+      throw err;
+    } finally {
+      await releaseLock(redis, j.name, lockID);
+    }
   }
 
   return queue.work(j.job);
