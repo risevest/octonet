@@ -5,7 +5,7 @@ import cron, { ScheduledTask } from "node-cron";
 import { v4 as uuid } from "uuid";
 
 import { Logger } from "../logging/logger";
-import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
+import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
 import { RedisQueue } from "./queue";
 
@@ -67,7 +67,8 @@ export class JobRunner {
  * @param period for how long should the lock be held before automatic expiry
  */
 export async function acquireLock(redis: Redis, group: string, owner: string, period: string) {
-  const res = await redis.set(group, owner, "PX", ms(period), "NX");
+  const key = `${group}:lock`;
+  const res = await redis.set(key, owner, "PX", ms(period), "NX");
   return res !== null;
 }
 
@@ -78,12 +79,13 @@ export async function acquireLock(redis: Redis, group: string, owner: string, pe
  * @param owner the particular name/ID of the client requesting
  */
 export async function releaseLock(redis: Redis, group: string, owner: string): Promise<boolean> {
-  const lockID = await redis.get(group);
+  const key = `${group}:lock`;
+  const lockID = await redis.get(key);
   if (!lockID || lockID !== owner) {
     return false;
   }
 
-  await redis.del(group);
+  await redis.del(key);
   return true;
 }
 

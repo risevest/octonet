@@ -51,7 +51,7 @@ export class RedisQueue<T> {
       f = wrapHandler(logger, f);
     }
 
-    const work = Array.from({ length: parallelism }).map(async (_i, x) => {
+    const work = Array.from({ length: parallelism }).map(async () => {
       while (true) {
         const data = await this.redis.lpop(this.name);
         if (!data) {
