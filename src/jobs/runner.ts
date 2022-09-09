@@ -1,10 +1,13 @@
 import { Container } from "inversify";
 import { Redis } from "ioredis";
+import ms from "ms";
 import cron, { ScheduledTask } from "node-cron";
+import { v4 as uuid } from "uuid";
 
 import { Logger } from "../logging/logger";
-import { retryOnError, retryOnRequest, wrapHandler } from "../retry";
+import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
+import { RedisQueue } from "./queue";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -12,6 +15,7 @@ interface ScheduledJob<T> extends Job<T> {
 
 export class JobRunner {
   private jobs: ScheduledJob<any>[];
+  private lockID: string;
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -21,6 +25,7 @@ export class JobRunner {
    */
   constructor(container: Container, private retries = 3, private timeout = "1ms") {
     this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
+    this.lockID = uuid();
   }
 
   /**
@@ -34,29 +39,13 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, async () => {
-        // run the job directly if there's no query
-        if (!j.query) {
-          return retryOnRequest(this.retries, this.timeout, () => j.job());
-        }
-
-        // write jobs to queue for safe consumption
-        // this entire operation is seen as one atomic op.
-        await retryOnError(this.retries, this.timeout, async () => {
-          const jobItems = await j.query();
-
-          const instructions = jobItems.map(t => ["rpush", j.name, JSON.stringify(t)]);
-          await redis.multi(instructions).exec();
-
-          return;
-        });
-
-        return this.processItems(redis, j);
-      });
+      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, this.retries, this.timeout, j));
 
       // only immediately run if a setup exists.
       if (j.query) {
-        await this.processItems(redis, j);
+        const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
+        // we don't need to fill if queue already has items
+        await queue.work(j.job);
       }
     }
   }
@@ -68,25 +57,77 @@ export class JobRunner {
   stop() {
     return this.jobs.forEach(j => j.task?.stop());
   }
+}
 
-  private async processItems<T = any>(redis: Redis, j: Job<T>) {
-    const length = await redis.llen(j.name);
+/**
+ * Acquire distributed lock
+ * @param redis redis instance for managing the locks
+ * @param group the shared group name of clients that need the lock
+ * @param owner the particular name/ID of the client requesting
+ * @param period for how long should the lock be held before automatic expiry
+ */
+export async function acquireLock(redis: Redis, group: string, owner: string, period: string) {
+  const key = `${group}:lock`;
+  const res = await redis.set(key, owner, "PX", ms(period), "NX");
+  return res !== null;
+}
 
-    for (let index = 0; index < length; index++) {
-      const entries = await redis.lrange(j.name, 0, 0);
+/**
+ * Release lock if owner is holding it or it hasn't expired
+ * @param redis redis instance for managing the locks
+ * @param group the shared group name of clients that need the lock
+ * @param owner the particular name/ID of the client requesting
+ */
+export async function releaseLock(redis: Redis, group: string, owner: string): Promise<boolean> {
+  const key = `${group}:lock`;
+  const lockID = await redis.get(key);
+  if (!lockID || lockID !== owner) {
+    return false;
+  }
 
-      // first empty entry is sign we should skip
-      if (entries.length === 0) {
+  await redis.del(key);
+  return true;
+}
+
+/**
+ * Run the any given job, supporting parallel execution through distributed locks
+ * @param redis redis instancee
+ * @param lockID ID to be used for locking
+ * @param retries number of retries for query jobs
+ * @param timeout minimum timeout between retries for query jobs
+ * @param j job to run
+ */
+export async function runJob<T>(redis: Redis, lockID: string, retries: number, timeout: string, j: Job<T>) {
+  const ownsLock = await acquireLock(redis, j.name, lockID, j.lockPeriod);
+  const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
+
+  // only run queryless jobs and queries if we own the lock
+  if (ownsLock) {
+    try {
+      // run the job directly if there's no query
+      if (!j.query) {
+        await retryOnRequest(j.retries, j.timeout, () => j.job());
         return;
       }
 
-      try {
-        await retryOnRequest(j.retries, j.timeout, () => j.job(JSON.parse(entries[0])));
-      } catch (err) {
-        // no-op
-      } finally {
-        await redis.lpop(j.name);
+      // write jobs to queue for safe consumption
+      // this entire operation is seen as one atomic op.
+      await retryOnError(retries, timeout, async () => {
+        const filled = await queue.fill(await j.query());
+
+        if (!filled) {
+          throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
+        }
+      });
+    } catch (err) {
+      if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
+        throw err.wrapped;
       }
+      throw err;
+    } finally {
+      await releaseLock(redis, j.name, lockID);
     }
   }
+
+  return queue.work(j.job);
 }
