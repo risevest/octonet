@@ -12,59 +12,72 @@ export interface QueryMetadata {
   method: string;
 }
 
-export interface JobMetadata {
+export interface JobMetadata extends JobConfig {
   name: string;
   method: string;
   schedule: string;
-  retries: number;
-  timeout: string;
 }
 
-export interface Job<T> {
+export interface JobConfig {
+  /**
+   * number of times to retry a job. set to 0 to not
+   * retry
+   */
+  retries?: number;
+  /**
+   * minimum amount of time to wait between retries.
+   */
+  timeout?: string;
+  /**
+   * how long a simple job or query would take. Used to determine
+   * how long to lock in distributed contexts. defaults to 1-hour
+   */
+  maxComputeTime?: string;
+}
+
+export interface Job<T> extends JobConfig {
   name: string;
   schedule: string;
   query?(): Promise<T[]>;
   job(t?: T): Promise<void>;
-  retries: number;
-  timeout: string;
 }
 
 const queryKey = Symbol.for("cron.job.query");
 const jobKey = Symbol.for("cron.job");
 const cronKey = Symbol.for("cron");
 const cronInstanceKey = Symbol.for("cron.instance");
+const defaultJobConfig: JobConfig = {
+  retries: 0,
+  timeout: "10s",
+  maxComputeTime: "1h"
+};
 
 /**
  * Tag a method as handler for hourly jobs
  * @param name name of the job. see `job`
- * @param retries number of times to retry failed jobs. set to 0 to run single attempts
- * @param timeout minimum timeout before first retry.
+ * @param config extra job configuration
  */
-export const hourly = (name: string, retries = 0, timeout = "10s") => job(name, "0 * * * *", retries, timeout);
+export const hourly = (name: string, config?: JobConfig) => job(name, "0 * * * *", config);
 
 /**
  * Tag a method as handler for daily jobs
  * @param name name of the job. see `job`
- * @param retries number of times to retry failed jobs. set to 0 to run single attempts
- * @param timeout minimum timeout before first retry.
+ * @param config extra job configuration
  */
-export const daily = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * *", retries, timeout);
+export const daily = (name: string, config?: JobConfig) => job(name, "0 0 * * *", config);
 
 /**
  * Tag a method as handler for weekly jobs
  * @param name name of the job. see `job`
- * @param retries number of times to retry failed jobs. set to 0 to run single attempts
- * @param timeout minimum timeout before first retry.
+ * @param config extra job configuration
  */
-export const weekly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 * * Sun", retries, timeout);
-
+export const weekly = (name: string, config?: JobConfig) => job(name, "0 0 * * Sun", config);
 /**
  * Tag a method as handler for monthly jobs
  * @param name name of the job. see `job`
- * @param retries number of times to retry failed jobs. set to 0 to run single attempts
- * @param timeout minimum timeout before first retry.
+ * @param config extra job configuration
  */
-export const monthly = (name: string, retries = 0, timeout = "10s") => job(name, "0 0 1 * *", retries, timeout);
+export const monthly = (name: string, config?: JobConfig) => job(name, "0 0 1 * *", config);
 
 /**
  * Tag a class as containing cron jobs
@@ -103,10 +116,9 @@ export function query(name: string): MethodDecorator {
  * @param name name of the job this query generates data for. Make sure it's
  * the same name as the `query's`
  * @param schedule the cron schedule to use
- * @param retries number of times to retry failed jobs. set to 0 to run single attempts
- * @param timeout minimum timeout before first retry.
+ * @param config extra job configuration
  */
-export function job(name: string, schedule: string, retries = 0, timeout = "10s"): MethodDecorator {
+export function job(name: string, schedule: string, config?: JobConfig): MethodDecorator {
   if (!nodecron.validate(schedule)) {
     throw new Error(`${schedule} is not a valid cron expression`);
   }
@@ -119,7 +131,7 @@ export function job(name: string, schedule: string, retries = 0, timeout = "10s"
       queries = Reflect.getMetadata(jobKey, prototype.constructor);
     }
 
-    queries.push({ method, name, schedule, retries, timeout });
+    queries.push({ method, name, schedule, ...defaultJobConfig, ...config });
   };
 }
 
@@ -138,7 +150,7 @@ export function getJobs(container: Container) {
     const queryMap = keyBy(queryMetadata, "name");
 
     const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, group.constructor);
-    jobMetadata.forEach(({ method, name, schedule, retries, timeout }) => {
+    jobMetadata.forEach(({ method, name, schedule, retries, timeout, maxComputeTime }) => {
       const instance = container.getNamed<any>(cronInstanceKey, group.name);
       const possibleQuery = queryMap[name];
       const queryFn = !!possibleQuery ? instance[possibleQuery.method].bind(instance) : undefined;
@@ -147,6 +159,7 @@ export function getJobs(container: Container) {
         schedule,
         retries,
         timeout,
+        maxComputeTime,
         name: `${group.name.toLowerCase()}.${name}`,
         query: queryFn,
         job: instance[method].bind(instance)

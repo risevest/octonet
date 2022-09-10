@@ -19,7 +19,7 @@ export const GROUP_NAME = "test-jobs";
 export class CronGroup {
   public counter = 0;
 
-  @daily("normal", 2, "5s")
+  @daily("normal", { retries: 2, timeout: "5s" })
   async normalJob() {
     normalSpy(this.counter);
   }
@@ -30,7 +30,7 @@ export class CronGroup {
     return [1, 2, 3, 4];
   }
 
-  @job("data", "0 23 * * *", 3)
+  @job("data", "0 23 * * *", { retries: 3, maxComputeTime: "5s" })
   async scheduledJob(num: number) {
     dataSpy(num);
   }
