@@ -1,6 +1,7 @@
 import "reflect-metadata";
 
-import { expect } from "chai";
+import { expect, use } from "chai";
+import chaiAsPromised from "chai-as-promised";
 import Redis from "ioredis";
 
 import { RedisQueue } from "../../src/jobs/queue";
@@ -9,6 +10,8 @@ const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
 let redis: Redis;
 let queue: RedisQueue<number>;
+
+use(chaiAsPromised);
 
 beforeAll(() => {
   redis = new Redis(redisURL);
@@ -43,11 +46,8 @@ describe("RedisQueue#fill", () => {
 
     const newJobs = Array.from({ length: 10 }).map((_x, i) => i + 2);
 
-    const filled = await queue.fill(newJobs);
-    expect(filled).to.be.false;
-
-    const entries = await redis.lrange(queueName, 0, -1);
-    expect(entries).to.have.length(10);
+    expect(queue.fill(newJobs)).to.eventually.be.false;
+    expect(redis.lrange(queueName, 0, -1)).to.eventually.have.length(10);
   });
 });
 
@@ -66,8 +66,7 @@ describe("RedisQueue#work", () => {
       expect(e).to.eq(results[i]);
     });
 
-    const jobsLeft = await queue.length();
-    expect(jobsLeft).to.be.eq(0);
+    expect(queue.length()).to.eventually.eq(0);
   });
 
   it("should run a work in parallel", async () => {
@@ -98,17 +97,46 @@ describe("RedisQueue#work", () => {
     await queue.fill(jobs);
 
     const results: number[] = [];
-    try {
-      await queue.work(async j => {
-        if (j === 5) {
-          throw new Error("exit");
-        }
 
-        results.push(j);
-      });
-    } catch (err) {}
+    await queue.work(async j => {
+      if (j === 5) {
+        throw new Error("exit");
+      }
+
+      results.push(j);
+    });
 
     expect(results).to.have.length(9);
     expect(results.includes(5)).to.be.false;
+
+    const key = `${queueName}:dead-letter`;
+    expect(redis.hlen(key)).to.eventually.eq(1);
+    const randomVal = await redis.hrandfield(key, 1, "WITHVALUES");
+    expect(Number(randomVal?.[1])).to.eq(5);
+  });
+});
+
+describe("RedisQueue#requeue", () => {
+  it("should re-process failed jobs", async () => {
+    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    await queue.fill(jobs);
+
+    await queue.work(async j => {
+      if (j < 5) {
+        throw new Error("exit");
+      }
+    });
+
+    await expect(queue.requeue()).to.eventually.be.true;
+    await expect(queue.length()).to.eventually.eq(4);
+
+    const results: number[] = [];
+    await queue.work(async j => {
+      results.push(j);
+    });
+
+    results.forEach((e, i) => {
+      expect(e).to.eq(i + 1);
+    });
   });
 });

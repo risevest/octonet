@@ -1,11 +1,19 @@
+import crypto from "crypto";
+
 import { injectable } from "inversify";
 import Redis from "ioredis";
 
 import { Logger } from "../logging/logger";
 import { retryOnRequest, wrapHandler } from "../retry";
 
+function backupKey() {
+  return crypto.randomBytes(16).toString("hex").slice(0, 32);
+}
+
 @injectable()
 export class RedisQueue<T> {
+  private deadLetterHash: string;
+
   /**
    * Creates a redis queue to work jobs in serial order.
    * @param name name of the queue to use to run the job
@@ -13,7 +21,9 @@ export class RedisQueue<T> {
    * @param retries number of times to retry failed work calls. set to 0 to run single attempts
    * @param timeout minimum timeout before first retry
    */
-  constructor(private name: string, private redis: Redis, private retries = 3, private timeout = "1ms") {}
+  constructor(private name: string, private redis: Redis, private retries = 3, private timeout = "10s") {
+    this.deadLetterHash = `${this.name}:dead-letter`;
+  }
 
   /**
    * Fill job queue with work items. It avoids filling the queue if
@@ -41,6 +51,25 @@ export class RedisQueue<T> {
   }
 
   /**
+   * Put failed jobs back on the queue to be re-processed.
+   * @returns true if there were failed jobs
+   */
+  async requeue() {
+    const dead = await this.redis.hvals(this.deadLetterHash);
+    if (dead.length === 0) {
+      return false;
+    }
+
+    await this.redis
+      .multi([
+        ["del", this.deadLetterHash], // delete hash first
+        ...dead.map(v => ["rpush", this.name, v])
+      ])
+      .exec();
+    return true;
+  }
+
+  /**
    * Run the given function on all the items on the queue
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
@@ -53,13 +82,18 @@ export class RedisQueue<T> {
 
     const work = Array.from({ length: parallelism }).map(async () => {
       while (true) {
+        const bkpKey = backupKey();
         const data = await this.redis.lpop(this.name);
         if (!data) {
           return;
         }
 
+        // backup the job item
+        await this.redis.hset(this.deadLetterHash, bkpKey, data);
+
         try {
           await retryOnRequest(this.retries, this.timeout, _n => f(JSON.parse(data)));
+          await this.redis.hdel(this.deadLetterHash, bkpKey);
         } catch (err) {
           // no-op
         }
