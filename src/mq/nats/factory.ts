@@ -135,7 +135,7 @@ export class StreamFactory {
    * @param name name of the stream and prefix for topics
    * @param period how long each item should be retained defaults to 1 year
    */
-  logStream<T>(name: string, period = "1y") {
+  logStream<T>(name: string, period = "1d") {
     return this.stream<T>(name, { stream_type: "log", retention_period: period });
   }
 
