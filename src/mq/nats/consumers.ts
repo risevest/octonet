@@ -73,7 +73,7 @@ export class Consumers {
       opts.ackExplicit();
       opts.ackWait(ms(cfg.timeout));
       opts.manualAck();
-      opts.deliverAll();
+      opts.deliverNew();
       opts.replayInstantly();
       opts.sample(100);
       opts.filterSubject(topic);
