@@ -27,7 +27,7 @@ export class JobRunner {
    * @param timeout minimum timeout before first retry
    */
   constructor(container: Container, private retries = 3, private timeout = "10s") {
-    this.jobs = getJobs(container).map(j => ({ ...j, task: null, hasExecuted: false }));
+    this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
     this.lockID = uuid();
     this.scheduledDatesKey = `${this.lockID}:job-dates`;
   }
@@ -49,6 +49,7 @@ export class JobRunner {
 
       // run job immediately if it missed its schedule
       const shouldRerunJob = await isMissedJob(j, redis, this.scheduledDatesKey);
+
       if (shouldRerunJob) {
         await runJob(redis, this.lockID, this.retries, this.timeout, j, this.scheduledDatesKey);
       }
@@ -103,7 +104,7 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
 
 /**
  * Run the any given job, supporting parallel execution through distributed locks
- * @param redis redis instancee
+ * @param redis redis instance
  * @param lockID ID to be used for locking
  * @param retries number of retries for query jobs
  * @param timeout minimum timeout between retries for query jobs
@@ -155,6 +156,12 @@ export async function runJob<T>(
   return queue.work(j.job);
 }
 
+/**
+ * checks if a job has missed its schedule
+ * @param j job to run
+ * @param redis redis instance
+ * @param scheduledDatesKey identifier for retrieving a job's last execution date
+ */
 export async function isMissedJob<T>(j: Job<T>, redis: Redis, scheduledDatesKey: string) {
   const dateFormat = "yyyy-MM-dd";
   const interval = parser.parseExpression(j.schedule);
@@ -165,7 +172,7 @@ export async function isMissedJob<T>(j: Job<T>, redis: Redis, scheduledDatesKey:
 
   const hasMissedSchedule = nextScheduedDate !== currentDate;
 
-  // job has missed schedule and is yet to run
+  // job has missed its schedule and is yet to run
   if (hasMissedSchedule && (!lastExecutionDate || lastExecutionDate !== currentDate)) {
     return true;
   }

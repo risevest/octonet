@@ -1,13 +1,13 @@
+import { GROUP_NAME, dataSpy, normalSpy, querySpy } from "./helpers/decorators";
+import IORedis, { Redis } from "ioredis";
+import { JobRunner, acquireLock, releaseLock } from "../../src/jobs/runner";
+import { Logger, defaultSerializers } from "../../src";
+import { jumpBy, multiply, sleep, withTimePaused } from "../helpers";
+
+import { Container } from "inversify";
 import { expect } from "chai";
 import faker from "faker";
-import { Container } from "inversify";
-import IORedis, { Redis } from "ioredis";
 import sinon from "sinon";
-
-import { Logger, defaultSerializers } from "../../src";
-import { JobRunner, acquireLock, releaseLock } from "../../src/jobs/runner";
-import { jumpBy, multiply, sleep, withTimePaused } from "../helpers";
-import { GROUP_NAME, dataSpy, normalSpy, querySpy } from "./helpers/decorators";
 
 const redisURL = "redis://localhost:6379";
 const logger = new Logger({
@@ -129,6 +129,32 @@ describe("JobRunner.CronGroup#dataJob", () => {
       expect(dataSpy.callCount).to.eq(2);
       expect(dataSpy.firstCall.firstArg).to.eq(20);
       expect(dataSpy.secondCall.firstArg).to.eq(30);
+    });
+  });
+});
+
+describe("JobRunner.CronGroup#rerunMissedJob", () => {
+  it("should rerun missed normal job", async () => {
+    const jump = jumpBy("0 0 * * *", "3m", "future");
+
+    await runner.start(redis, logger);
+
+    await jump(500);
+
+    expect(normalSpy.called).to.be.true;
+    expect(normalSpy.firstCall.firstArg).to.eq(0);
+  });
+
+  it("should rerun missed data job", async () => {
+    const jump = jumpBy("0 23 * * *", "5m", "future");
+    await runner.start(redis, logger);
+
+    await jump(500);
+
+    expect(querySpy.called).to.be.true;
+    expect(dataSpy.callCount).to.eq(4);
+    dataSpy.getCalls().forEach((call, i) => {
+      expect(call.args[0]).to.eq(i + 1);
     });
   });
 });
