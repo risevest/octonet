@@ -1,13 +1,15 @@
-import { Container } from "inversify";
-import { Redis } from "ioredis";
-import ms from "ms";
-import cron, { ScheduledTask } from "node-cron";
-import { v4 as uuid } from "uuid";
-
-import { Logger } from "../logging/logger";
 import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
+import cron, { ScheduledTask } from "node-cron";
+
+import { Container } from "inversify";
+import { Logger } from "../logging/logger";
+import { Redis } from "ioredis";
 import { RedisQueue } from "./queue";
+import { format } from "date-fns";
+import ms from "ms";
+import parser from "cron-parser";
+import { v4 as uuid } from "uuid";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -16,6 +18,7 @@ interface ScheduledJob<T> extends Job<T> {
 export class JobRunner {
   private jobs: ScheduledJob<any>[];
   private lockID: string;
+  private scheduledDatesKey: string;
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -24,8 +27,9 @@ export class JobRunner {
    * @param timeout minimum timeout before first retry
    */
   constructor(container: Container, private retries = 3, private timeout = "10s") {
-    this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
+    this.jobs = getJobs(container).map(j => ({ ...j, task: null, hasExecuted: false }));
     this.lockID = uuid();
+    this.scheduledDatesKey = `${this.lockID}:job-dates`;
   }
 
   /**
@@ -39,7 +43,15 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, this.retries, this.timeout, j));
+      j.task = cron.schedule(j.schedule, () =>
+        runJob(redis, this.lockID, this.retries, this.timeout, j, this.scheduledDatesKey)
+      );
+
+      // run job immediately if it missed its schedule
+      const shouldRerunJob = await isMissedJob(j, redis, this.scheduledDatesKey);
+      if (shouldRerunJob) {
+        await runJob(redis, this.lockID, this.retries, this.timeout, j, this.scheduledDatesKey);
+      }
 
       // only immediately run if a setup exists.
       if (j.query) {
@@ -97,7 +109,14 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
  * @param timeout minimum timeout between retries for query jobs
  * @param j job to run
  */
-export async function runJob<T>(redis: Redis, lockID: string, retries: number, timeout: string, j: Job<T>) {
+export async function runJob<T>(
+  redis: Redis,
+  lockID: string,
+  retries: number,
+  timeout: string,
+  j: Job<T>,
+  scheduledDatesKey: string
+) {
   const ownsLock = await acquireLock(redis, j.name, lockID, j.maxComputeTime);
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
@@ -119,6 +138,10 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
           throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
         }
       });
+
+      // set execution date after job has been completed
+      const currentDate = format(new Date(), "yyyy-MM-dd");
+      await redis.hset(scheduledDatesKey, j.name, currentDate);
     } catch (err) {
       if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
         throw err.wrapped;
@@ -130,4 +153,22 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
   }
 
   return queue.work(j.job);
+}
+
+export async function isMissedJob<T>(j: Job<T>, redis: Redis, scheduledDatesKey: string) {
+  const dateFormat = "yyyy-MM-dd";
+  const interval = parser.parseExpression(j.schedule);
+
+  const nextScheduedDate = format(interval.next().toDate(), dateFormat);
+  const currentDate = format(new Date(), dateFormat);
+  const lastExecutionDate = await redis.hget(scheduledDatesKey, j.name);
+
+  const hasMissedSchedule = nextScheduedDate !== currentDate;
+
+  // job has missed schedule and is yet to run
+  if (hasMissedSchedule && (!lastExecutionDate || lastExecutionDate !== currentDate)) {
+    return true;
+  }
+
+  return false;
 }
