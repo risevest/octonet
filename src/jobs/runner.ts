@@ -35,6 +35,8 @@ export class JobRunner {
    * @param logger logger to track jobs
    */
   async start(redis: Redis, logger: Logger) {
+    const preruns = [];
+
     for (const j of this.jobs) {
       j.job = wrapHandler(logger, j.job);
 
@@ -45,9 +47,12 @@ export class JobRunner {
       if (j.query) {
         const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
         // we don't need to fill if queue already has items
-        await queue.work(j.job);
+        preruns.push(queue.work(j.job));
       }
     }
+
+    await Promise.all(preruns);
+    return;
   }
 
   /**
