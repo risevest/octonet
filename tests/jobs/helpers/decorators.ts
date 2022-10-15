@@ -34,6 +34,14 @@ export class CronGroup {
   async scheduledJob(num: number) {
     dataSpy(num);
   }
+
+  @query("data_clone")
+  async generateDataClone() {
+    return [1, 2, 3, 4];
+  }
+
+  @job("data_clone", "0 23 * * *", { retries: 3, maxComputeTime: "5s" })
+  async scheduledCloneJob(_num: number) {}
 }
 
 @injectable()
