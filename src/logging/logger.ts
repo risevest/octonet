@@ -1,5 +1,5 @@
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
-import Bunyan, { FATAL, INFO } from "bunyan";
+import Bunyan, { ERROR, INFO } from "bunyan";
 import { Request, Response } from "express";
 
 export interface LogError {
@@ -26,11 +26,10 @@ export class Logger {
     this.logger = new Bunyan({
       name: config.name,
       serializers: config.serializers,
-      level: config.verbose === true ? INFO : FATAL,
       streams: [
         {
           stream: config.buffer || process.stdout,
-          level: config.verbose === false ? FATAL : INFO,
+          level: config.verbose === false ? ERROR : INFO,
           type: !!config.buffer ? "raw" : "stream"
         }
       ]
