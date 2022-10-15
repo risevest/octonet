@@ -47,7 +47,7 @@ describe("Decorators#query", () => {
   it("should save a method as a query", () => {
     const queries: QueryMetadata[] = Reflect.getMetadata(queryKey, CronGroup);
 
-    expect(queries.length).to.eq(1);
+    expect(queries.length).to.eq(2);
     const [query] = queries;
 
     expect(query.name).to.eq("data");
@@ -59,7 +59,7 @@ describe("Decorators#job", () => {
   it("should capture methods as jobs", () => {
     const jobs: JobMetadata[] = Reflect.getMetadata(jobKey, CronGroup);
 
-    expect(jobs.length).to.eq(2);
+    expect(jobs.length).to.eq(3);
     const jobMap = keyBy(jobs, "name");
 
     expect(jobMap["normal"].method).to.eq("normalJob");
@@ -74,7 +74,7 @@ describe("Decorators#getJobs", () => {
   it("generate jobs from loaded code", () => {
     const jobs = getJobs(new Container());
 
-    expect(jobs).to.have.length(2);
+    expect(jobs).to.have.length(3);
     const jobMap = keyBy(jobs, "name");
 
     expect(jobMap[`${GROUP_NAME}.normal`].query).to.undefined;
