@@ -34,7 +34,7 @@ export function loggerMiddleware(logger: Logger): Middleware {
     try {
       await handler(data);
     } catch (error) {
-      logger.error(error);
+      logger.error(error, { data });
       throw error;
     }
   };
