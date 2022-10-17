@@ -36,8 +36,8 @@ beforeAll(async () => {
   // create the stream to listen to
   await jm.streams.add({ name: "transactions", storage: StorageType.Memory, subjects: ["transactions.>"] });
 
-  const consumer = new Consumers(container, logger);
-  await consumer.start(natsConn, { namespace: "octonet", batch_size: 10, timeout: "1m" });
+  const consumer = new Consumers(container);
+  await consumer.start(natsConn, logger, { namespace: "octonet", batch_size: 10, timeout: "1m" });
   publisher = new NatsPublisher(natsConn.jetstream());
 });
 
