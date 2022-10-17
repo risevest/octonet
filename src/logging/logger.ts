@@ -22,18 +22,32 @@ export interface LoggerConfig {
 export class Logger {
   private logger: Bunyan;
 
-  constructor(config: LoggerConfig) {
-    this.logger = new Bunyan({
-      name: config.name,
-      serializers: config.serializers,
-      streams: [
-        {
-          stream: config.buffer || process.stdout,
-          level: config.verbose === false ? ERROR : INFO,
-          type: !!config.buffer ? "raw" : "stream"
-        }
-      ]
-    });
+  constructor(logger: Bunyan);
+  constructor(config: LoggerConfig);
+  constructor(config: LoggerConfig | Bunyan) {
+    if (config instanceof Bunyan) {
+      this.logger = config;
+    } else {
+      this.logger = new Bunyan({
+        name: config.name,
+        serializers: config.serializers,
+        streams: [
+          {
+            stream: config.buffer || process.stdout,
+            level: config.verbose === false ? ERROR : INFO,
+            type: !!config.buffer ? "raw" : "stream"
+          }
+        ]
+      });
+    }
+  }
+
+  /**
+   * Create a child logger with labels to annotate it as such
+   * @param labels annotation of new sub logger
+   */
+  child(labels: object) {
+    return new Logger(this.logger.child(labels));
   }
 
   /**
