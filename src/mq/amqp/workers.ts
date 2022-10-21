@@ -85,8 +85,8 @@ export class Workers {
     await this.channel.prefetch(parallel);
 
     for (const [job, handler] of this.commands.entries()) {
-      const wrapped = wrapHandler(job, logger, handler);
       const queue = job.split(".").join("_").toUpperCase();
+      const wrapped = wrapHandler(queue, logger, handler);
       this.channel.assertQueue(queue, { durable: true });
       this.channel.consume(queue, async msg => {
         if (msg === null) {
