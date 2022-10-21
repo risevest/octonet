@@ -1,5 +1,4 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
-import { stdSerializers } from "bunyan";
 import { Request, Response } from "express";
 import unset from "lodash/unset";
 
@@ -20,7 +19,43 @@ export function defaultSerializers(...paths: string[]) {
     req: expressRequest(...paths),
     res: expressResponse,
     event: sanitized(...paths),
-    err: stdSerializers.err
+    err: serializeErr
+  };
+}
+
+/*
+ * This function dumps long stack traces for exceptions having a cause()
+ * method. The error classes from
+ * [verror](https://github.com/davepacheco/node-verror) and
+ * [restify v2.0](https://github.com/mcavage/node-restify) are examples.
+ *
+ * Based on `dumpException` in
+ * https://github.com/davepacheco/node-extsprintf/blob/master/lib/extsprintf.js
+ */
+function getFullErrorStack(ex: any) {
+  let ret = ex.stack || ex.toString();
+  if (ex.cause && typeof ex.cause === "function") {
+    const cex = ex.cause();
+    if (cex) {
+      ret += "\nCaused by: " + getFullErrorStack(cex);
+    }
+  }
+
+  return ret;
+}
+
+/**
+ * Create serializer that exports the entire erro with a
+ * custom stack
+ * @param err error to serialize
+ */
+export function serializeErr(err: any) {
+  if (!err || !err.stack) return err;
+  return {
+    stack: getFullErrorStack(err),
+    message: err.message,
+    name: err.name,
+    ...err
   };
 }
 
