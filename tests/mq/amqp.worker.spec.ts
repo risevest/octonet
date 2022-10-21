@@ -27,8 +27,8 @@ beforeAll(async () => {
   const container = new Container();
   factory = await QueueFactory.connect(amqpURL, logger);
 
-  workers = new Workers(container, logger);
-  await workers.start(amqpURL);
+  workers = new Workers(container);
+  await workers.start(amqpURL, logger);
 
   doQueue = await factory.queue("DO_JOB");
   customQueue = await factory.queue("CUSTOM_JOB");

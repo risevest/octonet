@@ -1,11 +1,11 @@
 import { Container } from "inversify";
 import ms from "ms";
-import { JSONCodec, JetStreamPullSubscription, NatsConnection, consumerOpts } from "nats";
+import { JSONCodec, JetStreamPullSubscription, JsMsg, NatsConnection, consumerOpts } from "nats";
 
 import { Logger } from "../../logging/logger";
 import { RetryError } from "../../retry";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
-import { collapse, loggerMiddleware } from "../handlers";
+import { collapse } from "../handlers";
 
 export const groupKey = Symbol.for("nats.streams");
 export const handlerKey = Symbol.for("nats.streams.subscribers");
@@ -46,10 +46,10 @@ export class Consumers {
   private streams: Set<string> = new Set();
   private subsribers: Map<string, Function> = new Map();
 
-  constructor(container: Container, logger: Logger) {
+  constructor(container: Container) {
     const handlers = parseHandlers(container, groupKey, handlerKey);
     handlers.forEach(({ handler_tag, group_tag, handler, group_middleware, handler_middleware }) => {
-      const middleware = [loggerMiddleware(logger), ...group_middleware, ...handler_middleware];
+      const middleware = [...group_middleware, ...handler_middleware];
       this.streams.add(group_tag);
       this.subsribers.set(`${group_tag}.${handler_tag}`, collapse(handler, middleware));
     });
@@ -60,7 +60,7 @@ export class Consumers {
    * @param nats the nats connection to link with
    * @param cfg configuration for the subscribers
    */
-  async start(nats: NatsConnection, cfg: NatsConfig) {
+  async start(nats: NatsConnection, logger: Logger, cfg: NatsConfig) {
     const manager = await nats.jetstreamManager();
     const client = nats.jetstream();
     for (const stream of this.streams) {
@@ -81,7 +81,7 @@ export class Consumers {
 
       const sub = await client.pullSubscribe(topic, opts);
       const done = pullSmart(cfg.batch_size, sub);
-      runSub(sub, handler, done);
+      runSub(sub, wrapHandler(topic, logger, handler), done);
 
       // first pull 😁
       sub.pull({ batch: cfg.batch_size });
@@ -96,11 +96,9 @@ export function durableName(stream: string, namespace: string, topic: string) {
 }
 
 async function runSub(sub: JetStreamPullSubscription, handler: Function, done: Function) {
-  const codec = JSONCodec();
   for await (const event of sub) {
-    const data = codec.decode(event.data);
     try {
-      await handler(data);
+      await handler(event);
       event.ack();
       done();
     } catch (err) {
@@ -119,6 +117,22 @@ function pullSmart(batch: number, sub: JetStreamPullSubscription) {
     if (count === batch) {
       count = 0;
       sub.pull({ batch }); // do this asynchronously so it doesn't interfere with sub
+    }
+  };
+}
+
+function wrapHandler(topic: string, logger: Logger, handler: Function) {
+  const childLogger = logger.child({ topic });
+  const codec = JSONCodec();
+
+  return async function (msg: JsMsg) {
+    const data = codec.decode(msg.data);
+    childLogger.log({ data, subject: msg.subject });
+    try {
+      await handler(data);
+    } catch (err) {
+      childLogger.error(err, { data, subject: msg.subject });
+      throw err;
     }
   };
 }
