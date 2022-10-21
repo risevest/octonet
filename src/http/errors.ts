@@ -1,3 +1,5 @@
+import { AxiosError } from "axios";
+
 export class NoRequestIDError extends Error {
   constructor(url: string) {
     super(`Request to ${url} requires a request ID`);
@@ -11,8 +13,12 @@ export class NoAuthorizationTokenError extends Error {
 }
 
 export class HttpError extends Error {
-  constructor(url: string, readonly rawError: any) {
+  readonly axios_code: string;
+  readonly axios_message: string;
+  constructor(url: string, rawError: AxiosError) {
     super(`Request to ${url} failed`);
+    this.axios_code = rawError.code;
+    this.axios_message = rawError.message;
   }
 }
 
