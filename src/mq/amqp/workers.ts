@@ -93,9 +93,8 @@ export class Workers {
           return;
         }
 
-        const data = JSON.parse(msg.content.toString());
         try {
-          await wrapped(data);
+          await wrapped(msg);
           this.channel.ack(msg);
         } catch (err) {
           if (!(err instanceof RetryError)) {
