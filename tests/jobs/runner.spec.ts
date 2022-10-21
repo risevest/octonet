@@ -90,6 +90,18 @@ describe("releaseLock", () => {
   });
 });
 
+describe("JobRunner#run", () => {
+  it("should run the normal job immediately", async () => {
+    await runner.start(redis, logger);
+
+    runner.run(`${GROUP_NAME}.normal`);
+    await sleep(500);
+
+    expect(normalSpy.called).to.be.true;
+    expect(normalSpy.firstCall.firstArg).to.eq(0);
+  });
+});
+
 describe("JobRunner.CronGroup#normalJob", () => {
   it("should call job first thing in the morning", async () => {
     const jump = jumpBy("0 0 * * *");
@@ -118,8 +130,8 @@ describe("JobRunner.CronGroup#dataJob", () => {
 
   it("should call job to handle existing work", async () => {
     await withTimePaused(async _f => {
-      redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(20));
-      redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(30));
+      await redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(20));
+      await redis.rpush(`${GROUP_NAME}.data`, JSON.stringify(30));
 
       await runner.start(redis, logger);
 
