@@ -1,10 +1,10 @@
-import { Channel, Connection, connect } from "amqplib";
+import { Channel, Connection, ConsumeMessage, connect } from "amqplib";
 import { Container } from "inversify";
 
 import { Logger } from "../../logging/logger";
 import { RetryError } from "../../retry";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
-import { collapse, loggerMiddleware } from "../handlers";
+import { collapse } from "../handlers";
 
 export const groupKey = Symbol.for("amqp.job.groups");
 export const handlerKey = Symbol.for("amqp.job.handler");
@@ -37,12 +37,11 @@ export class Workers {
    * Build up the command handlers. Each command runs their group middleware first
    * and then their command middleware, all in LTR.
    * @param container for loading dependencies
-   * @param logger for logger middleware
    */
-  constructor(container: Container, private logger: Logger) {
+  constructor(container: Container) {
     const handlers = parseHandlers(container, groupKey, handlerKey);
     handlers.forEach(({ handler_tag: tag, handler, group_middleware, handler_middleware }) => {
-      const middleware = [loggerMiddleware(logger), ...group_middleware, ...handler_middleware];
+      const middleware = [...group_middleware, ...handler_middleware];
       this.commands.set(tag, collapse(handler, middleware));
     });
   }
@@ -50,20 +49,22 @@ export class Workers {
   /**
    * Connect the handlers to their AMQP queues.
    * @param url AMQP connection string
+   * @param logger for keeping track of workers
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async start(url: string, parallel?: number): Promise<void>;
+  async start(url: string, logger: Logger, parallel?: number): Promise<void>;
   /**
    * Connect the handlers to their AMQP queues.
    * @param conn AMQP connection managed externally
+   * @param logger for keeping track of workers
    * @param parallel how many jobs requests to receive simultaneously
    */
-  async start(conn: Connection, parallel?: number): Promise<void>;
-  async start(connUrl: string | Connection, parallel = 5): Promise<void> {
+  async start(conn: Connection, logger: Logger, parallel?: number): Promise<void>;
+  async start(connUrl: string | Connection, logger: Logger, parallel = 5): Promise<void> {
     if (typeof connUrl === "string") {
       this.conn = await connect(connUrl);
       this.conn.on("error", err => {
-        this.logger.error(err);
+        logger.error(err);
       });
     } else {
       this.conn = connUrl;
@@ -74,7 +75,7 @@ export class Workers {
 
     this.conn.on("error", err => {
       this.connected = false;
-      this.logger.error(err);
+      logger.error(err);
     });
 
     this.conn.on("close", () => {
@@ -85,15 +86,15 @@ export class Workers {
 
     for (const [job, handler] of this.commands.entries()) {
       const queue = job.split(".").join("_").toUpperCase();
+      const wrapped = wrapHandler(queue, logger, handler);
       this.channel.assertQueue(queue, { durable: true });
       this.channel.consume(queue, async msg => {
         if (msg === null) {
           return;
         }
 
-        const data = JSON.parse(msg.content.toString());
         try {
-          await handler(data);
+          await wrapped(msg);
           this.channel.ack(msg);
         } catch (err) {
           if (!(err instanceof RetryError)) {
@@ -125,4 +126,19 @@ export class Workers {
     await this.conn.close();
     return;
   }
+}
+
+function wrapHandler(queue: string, logger: Logger, handler: Function) {
+  const childLogger = logger.child({ queue });
+
+  return async function (msg: ConsumeMessage) {
+    const data = JSON.parse(msg.content.toString());
+    childLogger.log({ data });
+    try {
+      await handler(data);
+    } catch (err) {
+      childLogger.error(err, { data });
+      throw err;
+    }
+  };
 }

@@ -8,7 +8,7 @@ import faker from "faker";
 import { v4 } from "uuid";
 
 import { HttpAgent, HttpMethod } from "../../src/http/agent";
-import { APIError, NoAuthorizationTokenError, NoRequestIDError, TimeoutError } from "../../src/http/errors";
+import { APIError, HttpError, NoAuthorizationTokenError, NoRequestIDError, TimeoutError } from "../../src/http/errors";
 import * as jwt from "../../src/http/jwt";
 import { RequestWrapper } from "../../src/http/wrapper";
 import { Logger } from "../../src/logging/logger";
@@ -200,6 +200,23 @@ describe("RequestWrapper#do", () => {
     expect(res.method).to.be.eq(HttpMethod.GET);
   });
 
+  it("cause a connection refused", async function () {
+    const ringbuffer = new RingBuffer({ limit: 5 });
+    const logger = new Logger({ name: "logger_tests", buffer: ringbuffer, serializers: defaultSerializers() });
+    const agent = new HttpAgent({ service: "test_service", secret: randomString(32), scheme: "Test", logger });
+    const req = agent.makeRequest(HttpMethod.GET, `http://localhost:1001/test/non-existent`);
+
+    let err: HttpError;
+    try {
+      await req.do();
+    } catch (error) {
+      err = error;
+    }
+
+    expect(err!).to.be.instanceOf(HttpError);
+    expect(err!.axios_code).to.eq("ECONNREFUSED");
+  });
+
   it("cause a timeout with 500ms timeout", async function () {
     const request = { method: HttpMethod.GET, url: `${mockResourceURL}/timeout` };
     const req = new RequestWrapper(axiosInstance, service, authConfig, request);
@@ -228,9 +245,9 @@ describe("RequestWrapper#do", () => {
       err = error;
     }
 
-    expect(err.status).to.be.eq(422);
-    expect(err.data).to.haveOwnProperty("message");
-    expect(err.data.message).to.be.eq("an error occurred");
+    expect(err!.status).to.be.eq(422);
+    expect(err!.data).to.haveOwnProperty("message");
+    expect(err!.data.message).to.be.eq("an error occurred");
   });
 
   it("handles API errors even with logging", async function () {
@@ -249,8 +266,8 @@ describe("RequestWrapper#do", () => {
       err = error;
     }
 
-    expect(err.status).to.be.eq(422);
-    expect(err.data).to.haveOwnProperty("message");
-    expect(err.data.message).to.be.eq("an error occurred");
+    expect(err!.status).to.be.eq(422);
+    expect(err!.data).to.haveOwnProperty("message");
+    expect(err!.data.message).to.be.eq("an error occurred");
   });
 });

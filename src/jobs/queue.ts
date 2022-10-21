@@ -4,7 +4,7 @@ import { injectable } from "inversify";
 import Redis from "ioredis";
 
 import { Logger } from "../logging/logger";
-import { retryOnRequest, wrapHandler } from "../retry";
+import { retryOnRequest } from "../retry";
 
 function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
@@ -76,8 +76,11 @@ export class RedisQueue<T> {
    * @param parallelism how many workers should handle the jobs at any given time
    */
   async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
+    let handler: Function;
     if (logger) {
-      f = wrapHandler(logger, f);
+      handler = wrapHandler(this.name, logger, f);
+    } else {
+      handler = (job: string) => f(JSON.parse(job));
     }
 
     const work = Array.from({ length: parallelism }).map(async () => {
@@ -92,7 +95,7 @@ export class RedisQueue<T> {
         await this.redis.hset(this.deadLetterHash, bkpKey, data);
 
         try {
-          await retryOnRequest(this.retries, this.timeout, _n => f(JSON.parse(data)));
+          await retryOnRequest(this.retries, this.timeout, _n => handler(data));
           await this.redis.hdel(this.deadLetterHash, bkpKey);
         } catch (err) {
           // no-op
@@ -102,4 +105,19 @@ export class RedisQueue<T> {
 
     return Promise.all(work);
   }
+}
+
+function wrapHandler(queue: string, logger: Logger, handler: Function) {
+  const childLogger = logger.child({ job_queue: queue });
+
+  return async function (msg: string) {
+    const data = JSON.parse(msg);
+    childLogger.log({ data });
+    try {
+      await handler(data);
+    } catch (err) {
+      childLogger.error(err, { data });
+      throw err;
+    }
+  };
 }
