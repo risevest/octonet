@@ -56,11 +56,35 @@ export class JobRunner {
   }
 
   /**
-   * Cancel all pending scheduled tasks. Bare in mind jobs being run
-   * while this method is called will still complete.
+   * Run a named task manually
+   * @param job name of the jub to run
    */
-  stop() {
-    return this.jobs.forEach(j => j.task?.stop());
+  run(job: string) {
+    const task = this.jobs.find(j => j.name === job)?.task;
+    if (!task) {
+      return;
+    }
+
+    // now is not on the TS definitittion
+    task["now"]();
+  }
+
+  /**
+   * Cancel specific or all pending scheduled tasks. Bare in mind jobs being run
+   * while this method is called will still complete.
+   * @param job name of the job to be stopped
+   */
+  stop(job?: string) {
+    if (!job) {
+      return this.jobs.forEach(j => j.task?.stop());
+    }
+
+    const task = this.jobs.find(j => j.job.name === job)?.task;
+    if (!task) {
+      return;
+    }
+
+    return task.stop();
   }
 }
 
