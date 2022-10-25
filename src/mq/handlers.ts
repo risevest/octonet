@@ -15,7 +15,7 @@ export type Middleware = (data: any, handler: Function) => Promise<void>;
  */
 export function collapse(handler: Function, middleware: Middleware[]): Function {
   if (middleware.length === 0) {
-    return;
+    return handler;
   }
 
   const final = middleware.reduce(

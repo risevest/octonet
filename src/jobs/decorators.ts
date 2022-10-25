@@ -124,14 +124,14 @@ export function job(name: string, schedule: string, config?: JobConfig): MethodD
   }
 
   return function (prototype: any, method: string, _desc: PropertyDescriptor) {
-    let queries: JobMetadata[] = [];
+    let jobs: JobMetadata[] = [];
     if (!Reflect.hasMetadata(jobKey, prototype.constructor)) {
-      Reflect.defineMetadata(jobKey, queries, prototype.constructor);
+      Reflect.defineMetadata(jobKey, jobs, prototype.constructor);
     } else {
-      queries = Reflect.getMetadata(jobKey, prototype.constructor);
+      jobs = Reflect.getMetadata(jobKey, prototype.constructor);
     }
 
-    queries.push({ method, name, schedule, ...defaultJobConfig, ...config });
+    jobs.push({ method, name, schedule, ...defaultJobConfig, ...config });
   };
 }
 
