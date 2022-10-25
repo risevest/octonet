@@ -5,10 +5,8 @@ export class TestInstance {
     return new Promise<void>((resolve, reject) => {
       try {
         this.greetings.push(`hello ${this.city}, ${name} is back!`);
-        console.log("THIS IN GREETING", this);
         resolve();
       } catch (err) {
-        console.log("error", err);
         reject(err);
       }
     });
