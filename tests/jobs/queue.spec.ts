@@ -130,7 +130,7 @@ describe("RedisQueue#work", () => {
     const instance = new TestInstance(city, result);
 
     await altQueue.work(instance.greet);
-    expect(result).to.have.lengthOf(0);
+    expect(result).to.have.lengthOf(5);
   });
 
   it("should bind the worker argument to a specified instance", async () => {
