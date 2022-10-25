@@ -1,6 +1,6 @@
 {
   "name": "@risemaxi/octonet",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Web toolkit for rise macro services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
