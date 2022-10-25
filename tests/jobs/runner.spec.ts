@@ -39,7 +39,12 @@ afterAll(async () => {
 describe("acquireLock", () => {
   it("should only give one client the lock", async () => {
     const owners = multiply(20, () => faker.datatype.uuid());
-    const locks = await Promise.all(owners.map(x => acquireLock(redis, "locks", x, "5s")));
+    let locks = await Promise.all(owners.slice(0, 11).map(x => acquireLock(redis, "locks", x, "5s")));
+
+    await sleep(3000);
+
+    locks = locks.concat(await Promise.all(owners.slice(11).map(x => acquireLock(redis, "locks", x, "5s"))));
+
     const accepted = locks.filter(x => x);
     const rejected = locks.filter(x => !x);
 
