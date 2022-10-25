@@ -1,9 +1,7 @@
-import crypto from "crypto";
-
-import { injectable } from "inversify";
-import Redis from "ioredis";
-
 import { Logger } from "../logging/logger";
+import Redis from "ioredis";
+import crypto from "crypto";
+import { injectable } from "inversify";
 import { retryOnRequest } from "../retry";
 
 function backupKey() {
@@ -75,8 +73,12 @@ export class RedisQueue<T> {
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
    */
-  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
+  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1, instance?: any) {
     let handler: Function;
+    if (instance) {
+      f = f.bind(instance);
+    }
+
     if (logger) {
       handler = wrapHandler(this.name, logger, f);
     } else {
