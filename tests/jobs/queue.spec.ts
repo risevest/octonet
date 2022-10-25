@@ -1,10 +1,14 @@
 import "reflect-metadata";
 
 import { expect, use } from "chai";
-import chaiAsPromised from "chai-as-promised";
-import Redis from "ioredis";
 
+import Redis from "ioredis";
 import { RedisQueue } from "../../src/jobs/queue";
+import { TestInstance } from "./helpers/queue";
+import chaiAsPromised from "chai-as-promised";
+import faker from "faker";
+import { logger } from "../mq/nats.consumer.spec";
+import { multiply } from "../helpers";
 
 const redisURL = "redis://localhost:6379";
 const queueName = "numbers_game";
@@ -113,6 +117,34 @@ describe("RedisQueue#work", () => {
     expect(redis.hlen(key)).to.eventually.eq(1);
     const randomVal = await redis.hrandfield(key, 1, "WITHVALUES");
     expect(Number(randomVal?.[1])).to.eq(5);
+  });
+
+  it("should fail to utilize this in instance.greet()", async () => {
+    const jobs = multiply(5, () => faker.name.firstName());
+
+    const altQueue = new RedisQueue<string>("greetings", redis, 0);
+    await altQueue.fill(jobs);
+
+    const city = faker.address.cityName();
+    const result: string[] = [];
+    const instance = new TestInstance(city, result);
+
+    await altQueue.work(instance.greet);
+    expect(result).to.have.lengthOf(0);
+  });
+
+  it("should bind the worker argument to a specified instance", async () => {
+    const jobs = multiply(5, () => faker.name.firstName());
+
+    const altQueue = new RedisQueue<string>("greetings", redis, 0);
+    await altQueue.fill(jobs);
+
+    const city = faker.address.cityName();
+    const result: string[] = [];
+    const instance = new TestInstance(city, result);
+
+    await altQueue.work(instance.greet, logger, 1, instance);
+    expect(result).to.have.lengthOf(5);
   });
 });
 

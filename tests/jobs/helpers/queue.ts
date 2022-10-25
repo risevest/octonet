@@ -1,9 +1,11 @@
-import { generateSecret } from "jose";
-
 export class TestInstance {
-  constructor(private name: string) {}
+  constructor(private city: string, private greetings: string[]) {}
 
-  greet(): string {
-    return `${this.name} says hi!`;
+  greet(name: string) {
+    return new Promise<void>((resolve, _) => {
+      this.greetings.push(`hello ${this.city}, ${name} is back!`);
+      console.log("THIS IN GREETING", this);
+      resolve();
+    });
   }
 }
