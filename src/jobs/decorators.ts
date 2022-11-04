@@ -2,6 +2,8 @@ import { Container, decorate, injectable } from "inversify";
 import { keyBy } from "lodash";
 import nodecron from "node-cron";
 
+import { collectMetadata } from "../mq/decorators";
+
 export interface CronMetadata {
   name: string;
   constructor: any;
@@ -136,7 +138,7 @@ export function job(name: string, schedule: string, config?: JobConfig): MethodD
 }
 
 export function getJobs(container: Container) {
-  const groups: CronMetadata[] = Reflect.getMetadata(cronKey, Reflect) || [];
+  const groups = collectMetadata<CronMetadata[]>(cronKey, Reflect, []);
   const jobs: Job<any>[] = [];
 
   groups.forEach(group => {
@@ -146,10 +148,10 @@ export function getJobs(container: Container) {
 
     container.bind<any>(cronInstanceKey).to(group.constructor).whenTargetNamed(group.name);
 
-    const queryMetadata: QueryMetadata[] = Reflect.getMetadata(queryKey, group.constructor);
+    const queryMetadata = collectMetadata<QueryMetadata[]>(queryKey, group.constructor);
     const queryMap = keyBy(queryMetadata, "name");
 
-    const jobMetadata: JobMetadata[] = Reflect.getMetadata(jobKey, group.constructor);
+    const jobMetadata = collectMetadata<JobMetadata[]>(jobKey, group.constructor);
     jobMetadata.forEach(({ method, name, schedule, retries, timeout, maxComputeTime }) => {
       const instance = container.getNamed<any>(cronInstanceKey, group.name);
       const possibleQuery = queryMap[name];

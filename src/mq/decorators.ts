@@ -121,7 +121,7 @@ export function handlerDecorator(s: Symbol) {
 
 export function parseHandlers(container: Container, groupKey: Symbol, handlerKey: Symbol) {
   const groupInstanceTag = Symbol("group.instance");
-  const groups: Group[] = Reflect.getMetadata(groupKey, Reflect) || [];
+  const groups = collectMetadata<Group[]>(groupKey, Reflect, []);
   const handlers: ParsedHandler[] = [];
 
   groups.forEach(({ tag: groupTag, middleware: groupMiddleware, constructor }) => {
@@ -131,7 +131,7 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
 
     container.bind<any>(groupInstanceTag).to(constructor).whenTargetNamed(groupTag);
 
-    const methodMeta: Handler[] = Reflect.getMetadata(handlerKey, constructor);
+    const methodMeta = collectMetadata<Handler[]>(handlerKey, constructor);
     methodMeta.forEach(({ tag, method, middleware }) => {
       const instance = container.getNamed(groupInstanceTag, groupTag);
       const handlerFn = instance[method].bind(instance);
@@ -147,4 +147,13 @@ export function parseHandlers(container: Container, groupKey: Symbol, handlerKey
   });
 
   return handlers;
+}
+
+export function collectMetadata<T>(key: any, target: Object, defaultVal?: T) {
+  const result: T = Reflect.getMetadata(key, target);
+  if (result) {
+    Reflect.deleteMetadata(key, target);
+  }
+
+  return result ?? defaultVal;
 }

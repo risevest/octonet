@@ -5,7 +5,7 @@ import { Container } from "inversify";
 import { keyBy } from "lodash";
 import sinon from "sinon";
 
-import { CronMetadata, JobMetadata, QueryMetadata, getJobs } from "../../src/jobs/decorators";
+import { CronMetadata, Job, JobMetadata, QueryMetadata, getJobs } from "../../src/jobs/decorators";
 import {
   CronGroup,
   GROUP_NAME,
@@ -71,9 +71,13 @@ describe("Decorators#job", () => {
 });
 
 describe("Decorators#getJobs", () => {
-  it("generate jobs from loaded code", () => {
-    const jobs = getJobs(new Container());
+  let jobs: Job<any>[];
 
+  beforeAll(() => {
+    jobs = getJobs(new Container());
+  });
+
+  it("generate jobs from loaded code", () => {
     expect(jobs).to.have.length(3);
     const jobMap = keyBy(jobs, "name");
 
@@ -91,7 +95,6 @@ describe("Decorators#getJobs", () => {
   });
 
   it("should ensure the handler still acts like a method", () => {
-    const jobs = getJobs(new Container());
     const jobMap = keyBy(jobs, "name");
 
     const normalJob = jobMap[`${GROUP_NAME}.normal`];
