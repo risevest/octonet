@@ -1,11 +1,11 @@
-import crypto from "crypto";
-import { promisify } from "util";
-
-import { Channel } from "amqplib";
-import parser from "cron-parser";
-import ms from "ms";
 import { JSONCodec, JetStreamManager } from "nats";
 import sinon, { SinonFakeTimers } from "sinon";
+
+import { Channel } from "amqplib";
+import crypto from "crypto";
+import ms from "ms";
+import parser from "cron-parser";
+import { promisify } from "util";
 
 let sinonClock: SinonFakeTimers | null;
 
@@ -103,11 +103,12 @@ export async function withTimePaused(f: (j: JumpFn) => Promise<void>) {
  * @param extra how long past the execution time should it jump to
  * @returns a function you call to actually jump time
  */
-export function jumpBy(cronExpr: string, extra = "1m") {
+export function jumpBy(cronExpr: string, extra = "1m", timePeriod?: "past" | "future") {
+  timePeriod = timePeriod ?? "past";
   const gap = ms("1m");
   const interval = parser.parseExpression(cronExpr);
   const nextExec = interval.next().toDate();
-  const preface = new Date(nextExec.getTime() - gap);
+  const preface = timePeriod === "past" ? new Date(nextExec.getTime() - gap) : new Date(nextExec.getTime() + gap);
 
   sinonClock = sinon.useFakeTimers(preface);
   const extraTime = gap + ms(extra);

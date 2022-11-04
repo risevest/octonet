@@ -1,13 +1,15 @@
-import { Container } from "inversify";
-import { Redis } from "ioredis";
-import ms from "ms";
-import cron, { ScheduledTask } from "node-cron";
-import { v4 as uuid } from "uuid";
-
-import { Logger } from "../logging/logger";
 import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
+import cron, { ScheduledTask } from "node-cron";
+
+import { Container } from "inversify";
+import { Logger } from "../logging/logger";
+import { Redis } from "ioredis";
 import { RedisQueue } from "./queue";
+import { format } from "date-fns";
+import ms from "ms";
+import parser from "cron-parser";
+import { v4 as uuid } from "uuid";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -16,6 +18,7 @@ interface ScheduledJob<T> extends Job<T> {
 export class JobRunner {
   private jobs: ScheduledJob<any>[];
   private lockID: string;
+  private executionDatesKey: string;
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -26,6 +29,7 @@ export class JobRunner {
   constructor(container: Container, private retries = 3, private timeout = "10s") {
     this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
     this.lockID = uuid();
+    this.executionDatesKey = `${this.lockID}:job-dates`;
   }
 
   /**
@@ -41,7 +45,16 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, this.retries, this.timeout, j));
+      j.task = cron.schedule(j.schedule, () =>
+        runJob(redis, this.lockID, this.retries, this.timeout, j, this.executionDatesKey)
+      );
+
+      // run job immediately if it missed its schedule
+      const shouldRerunJob = await isMissedJob(j, redis, this.executionDatesKey);
+
+      if (shouldRerunJob) {
+        await runJob(redis, this.lockID, this.retries, this.timeout, j, this.executionDatesKey);
+      }
 
       // only immediately run if a setup exists.
       if (j.query) {
@@ -120,13 +133,20 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
 
 /**
  * Run the any given job, supporting parallel execution through distributed locks
- * @param redis redis instancee
+ * @param redis redis instance
  * @param lockID ID to be used for locking
  * @param retries number of retries for query jobs
  * @param timeout minimum timeout between retries for query jobs
  * @param j job to run
  */
-export async function runJob<T>(redis: Redis, lockID: string, retries: number, timeout: string, j: Job<T>) {
+export async function runJob<T>(
+  redis: Redis,
+  lockID: string,
+  retries: number,
+  timeout: string,
+  j: Job<T>,
+  executionDatesKey: string
+) {
   const ownsLock = await acquireLock(redis, j.name, lockID, j.maxComputeTime);
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
@@ -148,6 +168,10 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
           throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
         }
       });
+
+      // set execution date after job has been completed
+      const currentDate = format(new Date(), "yyyy-MM-dd");
+      await redis.hset(executionDatesKey, j.name, currentDate);
     } catch (err) {
       if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
         throw err.wrapped;
@@ -159,4 +183,28 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
   }
 
   return queue.work(j.job);
+}
+
+/**
+ * checks if a job has missed its schedule
+ * @param j job to run
+ * @param redis redis instance
+ * @param executionDatesKey identifier for retrieving a job's last execution date
+ */
+export async function isMissedJob<T>(j: Job<T>, redis: Redis, executionDatesKey: string) {
+  const dateFormat = "yyyy-MM-dd";
+  const interval = parser.parseExpression(j.schedule);
+
+  const nextScheduedDate = format(interval.next().toDate(), dateFormat);
+  const currentDate = format(new Date(), dateFormat);
+  const lastExecutionDate = await redis.hget(executionDatesKey, j.name);
+
+  const hasMissedSchedule = nextScheduedDate !== currentDate;
+
+  // job has missed its schedule and is yet to run
+  if (hasMissedSchedule && (!lastExecutionDate || lastExecutionDate !== currentDate)) {
+    return true;
+  }
+
+  return false;
 }
