@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { Container } from "inversify";
 import sinon from "sinon";
 
-import { Group, Handler, parseHandlers } from "../../src/mq/decorators";
+import { Group, Handler, ParsedHandler, parseHandlers } from "../../src/mq/decorators";
 import {
   GroupClass,
   GroupTag,
@@ -57,10 +57,14 @@ describe("Decorators#handlerDecorator", () => {
 });
 
 describe("Decorators#parseHandlers", () => {
-  it("should merge group and handler information to one", () => {
-    const container = new Container();
-    const handlers = parseHandlers(container, groupKey, handlerKey);
+  let handlers: ParsedHandler[];
+  const container = new Container();
 
+  beforeAll(() => {
+    handlers = parseHandlers(container, groupKey, handlerKey);
+  });
+
+  it("should merge group and handler information to one", () => {
     expect(handlers).to.have.length(1);
     const [handler] = handlers;
 
@@ -71,12 +75,15 @@ describe("Decorators#parseHandlers", () => {
   });
 
   it("should ensure the handler still acts like a method", () => {
-    const container = new Container();
-    const handlers = parseHandlers(container, groupKey, handlerKey);
     const [handler] = handlers;
 
     handler.handler();
     expect(handlerSpy.called).to.be.true;
     expect(handlerSpy.firstCall.firstArg).to.eq(0);
+  });
+
+  it("should return empty list of handlers on second call", () => {
+    const handlers = parseHandlers(container, groupKey, handlerKey);
+    expect(handlers).to.have.length(0);
   });
 });
