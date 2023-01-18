@@ -105,11 +105,15 @@ export function axiosRequest(...paths: string[]) {
  * Serializer for axios responses
  * @param res axios response object
  */
-export function axiosResponse(res: AxiosResponse<any>) {
-  return {
-    statusCode: res.status,
-    headers: res.headers,
-    body: res.data
+export function axiosResponse(...paths: string[]) {
+  return (res: AxiosResponse<any>) => {
+    const data = { ...res.data };
+    paths.forEach(p => unset(data, p));
+    return {
+      statusCode: res.status,
+      headers: res.headers,
+      body: data
+    };
   };
 }
 
