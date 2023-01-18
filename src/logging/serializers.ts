@@ -15,7 +15,7 @@ const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "
 export function defaultSerializers(...paths: string[]) {
   return {
     axios_req: axiosRequest(...paths),
-    axios_res: axiosResponse,
+    axios_res: axiosResponse(...paths),
     req: expressRequest(...paths),
     res: expressResponse,
     event: sanitized(...paths),
