@@ -1,7 +1,21 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 import { Logger } from "../logging/logger";
+import { dateReviver } from "../strings";
 import { AuthConfig, RequestWrapper } from "./wrapper";
+
+const defaultAxiosConfig: Partial<AxiosRequestConfig> = {
+  transitional: { clarifyTimeoutError: true },
+  transformResponse: [
+    data => {
+      if (data === "") {
+        return {};
+      }
+
+      return JSON.parse(data, dateReviver);
+    }
+  ]
+};
 
 export enum HttpMethod {
   GET = "GET",
@@ -43,7 +57,7 @@ export class HttpAgent {
   private authConfig: AuthConfig;
 
   constructor(config: AgentConfig, axiosConfig?: AxiosRequestConfig) {
-    this.instance = axios.create({ transitional: { clarifyTimeoutError: true }, ...axiosConfig });
+    this.instance = axios.create({ ...defaultAxiosConfig, ...axiosConfig });
     this.service = config.service;
     this.authConfig = {
       secret: new TextEncoder().encode(config.secret),
