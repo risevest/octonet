@@ -5,6 +5,7 @@ import Redis from "ioredis";
 
 import { Logger } from "../logging/logger";
 import { retryOnRequest } from "../retry";
+import { dateReviver } from "../strings";
 
 function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
@@ -111,7 +112,7 @@ function wrapHandler(queue: string, logger: Logger, handler: Function) {
   const childLogger = logger.child({ job_queue: queue });
 
   return async function (msg: string) {
-    const data = JSON.parse(msg);
+    const data = JSON.parse(msg, dateReviver);
     childLogger.log({ data });
     try {
       await handler(data);
