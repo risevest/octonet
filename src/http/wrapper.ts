@@ -36,7 +36,7 @@ export class RequestWrapper<T extends object> {
     protected authConfig: AuthConfig,
     protected request: AxiosRequestConfig<RequestData<T>>
   ) {
-    this.request.headers = request.headers ?? {};
+    this.request.headers = Object.assign({}, request.headers);
   }
 
   /**

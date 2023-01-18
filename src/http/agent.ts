@@ -77,7 +77,11 @@ export class HttpAgent {
    * @param data request body payload
    */
   makeRequest<T extends object = any>(method: HttpMethod, url: string, data?: T) {
-    const httpRequest: AxiosRequestConfig<T> = { method, url };
+    const httpRequest: AxiosRequestConfig<T> = {
+      method,
+      url,
+      headers: undefined
+    };
 
     switch (method) {
       case HttpMethod.GET:
