@@ -1,6 +1,9 @@
 import crypto from "crypto";
+
 import { Redis } from "ioredis";
 import ms from "ms";
+
+import { dateReviver } from "../strings";
 import { AsyncNullable, TokenStore } from "./store";
 
 export class RedisStore implements TokenStore {
@@ -21,7 +24,7 @@ export class RedisStore implements TokenStore {
       return null;
     }
 
-    return JSON.parse(result);
+    return JSON.parse(result, dateReviver);
   }
 
   async extend<T = any>(token: string, time: string): AsyncNullable<T> {
@@ -32,7 +35,7 @@ export class RedisStore implements TokenStore {
 
     await this.redis.pexpire(token, ms(time));
 
-    return JSON.parse(result);
+    return JSON.parse(result, dateReviver);
   }
 
   async reset<T = any>(key: string, newVal: T): Promise<void> {
@@ -56,7 +59,7 @@ export class RedisStore implements TokenStore {
 
     await this.redis.del(token);
 
-    return JSON.parse(result);
+    return JSON.parse(result, dateReviver);
   }
 
   async revoke(key: string): Promise<void> {

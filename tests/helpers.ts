@@ -7,6 +7,8 @@ import ms from "ms";
 import { JSONCodec, JetStreamManager } from "nats";
 import sinon, { SinonFakeTimers } from "sinon";
 
+import { dateReviver } from "../src/strings";
+
 let sinonClock: SinonFakeTimers | null;
 
 /**
@@ -63,7 +65,7 @@ export async function popFromQueue<T>(channel: Channel, queue: string): Promise<
     return null;
   }
 
-  return JSON.parse(result.content.toString());
+  return JSON.parse(result.content.toString(), dateReviver);
 }
 
 export async function drainQueue(channel: Channel, queue: string): Promise<void> {
@@ -74,7 +76,8 @@ export async function getFromStream<T>(manager: JetStreamManager, topic: string)
   const [stream] = topic.split(".");
   const msg = await manager.streams.getMessage(stream, { last_by_subj: topic });
 
-  return JSONCodec<T>().decode(msg.data);
+  // @ts-ignore nats typing is problematic here
+  return JSONCodec<T>(dateReviver).decode(msg.data);
 }
 
 /**
