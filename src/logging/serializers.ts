@@ -79,10 +79,11 @@ export function axiosRequest(...paths: string[]) {
     const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
 
     // remove default header config
-    const headers = { ...conf.headers };
+    const headers = Object.assign({}, conf.headers);
     axiosDefaultHeaders.forEach(k => {
       delete headers[k];
     });
+
     log.headers = headers;
 
     // when we get the config from the axios response

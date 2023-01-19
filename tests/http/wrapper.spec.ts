@@ -1,10 +1,10 @@
 import { Server } from "http";
 
+import { faker } from "@faker-js/faker";
 import axios from "axios";
 import { RingBuffer } from "bunyan";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import faker from "faker";
 import { v4 } from "uuid";
 
 import { HttpAgent, HttpMethod } from "../../src/http/agent";

@@ -1,8 +1,8 @@
 import "reflect-metadata";
 
+import { faker } from "@faker-js/faker";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import faker from "faker";
 import ms from "ms";
 import { DiscardPolicy, JetStreamManager, NatsConnection, RetentionPolicy, StorageType, connect } from "nats";
 

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 
 import { Logger } from "../../src";
 
@@ -15,11 +15,11 @@ export function createLoggingApp(logger: Logger) {
     res.json({ message: "Logged" });
   });
 
-  app.get("/error", (req, res) => {
+  app.get("/error", (_req, _res) => {
     throw new Error("Error");
   });
 
-  app.use((err, req, res, next) => {
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     logger.httpError(err, req, res);
     res.json({ message: "Logged" });
   });

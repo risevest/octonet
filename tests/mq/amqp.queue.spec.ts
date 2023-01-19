@@ -1,8 +1,8 @@
 import "reflect-metadata";
 
+import { faker } from "@faker-js/faker";
 import { Channel, Connection, connect } from "amqplib";
 import { expect } from "chai";
-import faker from "faker";
 
 import { Logger } from "../../src/logging/logger";
 import { defaultSerializers } from "../../src/logging/serializers";

@@ -56,7 +56,7 @@ export class HttpAgent {
   private service: string;
   private authConfig: AuthConfig;
 
-  constructor(config: AgentConfig, axiosConfig?: AxiosRequestConfig) {
+  constructor(config: AgentConfig, axiosConfig?: Partial<AxiosRequestConfig>) {
     this.instance = axios.create({ ...defaultAxiosConfig, ...axiosConfig });
     this.service = config.service;
     this.authConfig = {
@@ -77,7 +77,7 @@ export class HttpAgent {
    * @param data request body payload
    */
   makeRequest<T extends object = any>(method: HttpMethod, url: string, data?: T) {
-    const httpRequest: AxiosRequestConfig<T> = { method, url };
+    const httpRequest: Partial<AxiosRequestConfig> = { method, url };
 
     switch (method) {
       case HttpMethod.GET:
