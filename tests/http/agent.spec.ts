@@ -1,6 +1,7 @@
 import { Server } from "http";
 
 import { faker } from "@faker-js/faker";
+import { AxiosHeaders } from "axios";
 import { RingBuffer } from "bunyan";
 import { expect } from "chai";
 
@@ -59,7 +60,11 @@ describe("HttpAgent#makeRequest", () => {
 
 describe("HttpAgent#useLogger", () => {
   const ringbuffer = new RingBuffer({ limit: 5 });
-  const logger = new Logger({ name: "logger_tests", buffer: ringbuffer, serializers: defaultSerializers() });
+  const logger = new Logger({
+    name: "logger_tests",
+    buffer: ringbuffer,
+    serializers: defaultSerializers("hidden", "body.hidden")
+  });
   const agent = new HttpAgent({ service: "test_service", secret: randomString(32), scheme: "Test", logger });
 
   afterEach(() => {
@@ -68,20 +73,20 @@ describe("HttpAgent#useLogger", () => {
 
   it("should log axios requests and responses", async () => {
     const data = { first_name: faker.name.firstName(), last_name: faker.name.lastName() };
-    const res = await agent.makeRequest(HttpMethod.POST, mockResourceURL, data).do<TestRequest>();
+    await agent.makeRequest(HttpMethod.POST, mockResourceURL, { ...data, hidden: true }).do<TestRequest>();
 
-    expect(ringbuffer.records).to.be.length(2);
+    expect(ringbuffer.records).to.have.length(2);
 
     const [requestLog, responseLog] = ringbuffer.records;
 
     expect(requestLog.axios_req.method.toUpperCase()).to.be.eq(HttpMethod.POST);
     expect(requestLog.axios_req.url).to.be.eq(mockResourceURL);
-    expect(requestLog.axios_req.headers).to.be.an("object").and.be.empty;
-    expect(requestLog.axios_req.data).to.be.eql(res.body);
+    expect(requestLog.axios_req.headers).to.be.a("object");
+    expect(requestLog.axios_req.data).to.deep.equal(data);
 
-    expect(responseLog.axios_req.data).to.be.eql(res.body);
+    expect(responseLog.axios_res.body.body).to.deep.equal(data);
     expect(responseLog.axios_res.statusCode).to.be.eq(200);
-    expect(responseLog.axios_res.headers).to.be.an("object");
+    expect(responseLog.axios_res.headers).to.be.instanceOf(AxiosHeaders);
     expect(responseLog.axios_res.body.method).to.be.eq(HttpMethod.POST);
   });
 
@@ -92,7 +97,7 @@ describe("HttpAgent#useLogger", () => {
       // discard error
     }
 
-    expect(ringbuffer.records).to.be.length(2);
+    expect(ringbuffer.records).to.have.length(2);
     const [, responseLog] = ringbuffer.records;
     expect(responseLog.axios_req).to.be.a("object");
     expect(responseLog.axios_res).to.be.a("object");
