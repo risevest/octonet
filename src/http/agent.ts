@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, RawAxiosRequestConfig } from "axios";
 
 import { Logger } from "../logging/logger";
 import { dateReviver } from "../strings";
@@ -56,7 +56,7 @@ export class HttpAgent {
   private service: string;
   private authConfig: AuthConfig;
 
-  constructor(config: AgentConfig, axiosConfig?: AxiosRequestConfig) {
+  constructor(config: AgentConfig, axiosConfig?: RawAxiosRequestConfig) {
     this.instance = axios.create({ ...defaultAxiosConfig, ...axiosConfig });
     this.service = config.service;
     this.authConfig = {
@@ -77,11 +77,7 @@ export class HttpAgent {
    * @param data request body payload
    */
   makeRequest<T extends object = any>(method: HttpMethod, url: string, data?: T) {
-    const httpRequest: AxiosRequestConfig<T> = {
-      method,
-      url,
-      headers: undefined
-    };
+    const httpRequest: RawAxiosRequestConfig<T> = { method, url };
 
     switch (method) {
       case HttpMethod.GET:
