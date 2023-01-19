@@ -1,6 +1,8 @@
-import express, { Application } from "express";
 import { Server } from "http";
+
+import express, { Application } from "express";
 import multer from "multer";
+
 import { sleep } from "../helpers";
 
 export interface TestRequest {
@@ -39,9 +41,9 @@ export function createTestApp() {
   });
 
   app.get("/auth", (req, res) => {
-    if (/^Bearer/.test(req.headers.authorization?.trim())) {
-      const auth = req.headers.authorization.split(" ");
-      return res.json({ method: req.method, headers: req.headers, body: req.body, token: auth[1] });
+    if (req.headers.authorization && /^Bearer/.test(req.headers.authorization?.trim())) {
+      const auth = req.headers.authorization?.split(" ");
+      return res.json({ method: req.method, headers: req.headers, body: req.body, token: auth?.[1] });
     } else {
       res.status(401).json({ msg: "No authorization header set" });
     }
@@ -58,7 +60,7 @@ export function startServer(app: Application) {
   return new Promise<[Server, number]>((resolve, reject) => {
     const server = app.listen(() => {
       const addr = server.address();
-      if (typeof addr === "string") {
+      if (!addr || typeof addr === "string") {
         reject(new Error("Could not get port for server"));
         return;
       }

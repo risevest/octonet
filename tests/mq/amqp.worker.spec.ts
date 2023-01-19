@@ -1,7 +1,7 @@
 import "reflect-metadata";
 
+import { faker } from "@faker-js/faker";
 import { expect } from "chai";
-import faker from "faker";
 import { Container } from "inversify";
 import sinon from "sinon";
 

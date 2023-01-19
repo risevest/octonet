@@ -1,8 +1,8 @@
 import { Server } from "http";
 
+import { faker } from "@faker-js/faker";
 import { RingBuffer } from "bunyan";
 import { expect } from "chai";
-import faker from "faker";
 
 import { HttpAgent, HttpMethod } from "../../src/http/agent";
 import { Logger } from "../../src/logging/logger";
