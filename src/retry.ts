@@ -110,7 +110,7 @@ async function retry<T = any>(
       return await fn(timeouts.length - copy.length + 1);
     } catch (err) {
       if (!shouldRetry(err)) {
-        return;
+        throw err;
       }
 
       if (copy.length === 0) {
