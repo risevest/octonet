@@ -16,7 +16,7 @@ export interface LoggerConfig {
   name: string;
   serializers: Serializers;
   verbose?: boolean;
-  buffer?: NodeJS.WritableStream;
+  buffer?: NodeJS.WritableStream | Bunyan.WriteFn;
 }
 
 export class Logger {

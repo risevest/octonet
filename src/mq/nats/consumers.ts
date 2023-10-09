@@ -4,6 +4,7 @@ import { JSONCodec, JetStreamPullSubscription, JsMsg, NatsConnection, consumerOp
 
 import { Logger } from "../../logging/logger";
 import { RetryError } from "../../retry";
+import { dateReviver } from "../../strings";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
 import { collapse } from "../handlers";
 
@@ -123,7 +124,7 @@ function pullSmart(batch: number, sub: JetStreamPullSubscription) {
 
 function wrapHandler(topic: string, logger: Logger, handler: Function) {
   const childLogger = logger.child({ topic });
-  const codec = JSONCodec();
+  const codec = JSONCodec(dateReviver);
 
   return async function (msg: JsMsg) {
     const data = codec.decode(msg.data);

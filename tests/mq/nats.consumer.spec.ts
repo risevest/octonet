@@ -1,7 +1,7 @@
 import "reflect-metadata";
 
+import { faker } from "@faker-js/faker";
 import { expect } from "chai";
-import faker from "faker";
 import { Container } from "inversify";
 import { JetStreamManager, NatsConnection, StorageType, connect } from "nats";
 import sinon from "sinon";
@@ -53,8 +53,8 @@ afterEach(() => {
 
 describe("Consumer", () => {
   it("should run handler based on topic", async () => {
-    const debit = faker.finance.amount(10_000);
-    const credit = faker.finance.amount(10_000);
+    const debit = faker.finance.amount(1000, 10_000);
+    const credit = faker.finance.amount(1000, 10_000);
 
     await publisher.publish("transactions.credit.wallet.plan", debit);
     await publisher.publish("transactions.credit.plan.wallet", credit);
@@ -63,8 +63,10 @@ describe("Consumer", () => {
 
     expect(creditWallet.calledOnce).to.be.true;
     expect(debitWallet.calledOnce).to.be.true;
+
     expect(creditWallet.calledWith(credit)).to.be.true;
     expect(debitWallet.calledWith(debit)).to.be.true;
+
     expect(allCredits.calledTwice).to.be.true;
   });
 

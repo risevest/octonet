@@ -3,6 +3,7 @@ import { Container } from "inversify";
 
 import { Logger } from "../../logging/logger";
 import { RetryError } from "../../retry";
+import { dateReviver } from "../../strings";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
 import { collapse } from "../handlers";
 
@@ -132,7 +133,7 @@ function wrapHandler(queue: string, logger: Logger, handler: Function) {
   const childLogger = logger.child({ queue });
 
   return async function (msg: ConsumeMessage) {
-    const data = JSON.parse(msg.content.toString());
+    const data = JSON.parse(msg.content.toString(), dateReviver);
     childLogger.log({ data });
     try {
       await handler(data);

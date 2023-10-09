@@ -15,7 +15,7 @@ const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "
 export function defaultSerializers(...paths: string[]) {
   return {
     axios_req: axiosRequest(...paths),
-    axios_res: axiosResponse,
+    axios_res: axiosResponse(...paths),
     req: expressRequest(...paths),
     res: expressResponse,
     event: sanitized(...paths),
@@ -79,10 +79,11 @@ export function axiosRequest(...paths: string[]) {
     const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
 
     // remove default header config
-    const headers = { ...conf.headers };
+    const headers = Object.assign({}, conf.headers);
     axiosDefaultHeaders.forEach(k => {
       delete headers[k];
     });
+
     log.headers = headers;
 
     // when we get the config from the axios response
@@ -105,11 +106,15 @@ export function axiosRequest(...paths: string[]) {
  * Serializer for axios responses
  * @param res axios response object
  */
-export function axiosResponse(res: AxiosResponse<any>) {
-  return {
-    statusCode: res.status,
-    headers: res.headers,
-    body: res.data
+export function axiosResponse(...paths: string[]) {
+  return (res: AxiosResponse<any>) => {
+    const data = { ...res.data };
+    paths.forEach(p => unset(data, p));
+    return {
+      statusCode: res.status,
+      headers: res.headers,
+      body: data
+    };
   };
 }
 

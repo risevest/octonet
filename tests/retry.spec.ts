@@ -1,6 +1,6 @@
+import { faker } from "@faker-js/faker";
 import Bunyan from "bunyan";
 import { expect } from "chai";
-import faker from "faker";
 import sinon from "sinon";
 
 import { Logger } from "../src/logging/logger";
@@ -165,7 +165,7 @@ describe("wrapHandler", () => {
     const f = sinon.spy();
     const fn = wrapHandler(logger, f);
     const arg1 = faker.datatype.number();
-    const arg2 = faker.name.findName();
+    const arg2 = faker.name.fullName();
 
     await fn(arg1);
     await fn(arg2);

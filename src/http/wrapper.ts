@@ -23,7 +23,7 @@ export type Action = () => Promise<void>;
  * A function that can configure an axios request. Use the `defer` function
  * to push async work till the end of configuration
  */
-export type Plugin<T = any> = (req: AxiosRequestConfig<T>, defer: (action: Action) => void) => void;
+export type Plugin<T = any> = (req: Partial<AxiosRequestConfig<T>>, defer: (action: Action) => void) => void;
 
 export type RequestData<T extends object> = T | FormData | string;
 
@@ -34,9 +34,9 @@ export class RequestWrapper<T extends object> {
     protected instance: AxiosInstance,
     protected service: string,
     protected authConfig: AuthConfig,
-    protected request: AxiosRequestConfig<RequestData<T>>
+    protected request: Partial<AxiosRequestConfig<RequestData<T>>>
   ) {
-    this.request.headers = request.headers ?? {};
+    this.request.headers = Object.assign({}, request.headers);
   }
 
   /**

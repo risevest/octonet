@@ -1,7 +1,21 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 import { Logger } from "../logging/logger";
+import { dateReviver } from "../strings";
 import { AuthConfig, RequestWrapper } from "./wrapper";
+
+const defaultAxiosConfig: Partial<AxiosRequestConfig> = {
+  transitional: { clarifyTimeoutError: true },
+  transformResponse: [
+    data => {
+      if (data === "") {
+        return {};
+      }
+
+      return JSON.parse(data, dateReviver);
+    }
+  ]
+};
 
 export enum HttpMethod {
   GET = "GET",
@@ -42,8 +56,8 @@ export class HttpAgent {
   private service: string;
   private authConfig: AuthConfig;
 
-  constructor(config: AgentConfig, axiosConfig?: AxiosRequestConfig) {
-    this.instance = axios.create({ transitional: { clarifyTimeoutError: true }, ...axiosConfig });
+  constructor(config: AgentConfig, axiosConfig?: Partial<AxiosRequestConfig>) {
+    this.instance = axios.create({ ...defaultAxiosConfig, ...axiosConfig });
     this.service = config.service;
     this.authConfig = {
       secret: new TextEncoder().encode(config.secret),
@@ -63,7 +77,7 @@ export class HttpAgent {
    * @param data request body payload
    */
   makeRequest<T extends object = any>(method: HttpMethod, url: string, data?: T) {
-    const httpRequest: AxiosRequestConfig<T> = { method, url };
+    const httpRequest: Partial<AxiosRequestConfig> = { method, url };
 
     switch (method) {
       case HttpMethod.GET:
