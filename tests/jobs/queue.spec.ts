@@ -50,14 +50,21 @@ describe("RedisQueue#fill", () => {
     expect(redis.lrange(queueName, 0, -1)).to.eventually.have.length(10);
   });
 
-  it("should append new jobs to the queue", async () => {
+  it("should allow work queue be filled with an async generator", async () => {
     const jobs1 = Array.from({ length: 10 }).map((_x, i) => i + 1);
     const jobs2 = Array.from({ length: 10 }).map((_x, i) => i + 11);
 
-    await queue.fill(jobs1);
-    await queue.fill(jobs2, true);
+    await queue.fill(async function* () {
+      yield jobs1;
+      yield jobs2;
+    }());
 
-    expect(redis.lrange(queueName, 0, -1)).to.eventually.have.length(20);
+    const entries = await redis.lrange(queueName, 0, -1);
+    expect(entries).to.have.length(20);
+
+    entries.forEach((e, i) => {
+      expect(e).to.eq(String(i + 1));
+    });
   });
 });
 

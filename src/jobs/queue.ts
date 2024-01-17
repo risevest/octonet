@@ -28,17 +28,25 @@ export class RedisQueue<T> {
    * Fill job queue with work items. It avoids filling the queue if
    * there's still work left.
    * @param ts list of items to add to the queue
-   * @param append whether to append to the queue or not
    * @returns a boolean signifying whether the items we written to the queue
    */
-  async fill(ts: T[], append = false) {
+  async fill(ts: T[] | AsyncGenerator<T[]>) {
     const length = await this.length();
-    if (length > 0 && !append) {
+    if (length > 0 && Array.isArray(ts)) {
       return false;
     }
 
-    const instructions = ts.map(t => ["rpush", this.name, JSON.stringify(t)]);
-    await this.redis.multi(instructions).exec();
+    if (Array.isArray(ts)) {
+      // Handle case when ts is an array
+      const instructions = ts.map(t => ["rpush", this.name, JSON.stringify(t)]);
+      await this.redis.multi(instructions).exec();
+    } else {
+      // Handle case when ts is an AsyncGenerator
+      for await (const chunk of ts) {
+        const instructions = chunk.map(t => ["rpush", this.name, JSON.stringify(t)]);
+        await this.redis.multi(instructions).exec();
+      }
+    }
 
     return true;
   }
