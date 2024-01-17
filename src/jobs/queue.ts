@@ -4,7 +4,6 @@ import crypto from "crypto";
 import { dateReviver } from "../strings";
 import { injectable } from "inversify";
 import { retryOnRequest } from "../retry";
-import { dateReviver } from "../strings";
 
 function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
