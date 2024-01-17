@@ -1,11 +1,9 @@
-import crypto from "crypto";
-
-import { injectable } from "inversify";
-import Redis from "ioredis";
-
 import { Logger } from "../logging/logger";
-import { retryOnRequest } from "../retry";
+import Redis from "ioredis";
+import crypto from "crypto";
 import { dateReviver } from "../strings";
+import { injectable } from "inversify";
+import { retryOnRequest } from "../retry";
 
 function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
@@ -30,11 +28,12 @@ export class RedisQueue<T> {
    * Fill job queue with work items. It avoids filling the queue if
    * there's still work left.
    * @param ts list of items to add to the queue
+   * @param append whether to append to the queue or not
    * @returns a boolean signifying whether the items we written to the queue
    */
-  async fill(ts: T[]) {
+  async fill(ts: T[], append = false) {
     const length = await this.length();
-    if (length > 0) {
+    if (length > 0 && !append) {
       return false;
     }
 
