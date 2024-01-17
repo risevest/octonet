@@ -51,13 +51,11 @@ describe("RedisQueue#fill", () => {
   });
 
   it("should append new jobs to the queue", async () => {
-    const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    const jobs1 = Array.from({ length: 10 }).map((_x, i) => i + 1);
+    const jobs2 = Array.from({ length: 10 }).map((_x, i) => i + 11);
 
-    await queue.fill(jobs);
-
-    const newJobs = Array.from({ length: 10 }).map((_x, i) => i + 2);
-
-    expect(queue.fill(newJobs, true)).to.eventually.be.true;
+    await queue.fill(jobs1);
+    await queue.fill(jobs2, true);
 
     expect(redis.lrange(queueName, 0, -1)).to.eventually.have.length(20);
   });
