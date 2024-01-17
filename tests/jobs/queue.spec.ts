@@ -50,7 +50,7 @@ describe("RedisQueue#fill", () => {
     expect(redis.lrange(queueName, 0, -1)).to.eventually.have.length(10);
   });
 
-  it("allow generator as input", async () => {
+  it("should allow work queue be filled with an async generator", async () => {
     const jobs1 = Array.from({ length: 10 }).map((_x, i) => i + 1);
     const jobs2 = Array.from({ length: 10 }).map((_x, i) => i + 11);
 
