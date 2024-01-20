@@ -10,8 +10,8 @@ function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
 }
 
-const JOB_POLL_RETRIES = 3;
-const JOB_POLL_TIMEOUT = "500ms";
+const JOB_POLL_RETRIES = 1;
+const JOB_POLL_TIMEOUT = "3s";
 
 @injectable()
 export class RedisQueue<T> {
@@ -83,7 +83,7 @@ export class RedisQueue<T> {
 
   /**
    * Run the given function on all the items on the queue.
-   * If nothing is on the queue, it will retry on 3 occasions before backing off. This is so slave workers (if any) wait for the master to fill the queue.
+   * If nothing is on the queue, it will retry in 3s before backing off. This is so slave workers (if any) wait for the master to fill the queue.
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
