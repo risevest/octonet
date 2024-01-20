@@ -120,7 +120,7 @@ export class RedisQueue<T> {
 
         return await Promise.all(work);
       } catch (error) {
-        if (error instanceof RetryError && attempt > JOB_PULL_RETRIES) {
+        if (error instanceof RetryError && attempt >= JOB_PULL_RETRIES) {
           return;
         }
 
