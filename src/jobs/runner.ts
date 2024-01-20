@@ -23,7 +23,7 @@ export class JobRunner {
    * @param retries number of times to retry failed queries. set to 0 to run single attempts
    * @param timeout minimum timeout before first retry
    */
-  constructor(container: Container, private retries = 3, private timeout = "10s") {
+  constructor(container: Container) {
     this.jobs = getJobs(container).map(j => ({ ...j, task: null }));
     this.lockID = uuid();
   }
@@ -41,7 +41,7 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, this.retries, this.timeout, j));
+      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, j));
 
       // only immediately run if a setup exists.
       if (j.query) {
@@ -126,7 +126,7 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
  * @param timeout minimum timeout between retries for query jobs
  * @param j job to run
  */
-export async function runJob<T>(redis: Redis, lockID: string, retries: number, timeout: string, j: Job<T>) {
+export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>) {
   const ownsLock = await acquireLock(redis, j.name, lockID, j.maxComputeTime);
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
@@ -146,8 +146,6 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
         throw err.wrapped;
       }
       throw err;
-    } finally {
-      await releaseLock(redis, j.name, lockID);
     }
   }
 
