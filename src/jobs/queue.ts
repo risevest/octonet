@@ -10,8 +10,8 @@ function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
 }
 
-const JOB_PULL_RETRIES = 3;
-const JOB_PULL_TIMEOUT = "500ms";
+const JOB_POLL_RETRIES = 3;
+const JOB_POLL_TIMEOUT = "500ms";
 
 @injectable()
 export class RedisQueue<T> {
@@ -89,7 +89,7 @@ export class RedisQueue<T> {
    * @param parallelism how many workers should handle the jobs at any given time
    */
   async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
-    await retryOnRequest(JOB_PULL_RETRIES, JOB_PULL_TIMEOUT, async (attempt: number) => {
+    await retryOnRequest(JOB_POLL_RETRIES, JOB_POLL_TIMEOUT, async (attempt: number) => {
       try {
         let handler: Function;
         if (logger) {
@@ -120,7 +120,7 @@ export class RedisQueue<T> {
 
         return await Promise.all(work);
       } catch (error) {
-        if (error instanceof RetryError && attempt >= JOB_PULL_RETRIES) {
+        if (error instanceof RetryError && attempt >= JOB_POLL_RETRIES) {
           return;
         }
 
