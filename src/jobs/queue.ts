@@ -1,13 +1,17 @@
+import { RetryError, retryOnRequest } from "../retry";
+
 import { Logger } from "../logging/logger";
 import Redis from "ioredis";
 import crypto from "crypto";
 import { dateReviver } from "../strings";
 import { injectable } from "inversify";
-import { retryOnRequest } from "../retry";
 
 function backupKey() {
   return crypto.randomBytes(16).toString("hex").slice(0, 32);
 }
+
+const JOB_PULL_RETRIES = 3;
+const JOB_PULL_TIMEOUT = "500ms";
 
 @injectable()
 export class RedisQueue<T> {
@@ -78,40 +82,51 @@ export class RedisQueue<T> {
   }
 
   /**
-   * Run the given function on all the items on the queue
+   * Run the given function on all the items on the queue.
+   * If nothing is on the queue, it will retry on 3 occasions before backing off. This is so slave workers (if any) wait for the master to fill the queue.
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
    */
   async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
-    let handler: Function;
-    if (logger) {
-      handler = wrapHandler(this.name, logger, f);
-    } else {
-      handler = (job: string) => f(JSON.parse(job));
-    }
+    await retryOnRequest(JOB_PULL_RETRIES, JOB_PULL_TIMEOUT, async (attempt: number) => {
+      try {
+        let handler: Function;
+        if (logger) {
+          handler = wrapHandler(this.name, logger, f);
+        } else {
+          handler = (job: string) => f(JSON.parse(job));
+        }
 
-    const work = Array.from({ length: parallelism }).map(async () => {
-      while (true) {
-        const bkpKey = backupKey();
-        const data = await this.redis.lpop(this.name);
-        if (!data) {
+        const work = Array.from({ length: parallelism }).map(async () => {
+          while (true) {
+            const bkpKey = backupKey();
+            const data = await this.redis.lpop(this.name);
+            if (!data) {
+              throw new RetryError();
+            }
+
+            // backup the job item
+            await this.redis.hset(this.deadLetterHash, bkpKey, data);
+
+            try {
+              await retryOnRequest(this.retries, this.timeout, _n => handler(data));
+              await this.redis.hdel(this.deadLetterHash, bkpKey);
+            } catch (err) {
+              // no-op
+            }
+          }
+        });
+
+        return await Promise.all(work);
+      } catch (error) {
+        if (error instanceof RetryError && attempt > JOB_PULL_RETRIES) {
           return;
         }
 
-        // backup the job item
-        await this.redis.hset(this.deadLetterHash, bkpKey, data);
-
-        try {
-          await retryOnRequest(this.retries, this.timeout, _n => handler(data));
-          await this.redis.hdel(this.deadLetterHash, bkpKey);
-        } catch (err) {
-          // no-op
-        }
+        throw error;
       }
     });
-
-    return Promise.all(work);
   }
 }
 

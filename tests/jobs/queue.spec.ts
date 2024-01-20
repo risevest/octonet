@@ -134,6 +134,7 @@ describe("RedisQueue#work", () => {
 });
 
 describe("RedisQueue#requeue", () => {
+  jest.setTimeout(10000);
   it("should re-process failed jobs", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);
     await queue.fill(jobs);
