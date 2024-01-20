@@ -1,15 +1,17 @@
-import crypto from "crypto";
-import { promisify } from "util";
-
-import { Channel } from "amqplib";
-import parser from "cron-parser";
-import ms from "ms";
 import { JSONCodec, JetStreamManager } from "nats";
 import sinon, { SinonFakeTimers } from "sinon";
 
+import { Channel } from "amqplib";
+import crypto from "crypto";
 import { dateReviver } from "../src/strings";
+import ms from "ms";
+import parser from "cron-parser";
+import { promisify } from "util";
 
 let sinonClock: SinonFakeTimers | null;
+Object.defineProperty(global, "performance", {
+  writable: true
+})
 
 /**
  * Generates random HEX string
