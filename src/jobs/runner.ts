@@ -1,13 +1,13 @@
-import { Container } from "inversify";
-import { Redis } from "ioredis";
-import ms from "ms";
-import cron, { ScheduledTask } from "node-cron";
-import { v4 as uuid } from "uuid";
-
-import { Logger } from "../logging/logger";
-import { ExitError, RetryError, retryOnError, retryOnRequest, wrapHandler } from "../retry";
+import { ExitError, RetryError, retryOnRequest, wrapHandler } from "../retry";
 import { Job, getJobs } from "./decorators";
+import cron, { ScheduledTask } from "node-cron";
+
+import { Container } from "inversify";
+import { Logger } from "../logging/logger";
+import { Redis } from "ioredis";
 import { RedisQueue } from "./queue";
+import ms from "ms";
+import { v4 as uuid } from "uuid";
 
 interface ScheduledJob<T> extends Job<T> {
   task: ScheduledTask;
@@ -140,14 +140,7 @@ export async function runJob<T>(redis: Redis, lockID: string, retries: number, t
       }
 
       // write jobs to queue for safe consumption
-      // this entire operation is seen as one atomic op.
-      await retryOnError(retries, timeout, async () => {
-        const filled = await queue.fill(await j.query());
-
-        if (!filled) {
-          throw new Error(`Forcing restart for ${j.name} query. Old job not complete`);
-        }
-      });
+      await queue.fill(await j.query())
     } catch (err) {
       if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
         throw err.wrapped;
