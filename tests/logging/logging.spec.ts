@@ -47,7 +47,7 @@ describe("Bunyan#Request", () => {
     expect(properties).to.have.property("req");
   });
 
-  it("should ensure sensitive data is not being logged on request", async () => {
+  it("should ensure sensitive data are not being logged on request", async () => {
     await axios.post(`${baseUrl}/req`, { password: "password" });
     const properties = ringbuffer.records[0];
     expect(ringbuffer.records).to.be.length(1);
@@ -89,7 +89,7 @@ describe("Bunyan#Response", () => {
     expect(properties).to.have.property("res");
   });
 
-  it("should ensure sensitive data is not being logged on response", async () => {
+  it("should ensure sensitive data are not being logged on response", async () => {
     await axios.post(`${baseUrl}/req-res`, { password: "password" });
     const properties = ringbuffer.records[0];
     expect(ringbuffer.records).to.be.length(1);
