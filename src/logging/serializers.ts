@@ -1,5 +1,6 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { Request, Response } from "express";
+
 import unset from "lodash/unset";
 
 const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "patch"];
@@ -17,7 +18,7 @@ export function defaultSerializers(...paths: string[]) {
     axios_req: axiosRequest(...paths),
     axios_res: axiosResponse(...paths),
     req: expressRequest(...paths),
-    res: expressResponse,
+    res: expressResponse(...paths),
     event: sanitized(...paths),
     err: serializeErr
   };
@@ -120,7 +121,7 @@ export function axiosResponse(...paths: string[]) {
 
 /**
  * Create serializer for express requests
- * @param paths sensitive data pasths
+ * @param paths sensitive data paths
  */
 export function expressRequest(...paths: string[]): (req: Request) => object {
   return (req: Request) => {
@@ -148,14 +149,24 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
 
 /**
  * Serializer for express responses
- * @param res express response object
+ * @param paths sensitive data paths
  */
-export function expressResponse(res: Response) {
-  if (!res || !res.statusCode) return res;
+export function expressResponse(...paths: string[]): (res: Response) => object {
+  return (res: Response) => {
+    if (!res || !res.statusCode) return res;
 
-  return {
-    statusCode: res.statusCode,
-    headers: res.getHeaders(),
-    body: res.locals.body
-  };
+    const log = {
+      statusCode: res.statusCode,
+      headers: res.getHeaders(),
+    };
+
+    if (res.locals.body && Object.keys(res.locals.body).length !== 0) {
+      const logBody = { ...res.locals.body };
+      paths.forEach(p => unset(logBody, p));
+
+      log["body"] = logBody;
+    }
+  
+    return log;
+  }
 }
