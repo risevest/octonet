@@ -60,6 +60,21 @@ describe("Bunyan#Request", () => {
     expect(properties.req.body).to.not.have.property("password");
   });
 
+  it("should ensure sensitive data are not being logged on request even if nested", async () => {
+    await axios.post(`${baseUrl}/req`, { password: "password", user: { password: "password", other_prop: "other" }});
+    const properties = ringbuffer.records[0];
+    expect(ringbuffer.records).to.be.length(1);
+    expect(properties.req).to.have.property("method");
+    expect(properties.req).to.have.property("url");
+    expect(properties.req).to.have.property("headers");
+    expect(properties.req).to.have.property("remoteAddress");
+    expect(properties.req).to.have.property("remotePort");
+    expect(properties).to.have.property("req");
+    expect(properties.req.body).to.not.have.property("password");
+    expect(properties.req.body.user).to.not.have.property("password");
+    expect(properties.req.body.user).to.have.property("other_prop");
+  });
+
   it("should ensure non-sensitive data are logged on request", async () => {
     await axios.post(`${baseUrl}/req`, { password: "password", other_prop: "other" });
     const properties = ringbuffer.records[0];
@@ -101,6 +116,22 @@ describe("Bunyan#Response", () => {
     expect(properties).to.have.property("req");
     expect(properties).to.have.property("res");
     expect(properties.req.body).to.not.have.property("password");
+  });
+
+  it("should ensure sensitive data are not being logged on response even if nested", async () => {
+    await axios.post(`${baseUrl}/req-res`, { password: "password", user: { password: "password", other_prop: "other" }});
+    const properties = ringbuffer.records[0];
+    expect(ringbuffer.records).to.be.length(1);
+    expect(properties.req).to.have.property("method");
+    expect(properties.req).to.have.property("url");
+    expect(properties.req).to.have.property("headers");
+    expect(properties.req).to.have.property("remoteAddress");
+    expect(properties.req).to.have.property("remotePort");
+    expect(properties).to.have.property("req");
+    expect(properties).to.have.property("res");
+    expect(properties.req.body).to.not.have.property("password");
+    expect(properties.req.body.user).to.not.have.property("password");
+    expect(properties.req.body.user).to.have.property("other_prop");
   });
 
   it("should ensure non-sensitive data are logged on response", async () => {
