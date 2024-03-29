@@ -160,13 +160,23 @@ export function expressResponse(...paths: string[]): (res: Response) => object {
       headers: res.getHeaders(),
     };
 
-    if (res.locals.body && Object.keys(res.locals.body).length !== 0) {
-      const logBody = { ...res.locals.body };
+    const body = typeof res.locals.body === "string" && isStringifiedObject(res.locals.body) ? JSON.parse(res.locals.body) : res.locals.body;
+    if (body && Object.keys(body).length !== 0) {
+      const logBody = { ...body };
       paths.forEach(p => unset(logBody, p));
 
       log["body"] = logBody;
     }
   
     return log;
+  }
+}
+
+function isStringifiedObject(str: string): boolean {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
   }
 }
