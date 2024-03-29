@@ -1,0 +1,211 @@
+[
+  {
+    "code": "bvn",
+    "name": "BVN",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 1,
+    "smileid_id_type": "BVN",
+    "is_identity_card": false
+  },
+  {
+    "code": "national_id",
+    "name": "vNIN",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 1,
+    "smileid_id_type": "V_NIN",
+    "is_identity_card": false
+  },
+  {
+    "code": "national_id",
+    "name": "NIN Slip",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 1,
+    "smileid_id_type": "NIN_V2",
+    "is_identity_card": true
+  },
+  {
+    "code": "passport",
+    "name": "International Passport",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "PASSPORT",
+    "is_identity_card": true
+  },
+  {
+    "code": "driver_license",
+    "name": "Driver License",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "DRIVERS_LICENSE",
+    "is_identity_card": true
+  },
+  {
+    "code": "voter_id",
+    "name": "Voter ID",
+    "country": "ng",
+    "country_name": "Nigeria",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "VOTER_ID",
+    "is_identity_card": true
+  },
+  {
+    "code": "voter_id",
+    "name": "Voter ID",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "VOTER_ID",
+    "is_identity_card": true
+  },
+  {
+    "code": "voter_id",
+    "name": "Voter ID",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 5,
+    "smileid_id_type": "NEW_VOTER_ID",
+    "is_identity_card": true
+  },
+  {
+    "code": "passport",
+    "name": "International Passport",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "PASSPORT",
+    "is_identity_card": true
+  },
+  {
+    "code": "national_id",
+    "name": "National ID",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "IDENTITY_CARD",
+    "is_identity_card": true
+  },
+  {
+    "code": "driver_license",
+    "name": "Driver License",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "DRIVERS_LICENSE",
+    "is_identity_card": true
+  },
+  {
+    "code": "ssnit",
+    "name": "SSNIT",
+    "country": "gh",
+    "country_name": "Ghana",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 1,
+    "smileid_id_type": "SSNIT",
+    "is_identity_card": true
+  },
+  {
+    "code": "national_id",
+    "name": "National ID",
+    "country": "ke",
+    "country_name": "Kenya",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "NATIONAL_ID",
+    "is_identity_card": true
+  },
+  {
+    "code": "passport",
+    "name": "International Passport",
+    "country": "ke",
+    "country_name": "Kenya",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "PASSPORT",
+    "is_identity_card": true
+  },
+  {
+    "code": "driver_license",
+    "name": "Driver License",
+    "country": "ke",
+    "country_name": "Kenya",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "DRIVERS_LICENSE",
+    "is_identity_card": true
+  },
+  {
+    "code": "voter_id",
+    "name": "Voter ID",
+    "country": "ug",
+    "country_name": "Uganda",
+    "requires_ocr": false,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "VOTER_ID",
+    "is_identity_card": true
+  },
+  {
+    "code": "passport",
+    "name": "International Passport",
+    "country": "ug",
+    "country_name": "Uganda",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "PASSPORT",
+    "is_identity_card": true
+  },
+  {
+    "code": "driver_license",
+    "name": "Driver License",
+    "country": "ug",
+    "country_name": "Uganda",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "DRIVERS_LICENSE",
+    "is_identity_card": true
+  },
+  {
+    "code": "national_id",
+    "name": "National ID",
+    "country": "ug",
+    "country_name": "Uganda",
+    "requires_ocr": true,
+    "provider": "smileid",
+    "smileid_job_id": 6,
+    "smileid_id_type": "NATIONAL_ID",
+    "is_identity_card": true
+  }
+]
