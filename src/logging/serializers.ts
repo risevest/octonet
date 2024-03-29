@@ -1,7 +1,6 @@
 import { AxiosRequestConfig, AxiosResponse } from "axios";
 import { Request, Response } from "express";
-
-import unset from "lodash/unset";
+import { cloneDeep, isPlainObject, unset } from "lodash";
 
 const axiosDefaultHeaders = ["common", "delete", "get", "head", "post", "put", "patch"];
 
@@ -64,8 +63,7 @@ export function sanitized<T = any>(...paths: string[]) {
   return (data: T) => {
     if (!data || typeof data !== "object" || Object.keys(data).length === 0) return data;
 
-    const dataCopy = { ...data };
-    paths.forEach(p => unset(dataCopy, p));
+    const dataCopy = deepSanitizeObj(data, ...paths);
 
     return dataCopy;
   };
@@ -93,8 +91,7 @@ export function axiosRequest(...paths: string[]) {
     }
 
     if (conf.data && Object.keys(conf.data).length !== 0) {
-      const logBody = { ...conf.data };
-      paths.forEach(p => unset(logBody, p));
+      const logBody = deepSanitizeObj(conf.data, ...paths);
 
       log["data"] = logBody;
     }
@@ -109,8 +106,8 @@ export function axiosRequest(...paths: string[]) {
  */
 export function axiosResponse(...paths: string[]) {
   return (res: AxiosResponse<any>) => {
-    const data = { ...res.data };
-    paths.forEach(p => unset(data, p));
+    const data = deepSanitizeObj(res.data, ...paths);
+
     return {
       statusCode: res.status,
       headers: res.headers,
@@ -137,8 +134,7 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
     };
 
     if (req.body && Object.keys(req.body).length !== 0) {
-      const logBody = { ...req.body };
-      paths.forEach(p => unset(logBody, p));
+      const logBody = deepSanitizeObj(req.body, ...paths);
 
       log["body"] = logBody;
     }
@@ -160,13 +156,40 @@ export function expressResponse(...paths: string[]): (res: Response) => object {
       headers: res.getHeaders(),
     };
 
-    if (res.locals.body && Object.keys(res.locals.body).length !== 0) {
-      const logBody = { ...res.locals.body };
-      paths.forEach(p => unset(logBody, p));
+    const body = typeof res.locals.body === "string" && isStringifiedObject(res.locals.body) ? JSON.parse(res.locals.body) : res.locals.body;
+    if (body && Object.keys(body).length !== 0) {
+      const logBody = deepSanitizeObj(body, ...paths);
 
       log["body"] = logBody;
     }
   
     return log;
   }
+}
+
+function isStringifiedObject(str: string): boolean {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function deepSanitizeObj(data: object, ...paths: string[]) {
+  const clone = cloneDeep(data); // Deep clone to avoid any reference issues
+
+  function sanitizeNode(node: any) {
+    if (isPlainObject(node)) {
+      paths.forEach(path => unset(node, path));
+
+      Object.keys(node).forEach(key => sanitizeNode(node[key]));
+    } else if (Array.isArray(node)) {
+      node.forEach((item: any) => sanitizeNode(item));
+    }
+  }
+
+  sanitizeNode(clone);
+
+  return clone;
 }
