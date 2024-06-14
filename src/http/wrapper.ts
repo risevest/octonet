@@ -1,4 +1,4 @@
-import { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 import { Request } from "express";
 import FormData from "form-data";
 import { each } from "lodash";
@@ -186,6 +186,29 @@ export class RequestWrapper<T extends object> {
           throw new HttpError(err.config.url, err);
         } else {
           throw new Error(err.message);
+        }
+      }
+    );
+  }
+
+  /**
+   * Same as do but gives direct access to the response. Also does not handle
+   * any error but timeouts
+   * @param timeout timeout for request in seconds
+   */
+  async raw<T = any>(timeout = 10): Promise<AxiosResponse<T>> {
+    // call deferred actions
+    for (const iterator of this.asyncActions) {
+      await iterator();
+    }
+
+    return this.instance({ timeout: timeout * 1000, ...this.request }).then(
+      res => res,
+      (err: AxiosError) => {
+        if (err.code === AxiosError.ETIMEDOUT || err.code === AxiosError.ECONNABORTED) {
+          throw new TimeoutError(err.config.url, err.config.timeout);
+        } else {
+          throw new HttpError(err.config.url, err);
         }
       }
     );
