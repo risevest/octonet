@@ -108,6 +108,17 @@ describe("RequestWrapper#set", () => {
   });
 });
 
+describe("RequestWrapper#query", () => {
+  it("should set query parameters for a request", async () => {
+    const request = { method: HttpMethod.GET, url: mockResourceURL };
+    const data = { first_name: faker.name.firstName(), last_name: faker.name.lastName() };
+    const req = new RequestWrapper(axiosInstance, service, authConfig, request);
+
+    const res = await req.query(data).do();
+    expect(res.query).to.be.eql(data);
+  });
+});
+
 describe("RequestWrapper#track", () => {
   it("should track requests with no source request", async () => {
     const request = { method: HttpMethod.GET, url: mockResourceURL };

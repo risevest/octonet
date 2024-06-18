@@ -37,6 +37,7 @@ export class RequestWrapper<T extends object> {
     protected request: Partial<AxiosRequestConfig<RequestData<T>>>
   ) {
     this.request.headers = Object.assign({}, request.headers);
+    this.request.params = Object.assign({}, request.params);
   }
 
   /**
@@ -59,6 +60,15 @@ export class RequestWrapper<T extends object> {
       this.defer(action);
     });
 
+    return this;
+  }
+
+  /**
+   * Set the query parameters of the request
+   * @param data query paramaters
+   */
+  query(data: { [k: string]: string }) {
+    Object.assign(this.request.params, data);
     return this;
   }
 

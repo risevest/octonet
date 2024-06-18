@@ -50,7 +50,7 @@ The various types of HTTP errors provided by Octonet are summarized in the table
 ## Example using HTTP Agent and Errors
 
 ```typescript
-import { AgentConfig, HttpAgent, Logger } from "@risemaxi/octonet";
+import { AgentConfig, HttpAgent, Logger } from "@noxecane/octonet";
 
 const env = process.env;
 
@@ -66,9 +66,9 @@ const http = new HttpAgent(HTTPAgentConfig)(
   // immediately invoking function
   async function () {
     let url = env.URL;
-    let token = "Rise Token";
+    let token = "Auth Token";
     let data = {
-      email: "email@rise.com",
+      email: "email@example.com",
       password: "password223"
     };
     try {

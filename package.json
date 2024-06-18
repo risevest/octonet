@@ -1,7 +1,7 @@
 {
-  "name": "@risemaxi/octonet",
-  "version": "0.12.13",
-  "description": "Web toolkit for rise macro services",
+  "name": "@noxecane/octonet",
+  "version": "0.1.0",
+  "description": "Web toolkit for macro services",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -12,15 +12,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/risevest/octonet.git"
+    "url": "git+https://github.com/noxecane/octonet.git"
   },
   "bugs": {
-    "url": "https://github.com/risevest/octonet/issues"
+    "url": "https://github.com/noxecane/octonet/issues"
   },
   "files": [
     "dist/"
   ],
-  "homepage": "https://github.com/risevest/octonet#readme",
+  "homepage": "https://github.com/noxecane/octonet#readme",
   "devDependencies": {
     "@faker-js/faker": "^7.6.0",
     "@types/amqplib": "^0.10.1",
@@ -66,6 +66,6 @@
     "uuid": "^9.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

@@ -78,7 +78,7 @@ Let's look at practical examples of the Logger module
 
 ```js
 import express from "express";
-import { Logger, defaultSerializers } from "@risemaxi/octonet";
+import { Logger, defaultSerializers } from "@noxecane/octonet";
 
 // create the Logger instance
 const logger: Logger = new Logger({

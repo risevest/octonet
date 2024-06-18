@@ -1,6 +1,6 @@
 # Octonet
 
-![Github Actions](https://github.com/risevest/octonet/actions/workflows/build-test.yml/badge.svg)
+![Github Actions](https://github.com/noxecane/octonet/actions/workflows/build-test.yml/badge.svg)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
 ## About
@@ -31,19 +31,19 @@ The following are required for the best use of Octonet:
 To install Octonet, run the following command in your terminal
 
 ```bash
-yarn install --save @risemaxi/octonet reflect-metadata
+yarn install --save @noxecane/octonet reflect-metadata
 ```
 
 To upgrade to a specific version run this command
 
 ```bash
-yarn upgrade @risemaxi/octonet@version
+yarn upgrade @noxecane/octonet@version
 ```
 
 To upgrade to latest version run this command
 
 ```bash
-yarn upgrade @risemaxi/octonet --latest
+yarn upgrade @noxecane/octonet --latest
 ```
 
 > Note: Octonet requires Typescript (>= v4.4), as well as the `Decorator` experimental feature. Therefore, the following config options should be present in your `tsconfig.json` file:

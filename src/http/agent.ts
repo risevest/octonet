@@ -82,7 +82,6 @@ export class HttpAgent {
     switch (method) {
       case HttpMethod.GET:
       case HttpMethod.DELETE:
-        httpRequest.params = data;
         break;
       default:
         httpRequest.data = data;
@@ -116,10 +115,9 @@ export class HttpAgent {
   /**
    * Makes a get request
    * @param url absolute URL
-   * @param params query parameters
    */
-  get<T extends object = any>(url: string, params?: T) {
-    return this.makeRequest(HttpMethod.GET, url, params);
+  get(url: string) {
+    return this.makeRequest(HttpMethod.GET, url);
   }
 
   /**
@@ -152,9 +150,8 @@ export class HttpAgent {
   /**
    * Makes a delete request
    * @param url absolute URL
-   * @param params query parameters
    */
-  del<T extends object = any>(url: string, params?: T) {
-    return this.makeRequest(HttpMethod.DELETE, url, params);
+  del(url: string) {
+    return this.makeRequest(HttpMethod.DELETE, url);
   }
 }

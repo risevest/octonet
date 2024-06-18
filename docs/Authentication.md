@@ -139,7 +139,7 @@ Next, we create and Octonet's `RedisStore` instance as shown below
 ```js
 // redis.store.ts
 
-import { RedisStore } from "@risemaxi/octonet";
+import { RedisStore } from "@noxecane/octonet";
 import Redis from "./redis.config";
 
 const SECRET = "my_secret"; // use the secret specified in your .env file
@@ -196,12 +196,12 @@ It is used in the encoding and decoding of JSON Web Tokens(JWTs)
 See example below
 
 ```javascript
-import { jwt } from "@risemaxi/octonet";
+import { jwt } from "@noxecane/octonet";
 
 const mySecret = "12345678123456781234567812345678"; //32 character string
 const payload = {
-  email: "email@rise.com",
-  username: "risemaxi"
+  email: "email@example.com",
+  username: "noxecane"
 };
 const encodedSecret: Uint8Array = new TextEncoder().encode(mySecret);
 
