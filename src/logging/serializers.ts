@@ -153,27 +153,16 @@ export function expressResponse(...paths: string[]): (res: Response) => object {
 
     const log = {
       statusCode: res.statusCode,
-      headers: res.getHeaders(),
+      headers: res.getHeaders()
     };
 
-    const body = typeof res.locals.body === "string" && isStringifiedObject(res.locals.body) ? JSON.parse(res.locals.body) : res.locals.body;
-    if (body && Object.keys(body).length !== 0) {
-      const logBody = deepSanitizeObj(body, ...paths);
-
+    if (res.locals.body && Object.keys(res.locals.body).length !== 0) {
+      const logBody = deepSanitizeObj(res.locals.body, ...paths);
       log["body"] = logBody;
     }
-  
-    return log;
-  }
-}
 
-function isStringifiedObject(str: string): boolean {
-  try {
-    JSON.parse(str);
-    return true;
-  } catch (e) {
-    return false;
-  }
+    return log;
+  };
 }
 
 function deepSanitizeObj(data: object, ...paths: string[]) {
