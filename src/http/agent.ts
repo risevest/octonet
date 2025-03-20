@@ -1,8 +1,8 @@
+import { AuthConfig, RequestWrapper } from "./wrapper";
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 import { Logger } from "../logging/logger";
 import { dateReviver } from "../strings";
-import { AuthConfig, RequestWrapper } from "./wrapper";
 
 const defaultAxiosConfig: Partial<AxiosRequestConfig> = {
   transitional: { clarifyTimeoutError: true },
@@ -12,7 +12,11 @@ const defaultAxiosConfig: Partial<AxiosRequestConfig> = {
         return {};
       }
 
-      return JSON.parse(data, dateReviver);
+      try {
+        return JSON.parse(data, dateReviver);
+      } catch (error) {
+        return data;
+      }
     }
   ]
 };
