@@ -41,7 +41,7 @@ export class JobRunner {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, j));
+      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, j, logger));
 
       // only immediately run if a setup exists.
       if (j.query) {
@@ -126,7 +126,7 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
  * @param timeout minimum timeout between retries for query jobs
  * @param j job to run
  */
-export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>) {
+export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger: Logger) {
   const ownsLock = await acquireLock(redis, j.name, lockID, j.maxComputeTime);
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
@@ -140,7 +140,7 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>) {
       }
 
       // write jobs to queue for safe consumption
-      await queue.fill(await j.query())
+      await queue.fill(await j.query());
     } catch (err) {
       if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
         throw err.wrapped;
@@ -149,5 +149,5 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>) {
     }
   }
 
-  return queue.work(j.job);
+  return queue.work(j.job, logger);
 }
