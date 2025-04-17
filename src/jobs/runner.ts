@@ -47,7 +47,7 @@ export class JobRunner {
       if (j.query) {
         const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
         // we don't need to fill if queue already has items
-        preruns.push(queue.work(j.job));
+        preruns.push(queue.work(j.job, logger));
       }
     }
 
