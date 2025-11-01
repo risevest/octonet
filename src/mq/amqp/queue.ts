@@ -31,10 +31,20 @@ export class Queue<T> {
    * Push data to the queue, handling serilization and buffering
    * @param data data to write on queue
    */
-  push(data: T) {
-    const succeded = this.chan.sendToQueue(this.queue, Buffer.from(JSON.stringify(data)));
+  push(data: T, delayMs?: number) {
+    const succeeded = this.chan.sendToQueue(
+      this.queue,
+      Buffer.from(JSON.stringify(data)),
+      delayMs
+        ? {
+            headers: {
+              "x-delay": delayMs
+            }
+          }
+        : undefined
+    );
     // queue for later
-    if (!succeded) {
+    if (!succeeded) {
       this.internalBuffer.push(data);
     }
   }
