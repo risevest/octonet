@@ -35,13 +35,12 @@ export class Queue<T> {
     const succeeded = this.chan.sendToQueue(
       this.queue,
       Buffer.from(JSON.stringify(data)),
-      delayMs
-        ? {
+      ...(delayMs
+        && {
             headers: {
               "x-delay": delayMs
             }
-          }
-        : undefined
+          })
     );
     // queue for later
     if (!succeeded) {
