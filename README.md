@@ -84,3 +84,4 @@ The following links would further aid the understanding of Octonet
 - [Axios](https://axios-http.com/docs/intro)
 - [RabbitMQ messaging queues](https://www.rabbitmq.com/)
 - [NATS Messaging](https://docs.nats.io/nats-concepts/what-is-nats)
+- [Job Scheduling](https://github.com/risevest/octonet/blob/master/docs/Jobs.md)
