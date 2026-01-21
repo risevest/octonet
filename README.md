@@ -71,6 +71,7 @@ Below are links to detailed explanations to the various features of Octonet as w
 - [QueueManager (subscribing to RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
+- [Job Scheduling](docs/Jobs.md)
 
 ## References and Helpful Links
 
