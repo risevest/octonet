@@ -71,6 +71,7 @@ Below are links to detailed explanations to the various features of Octonet as w
 - [QueueManager (subscribing to RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
 - [Logging](docs/Logging.md)
+- [Job Scheduling](docs/Jobs.md)
 
 ## References and Helpful Links
 
@@ -84,4 +85,3 @@ The following links would further aid the understanding of Octonet
 - [Axios](https://axios-http.com/docs/intro)
 - [RabbitMQ messaging queues](https://www.rabbitmq.com/)
 - [NATS Messaging](https://docs.nats.io/nats-concepts/what-is-nats)
-- [Job Scheduling](https://github.com/risevest/octonet/blob/master/docs/Jobs.md)
