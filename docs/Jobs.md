@@ -215,7 +215,9 @@ interface JobConfig {
   retries?: number;
 
   /**
-   * Minimum amount of time to wait between retries.
+   * Delay between retry attempts for a failed job
+   * Note: This is not a per-job execution timeout. Use `maxComputeTime`
+   * to control how long a job is allowed to run.
    * @default "10s"
    */
   timeout?: string;
@@ -312,7 +314,7 @@ const runner = new JobRunner(container);
 await runner.start(redis, logger);
 
 // Manually trigger a job
-runner.run("my-jobs.cleanup");
+await runner.run("my-jobs.cleanup");
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
@@ -341,7 +343,7 @@ new RedisQueue<T>(
 - `name`: Queue identifier
 - `redis`: Redis instance
 - `retries`: Number of retry attempts (default: 3)
-- `timeout`: Minimum time between retries (default: '10s')
+- `timeout`: Delay between retry attempts for a failed job  (default: '10s')
 
 ### Methods
 
@@ -585,13 +587,14 @@ class BigDataJobs {
     let offset = 0;
     const batchSize = 1000;
 
-    while (true) {
-      const batch = await db.getRecords(offset, batchSize);
-      if (batch.length === 0) break;
-
-      yield batch;
-      offset += batchSize;
-    }
+    let batch: Record[];
+    do {
+      batch = await db.getRecords(offset, batchSize);
+      if (batch.length > 0) {
+        yield batch;
+        offset += batchSize;
+      }
+    } while (batch.length > 0);
   }
 
   @job("process-millions", "0 3 * * *", { maxComputeTime: "6h" })
@@ -617,7 +620,7 @@ Set `maxComputeTime` based on realistic job duration to prevent lock contention:
 
 ### 2. Use Retries Wisely
 
-- Set `retries: 0` for idempotent operations where failures can be skipped
+- Use `retries: 0` only for non-critical or best-effort operations where occasional failures are acceptable
 - Use higher retry counts for critical operations
 - Set appropriate `timeout` to avoid immediate retries
 
@@ -641,7 +644,7 @@ Use descriptive, hierarchical names:
 ```typescript
 @cron('user-management')
 class UserJobs {
-  @daily('user-management.cleanup-inactive')
+  @daily('cleanup-inactive')
   // Job name will be: "user-management.cleanup-inactive"
 }
 ```
