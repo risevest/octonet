@@ -72,6 +72,95 @@ The _error_ function logs internal application error.
 
 **entry:** additional error description
 
+## Distributed Tracing
+
+The Logger supports opt-in distributed tracing via the `TracingProvider` interface. When configured, every log entry is automatically enriched with `trace_id` and `span_id` fields, enabling correlation between logs and traces in tools like Grafana (Loki + Tempo).
+
+### TracingProvider Interface
+
+Octonet defines a provider-agnostic interface — no tracing dependencies are added to octonet itself. Services supply their own implementation (OpenTelemetry, Datadog, etc.):
+
+```ts
+import { TracingProvider, TraceContext } from "@risemaxi/octonet";
+
+interface TraceContext {
+  traceId: string;
+  spanId: string;
+  traceFlags?: number;
+}
+
+interface TracingProvider {
+  getActiveTraceContext(): TraceContext | null;
+}
+```
+
+### Enabling Tracing
+
+Pass a `TracingProvider` to the Logger config:
+
+```ts
+const logger = new Logger({
+  name: "rise-analytics",
+  serializers: defaultSerializers(),
+  tracing: myTracingProvider  // opt-in
+});
+```
+
+When `tracing` is omitted or undefined, the Logger behaves exactly as before — no trace fields are added.
+
+### OpenTelemetry Example
+
+For services using OpenTelemetry:
+
+```ts
+import { trace } from "@opentelemetry/api";
+import { TracingProvider } from "@risemaxi/octonet";
+
+export const otelTracingProvider: TracingProvider = {
+  getActiveTraceContext() {
+    const span = trace.getActiveSpan();
+    if (!span) return null;
+    const { traceId, spanId, traceFlags } = span.spanContext();
+    return { traceId, spanId, traceFlags };
+  }
+};
+```
+
+Then pass it to the Logger:
+
+```ts
+const logger = new Logger({
+  name: env.service_name,
+  serializers: defaultSerializers(),
+  tracing: otelTracingProvider
+});
+```
+
+### How It Works
+
+- The `TracingProvider.getActiveTraceContext()` is called on every log call
+- If it returns a context, `trace_id` and `span_id` are injected into the log entry
+- If it returns `null` (no active span), no trace fields are added
+- Child loggers created via `logger.child()` inherit the tracing provider
+- This works across HTTP handlers, AMQP workers, NATS consumers, and cron jobs — anywhere the tracing library maintains an active span context
+
+### Log Output
+
+With tracing enabled, log entries include trace fields:
+
+```json
+{
+  "name": "rise-analytics",
+  "msg": "successfully connected to redis",
+  "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "span_id": "1a2b3c4d5e6f7a8b",
+  "level": 30,
+  "time": "2026-02-26T12:00:00.000Z"
+}
+```
+
+These fields enable "Logs for this span" links in Grafana Tempo, connecting traces to their corresponding log entries in Loki.
+
 ## Practical examples
 
 Let's look at practical examples of the Logger module
