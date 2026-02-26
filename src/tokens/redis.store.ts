@@ -9,7 +9,15 @@ import { AsyncNullable, TokenStore } from "./store";
 export class RedisStore implements TokenStore {
   constructor(private secret: string, private redis: Redis) {}
 
+    /**
+   * @deprecated Use `commission()` instead. This method has a typo in its name and will be removed in a future version.
+   */
   async commision<T = any>(key: string, val: T, time: string): Promise<string> {
+    // Delegate to the correctly-spelled method
+    return this.commission(key, val, time);
+  }
+
+  async commission<T = any>(key: string, val: T, time: string): Promise<string> {
     const token = crypto.createHmac("sha256", this.secret).update(key).digest("hex");
 
     const content = JSON.stringify(val);

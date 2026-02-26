@@ -10,6 +10,7 @@ octonet is a library that provides utility functions for building microservices 
 - Interservice communication (via REST)
 - Subscribing to events from RabbitMQ queues and NATS servers.
 - Logging
+- Distributed Tracing
 - Authentication
 
 ## Getting Started
@@ -70,7 +71,8 @@ Below are links to detailed explanations to the various features of Octonet as w
 - [NatsConsumer (subscribing to Nats topics)](docs/Consumer.md)
 - [QueueManager (subscribing to RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
-- [Logging](docs/Logging.md)
+- [Logging & Tracing](docs/Logging.md)
+- [Job Scheduling](docs/Jobs.md)
 
 ## References and Helpful Links
 

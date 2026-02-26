@@ -2,6 +2,8 @@ import { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import Bunyan, { ERROR, INFO } from "bunyan";
 import { Request, Response } from "express";
 
+import { TracingProvider } from "../tracing";
+
 export interface LogError {
   err: Error;
   [key: string]: any;
@@ -17,17 +19,21 @@ export interface LoggerConfig {
   serializers: Serializers;
   verbose?: boolean;
   buffer?: NodeJS.WritableStream | Bunyan.WriteFn;
+  tracing?: TracingProvider;
 }
 
 export class Logger {
   private logger: Bunyan;
+  private tracing?: TracingProvider;
 
-  constructor(logger: Bunyan);
+  constructor(logger: Bunyan, tracing?: TracingProvider);
   constructor(config: LoggerConfig);
-  constructor(config: LoggerConfig | Bunyan) {
+  constructor(config: LoggerConfig | Bunyan, tracing?: TracingProvider) {
     if (config instanceof Bunyan) {
       this.logger = config;
+      this.tracing = tracing;
     } else {
+      this.tracing = config.tracing;
       this.logger = new Bunyan({
         name: config.name,
         serializers: config.serializers,
@@ -42,12 +48,19 @@ export class Logger {
     }
   }
 
+  private withTrace(data: object): object {
+    if (!this.tracing) return data;
+    const ctx = this.tracing.getActiveTraceContext();
+    if (!ctx) return data;
+    return { ...data, trace_id: ctx.traceId, span_id: ctx.spanId };
+  }
+
   /**
    * Create a child logger with labels to annotate it as such
    * @param labels annotation of new sub logger
    */
   child(labels: object) {
-    return new Logger(this.logger.child(labels));
+    return new Logger(this.logger.child(labels), this.tracing);
   }
 
   /**
@@ -55,7 +68,7 @@ export class Logger {
    * @param req Express request
    */
   request(req: Request) {
-    this.logger.info({ req });
+    this.logger.info(this.withTrace({ req }));
   }
 
   /**
@@ -64,7 +77,7 @@ export class Logger {
    * @param res Express responser
    */
   response(req: Request, res: Response) {
-    this.logger.info({ res, req });
+    this.logger.info(this.withTrace({ res, req }));
   }
 
   /**
@@ -74,7 +87,7 @@ export class Logger {
    * @param res express responser
    */
   httpError(err: Error, req: Request, res: Response) {
-    this.logger.error({ err, res, req });
+    this.logger.error(this.withTrace({ err, res, req }));
   }
 
   /**
@@ -82,7 +95,7 @@ export class Logger {
    * @param req Axios Request
    */
   axiosRequest(req: AxiosRequestConfig) {
-    this.logger.info({ axios_req: req });
+    this.logger.info(this.withTrace({ axios_req: req }));
   }
 
   /**
@@ -90,7 +103,7 @@ export class Logger {
    * @param res Axios Response
    */
   axiosResponse(res: AxiosResponse) {
-    this.logger.info({ axios_req: res.config, axios_res: res });
+    this.logger.info(this.withTrace({ axios_req: res.config, axios_res: res }));
   }
 
   /**
@@ -98,7 +111,7 @@ export class Logger {
    * @param err
    */
   axiosError(err: AxiosError) {
-    this.logger.error({ axios_req: err.response?.config || err.config, axios_res: err.response });
+    this.logger.error(this.withTrace({ axios_req: err.response?.config || err.config, axios_res: err.response }));
   }
 
   /**
@@ -114,9 +127,11 @@ export class Logger {
   log(message: string, metadata?: object): void;
   log(entry: string | any, metadata?: object) {
     if (typeof entry === "string" && metadata) {
-      this.logger.info(metadata, entry);
+      this.logger.info(this.withTrace(metadata), entry);
+    } else if (typeof entry === "string") {
+      this.logger.info(this.withTrace({}), entry);
     } else {
-      this.logger.info(entry);
+      this.logger.info(this.withTrace(entry));
     }
   }
 
@@ -134,9 +149,9 @@ export class Logger {
   error(err: Error, message?: string): void;
   error(err: Error, extras?: object | string) {
     if (typeof extras === "string") {
-      this.logger.error(err, extras);
+      this.logger.error(this.withTrace({ err }), extras);
     } else {
-      this.logger.error({ err, ...extras });
+      this.logger.error(this.withTrace({ err, ...extras }));
     }
   }
 }
