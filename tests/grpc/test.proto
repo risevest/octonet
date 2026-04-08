@@ -1,0 +1,18 @@
+syntax = "proto3";
+package test;
+
+service TestService {
+  rpc Echo (EchoRequest) returns (EchoResponse);
+  rpc Fail (EchoRequest) returns (EchoResponse);
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message       = 1;
+  string authorization = 2;
+  string request_id    = 3;
+  string origin_service = 4;
+}
