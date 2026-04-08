@@ -40,7 +40,7 @@ export class GrpcRequestWrapper<TRequest extends object> {
   }
 
   /**
-   * Attach authorisation metadata to the call.
+   * Attach authorization metadata to the call.
    *
    * - `auth(req)` — forwards the Authorization header from an Express request.
    * - `auth(session)` — generates a system JWT from a session/payload object.
@@ -51,7 +51,12 @@ export class GrpcRequestWrapper<TRequest extends object> {
 
     if (isExpressReq) {
       const authHeader = (reqOrSession as Request).headers.authorization;
-      if (authHeader) this.metadata.set("authorization", authHeader);
+      if (!authHeader) {
+        throw new Error(
+          `gRPC call ${this.service}/${this.method} requires an authorization token`
+        );
+      }
+      this.metadata.set("authorization", authHeader);
       return this;
     }
 
@@ -95,6 +100,10 @@ export class GrpcRequestWrapper<TRequest extends object> {
     const callOptions: grpc.CallOptions = {
       deadline: new Date(Date.now() + deadline * 1000)
     };
+
+    if (typeof this.stub[this.method] !== "function") {
+      throw new Error(`gRPC method "${this.method}" does not exist on stub for service "${this.service}"`);
+    }
 
     return new Promise<TResponse>((resolve, reject) => {
       this.stub[this.method](
