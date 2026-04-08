@@ -1,7 +1,7 @@
 import { Logger, TracingProvider, defaultSerializers } from "../../src";
+import axios, { AxiosError } from "axios";
 
 import Bunyan from "bunyan";
-import axios, { AxiosError } from "axios";
 import { createLoggingApp } from "./server";
 import { expect } from "chai";
 import http from "http";
@@ -83,7 +83,7 @@ describe("Bunyan#Request", () => {
   });
 
   it("should ensure sensitive data are not being logged on request even if nested", async () => {
-    await axios.post(`${baseUrl}/req`, { password: "password", user: { password: "password", other_prop: "other" }});
+    await axios.post(`${baseUrl}/req`, { password: "password", user: { password: "password", other_prop: "other" } });
     const properties = ringbuffer.records[0];
     expect(ringbuffer.records).to.be.length(1);
     expect(properties.req).to.have.property("method");
@@ -141,7 +141,10 @@ describe("Bunyan#Response", () => {
   });
 
   it("should ensure sensitive data are not being logged on response even if nested", async () => {
-    await axios.post(`${baseUrl}/req-res`, { password: "password", user: { password: "password", other_prop: "other" }});
+    await axios.post(`${baseUrl}/req-res`, {
+      password: "password",
+      user: { password: "password", other_prop: "other" }
+    });
     const properties = ringbuffer.records[0];
     expect(ringbuffer.records).to.be.length(1);
     expect(properties.req).to.have.property("method");
@@ -185,6 +188,27 @@ describe("Bunyan#httpError", () => {
     expect(properties).to.have.property("err");
     expect(properties).to.have.property("req");
     expect(properties).to.have.property("res");
+  });
+});
+
+describe("Bunyan#AxiosRequest", () => {
+  it("should strip sensitive headers from axios_req logs", () => {
+    const axiosBuf = new Bunyan.RingBuffer({ limit: 5 });
+    const axiosLogger = new Logger({
+      name: "axios_header_test",
+      buffer: axiosBuf,
+      serializers: defaultSerializers("Authorization")
+    });
+
+    axiosLogger.axiosRequest({
+      method: "GET",
+      url: "/test",
+      headers: { Authorization: "Bearer secret-token", "content-type": "application/json" }
+    } as any);
+
+    const record = axiosBuf.records[0];
+    expect(record.axios_req.headers).to.not.have.property("Authorization");
+    expect(record.axios_req.headers).to.have.property("content-type");
   });
 });
 

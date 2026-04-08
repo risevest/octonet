@@ -71,7 +71,7 @@ export function sanitized<T = any>(...paths: string[]) {
 
 /**
  * Create serializer for axios requests
- * @param paths sensitive data pasths
+ * @param paths sensitive data paths
  */
 export function axiosRequest(...paths: string[]) {
   return (conf: AxiosRequestConfig) => {
@@ -83,7 +83,7 @@ export function axiosRequest(...paths: string[]) {
       delete headers[k];
     });
 
-    log.headers = headers;
+    log["headers"] = <any>deepSanitizeObj(headers, ...paths);
 
     // when we get the config from the axios response
     if (typeof conf.data === "string") {
@@ -153,18 +153,21 @@ export function expressResponse(...paths: string[]): (res: Response) => object {
 
     const log = {
       statusCode: res.statusCode,
-      headers: res.getHeaders(),
+      headers: res.getHeaders()
     };
 
-    const body = typeof res.locals.body === "string" && isStringifiedObject(res.locals.body) ? JSON.parse(res.locals.body) : res.locals.body;
+    const body =
+      typeof res.locals.body === "string" && isStringifiedObject(res.locals.body)
+        ? JSON.parse(res.locals.body)
+        : res.locals.body;
     if (body && Object.keys(body).length !== 0) {
       const logBody = deepSanitizeObj(body, ...paths);
 
       log["body"] = logBody;
     }
-  
+
     return log;
-  }
+  };
 }
 
 function isStringifiedObject(str: string): boolean {
