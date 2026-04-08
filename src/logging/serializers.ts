@@ -71,11 +71,11 @@ export function sanitized<T = any>(...paths: string[]) {
 
 /**
  * Create serializer for axios requests
- * @param paths sensitive data pasths
+ * @param paths sensitive data paths
  */
 export function axiosRequest(...paths: string[]) {
   return (conf: AxiosRequestConfig) => {
-    const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
+    const log: Record<string, any> = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
 
     // remove default header config
     const headers = Object.assign({}, conf.headers);
@@ -83,7 +83,7 @@ export function axiosRequest(...paths: string[]) {
       delete headers[k];
     });
 
-    log.headers = headers;
+    log["headers"] = deepSanitizeObj(headers, ...paths);
 
     // when we get the config from the axios response
     if (typeof conf.data === "string") {

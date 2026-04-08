@@ -82,7 +82,9 @@ export class Consumers {
 
       const sub = await client.pullSubscribe(topic, opts);
       const done = pullSmart(cfg.batch_size, sub);
-      runSub(sub, wrapHandler(topic, logger, handler), done);
+      runSub(sub, wrapHandler(topic, logger, handler), done).catch(err => {
+        logger.error(err, { topic, msg: "NATS subscription loop exited unexpectedly" });
+      });
 
       // first pull 😁
       sub.pull({ batch: cfg.batch_size });
@@ -97,17 +99,23 @@ export function durableName(stream: string, namespace: string, topic: string) {
 }
 
 async function runSub(sub: JetStreamPullSubscription, handler: Function, done: Function) {
-  for await (const event of sub) {
-    try {
-      await handler(event);
-      event.ack();
-      done();
-    } catch (err) {
-      if (!(err instanceof RetryError)) {
+  try {
+    for await (const event of sub) {
+      try {
+        await handler(event);
         event.ack();
         done();
+      } catch (err) {
+        if (!(err instanceof RetryError)) {
+          event.ack();
+          done();
+        }
       }
     }
+  } catch (_err) {
+    // The subscription iterator ended because the connection was closed or
+    // drained. The .catch() at the call site will log unexpected errors.
+    throw _err;
   }
 }
 

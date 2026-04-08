@@ -11,20 +11,26 @@ export class Queue<T> {
    * @param chan amqp virtual connection
    * @param queue name of the queue
    */
-  constructor(private chan: Channel, private queue: string) {
-    chan.on("drain", async () => {
-      while (this.internalBuffer.length !== 0) {
-        const top = Buffer.from(JSON.stringify(this.internalBuffer[0]));
-        const succeeded = this.chan.sendToQueue(this.queue, top);
+  constructor(private chan: Channel, private queue: string) {}
 
-        // break out if we need to wait again
-        if (!succeeded) {
-          return;
-        }
+  /**
+   * Called by QueueFactory when the channel emits a drain event. Flushes any
+   * buffered messages that could not be sent when the channel was under
+   * backpressure. Kept synchronous so multiple queues sharing one channel do
+   * not race against each other.
+   */
+  onDrain() {
+    while (this.internalBuffer.length !== 0) {
+      const top = Buffer.from(JSON.stringify(this.internalBuffer[0]));
+      const succeeded = this.chan.sendToQueue(this.queue, top);
 
-        this.internalBuffer.shift();
+      // break out if we need to wait again
+      if (!succeeded) {
+        return;
       }
-    });
+
+      this.internalBuffer.shift();
+    }
   }
 
   /**

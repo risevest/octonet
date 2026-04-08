@@ -6,6 +6,7 @@ import { Queue } from "./queue";
 
 export class QueueFactory {
   private connected: boolean;
+  private queues: Queue<any>[] = [];
 
   private constructor(private conn: Connection, private channel: Channel, logger: Logger) {
     this.connected = true;
@@ -16,6 +17,27 @@ export class QueueFactory {
     });
 
     this.conn.on("close", () => {
+      this.connected = false;
+    });
+
+    // A single drain listener shared across all queues prevents the
+    // MaxListenersExceededWarning that occurs when each Queue registers its
+    // own listener on the same channel.
+    this.channel.on("drain", () => {
+      for (const q of this.queues) {
+        q.onDrain();
+      }
+    });
+
+    // Without a channel-level error handler amqplib emits 'error' on the
+    // Channel EventEmitter which Node.js escalates to an uncaughtException,
+    // leaving the process in an unstable state.
+    this.channel.on("error", err => {
+      this.connected = false;
+      logger.error(err, "AMQP channel error");
+    });
+
+    this.channel.on("close", () => {
       this.connected = false;
     });
   }
@@ -61,7 +83,9 @@ export class QueueFactory {
     }
 
     await this.channel.assertQueue(name, opts);
-    return new Queue<T>(this.channel, name);
+    const q = new Queue<T>(this.channel, name);
+    this.queues.push(q);
+    return q;
   }
 
   /**
