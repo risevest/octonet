@@ -102,7 +102,9 @@ export class GrpcRequestWrapper<TRequest extends object> {
         this.metadata,
         callOptions,
         (err: grpc.ServiceError | null, response: TResponse) => {
-          if (err) return reject(new GrpcError(this.service, this.method, err));
+          if (err) {
+            return reject(new GrpcError(this.service, this.method, err));
+          }
           resolve(response);
         }
       );
