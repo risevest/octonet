@@ -14,3 +14,4 @@ export { ExitError, RetryError, retryOnError, retryOnRequest } from "./retry";
 export * from "./tokens/redis.store";
 export * from "./tokens/store";
 export * from "./tracing";
+export * from "./grpc";
