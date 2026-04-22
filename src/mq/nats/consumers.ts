@@ -7,6 +7,7 @@ import { RetryError } from "../../retry";
 import { dateReviver } from "../../strings";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
 import { collapse } from "../handlers";
+import { StreamConfig, StreamFactory } from "./factory";
 
 export const groupKey = Symbol.for("nats.streams");
 export const handlerKey = Symbol.for("nats.streams.subscribers");
@@ -41,6 +42,19 @@ export interface NatsConfig {
    * timeout before retrying the message in `ms` format(e.g. 1m, 2h)
    */
   timeout: string;
+  /**
+   * Optional per-stream declared configs. When provided, each stream used by a
+   * subscriber in this service will be ensured (created if missing, left alone
+   * with a logged warning if config differs) before `streams.info` is called.
+   *
+   * Use this from consumer-only services that never call `StreamFactory.stream`
+   * themselves and would otherwise crash on a fresh environment waiting for an
+   * operator to run `nats stream add`.
+   *
+   * Any stream subscribed to by this service that is not listed here will fall
+   * back to the legacy pre-flight `streams.info` check and crash if missing.
+   */
+  ensure?: Record<string, StreamConfig>;
 }
 
 export class Consumers {
@@ -64,6 +78,19 @@ export class Consumers {
   async start(nats: NatsConnection, logger: Logger, cfg: NatsConfig) {
     const manager = await nats.jetstreamManager();
     const client = nats.jetstream();
+
+    // Optionally ensure streams exist so fresh environments don't crash
+    // waiting for an operator to pre-create them via `nats stream add`.
+    if (cfg.ensure) {
+      const factory = await StreamFactory.init(nats);
+      for (const stream of this.streams) {
+        const declared = cfg.ensure[stream];
+        if (declared) {
+          await factory.ensureStream(stream, declared, logger);
+        }
+      }
+    }
+
     for (const stream of this.streams) {
       await manager.streams.info(stream);
     }

@@ -10,6 +10,7 @@ import {
   connect
 } from "nats";
 
+import { Logger } from "../../logging/logger";
 import { Stream } from "./stream";
 
 export interface BroadcastConfig {
@@ -137,6 +138,82 @@ export class StreamFactory {
    */
   logStream<T>(name: string, period = "1d") {
     return this.stream<T>(name, { stream_type: "log", retention_period: period });
+  }
+
+  /**
+   * Idempotently ensure a stream exists without mutating an existing one.
+   *
+   * - If the stream does not exist, create it with the declared config.
+   * - If it exists and the declared config differs on any field we track,
+   *   log a warning via the provided logger and leave the stream untouched.
+   *
+   * Call this from consumer services at boot so a fresh environment does
+   * not require an operator to manually run `nats stream add` before the
+   * consumer's JetStream subscription can bind.
+   *
+   * @param name stream name (lowercased internally)
+   * @param conf declared stream configuration
+   * @param logger optional logger for the create/mismatch messages
+   */
+  async ensureStream(name: string, conf: StreamConfig, logger?: Logger): Promise<void> {
+    name = name.toLowerCase();
+    const declared = {
+      max_age: conf.stream_type === "log" ? ms(conf.retention_period) * 1_000_000 : 0,
+      max_msgs: conf.stream_type === "broadcast" ? conf.buffer_size : -1,
+      storage: conf.stream_type === "broadcast" ? StorageType.Memory : StorageType.File
+    };
+
+    try {
+      const info = await this.manager.streams.info(name);
+      const existing = info.config;
+      const mismatches: string[] = [];
+      const expectedSubject = `${name}.>`;
+
+      if (!existing.subjects || !existing.subjects.includes(expectedSubject)) {
+        mismatches.push(`subjects=${JSON.stringify(existing.subjects)} (expected to include "${expectedSubject}")`);
+      }
+      if (existing.storage !== declared.storage) {
+        mismatches.push(`storage=${existing.storage} (expected ${declared.storage})`);
+      }
+      if (existing.max_age !== declared.max_age) {
+        mismatches.push(`max_age=${existing.max_age} (expected ${declared.max_age})`);
+      }
+      if (existing.max_msgs !== declared.max_msgs) {
+        mismatches.push(`max_msgs=${existing.max_msgs} (expected ${declared.max_msgs})`);
+      }
+      if (existing.retention !== RetentionPolicy.Limits) {
+        mismatches.push(`retention=${existing.retention} (expected ${RetentionPolicy.Limits})`);
+      }
+      if (existing.discard !== DiscardPolicy.Old) {
+        mismatches.push(`discard=${existing.discard} (expected ${DiscardPolicy.Old})`);
+      }
+
+      if (mismatches.length > 0 && logger) {
+        logger.log(
+          `jetstream: using existing stream "${name}" but declared config differs; leaving untouched. mismatches: ${mismatches.join(", ")}`,
+          { level: "warn" }
+        );
+      } else if (logger) {
+        logger.log(`jetstream: using existing stream "${name}" (config matches)`);
+      }
+    } catch (err) {
+      if (!(err instanceof NatsError) || err.message !== "stream not found") {
+        throw err;
+      }
+
+      await this.manager.streams.add({
+        name,
+        subjects: [`${name}.>`],
+        retention: RetentionPolicy.Limits,
+        discard: DiscardPolicy.Old,
+        ...declared
+      });
+      if (logger) {
+        logger.log(
+          `jetstream: created stream "${name}" (storage=${declared.storage}, max_age=${declared.max_age}, max_msgs=${declared.max_msgs})`
+        );
+      }
+    }
   }
 
   /**
