@@ -19,6 +19,7 @@ export function defaultSerializers(...paths: string[]) {
     req: expressRequest(...paths),
     res: expressResponse(...paths),
     event: sanitized(...paths),
+    data: sanitized(...paths),
     err: serializeErr
   };
 }
