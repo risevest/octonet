@@ -10,7 +10,7 @@ const ringbuffer = new Bunyan.RingBuffer({ limit: 5 });
 const logger = new Logger({
   name: "logger_tests",
   buffer: ringbuffer,
-  serializers: defaultSerializers("admin.password", "password", "authorization", "x-webhook-secret")
+  serializers: defaultSerializers("admin.password", "password", "Authorization", "X-Webhook-Secret")
 });
 
 const mockProvider: TracingProvider = {
