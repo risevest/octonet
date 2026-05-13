@@ -127,7 +127,7 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
     const log = {
       method: req.method,
       url: req.url,
-      headers: req.headers,
+      headers: deepSanitizeObj(req.headers as object, ...paths),
       params: req.params,
       remoteAddress: req.socket.remoteAddress,
       remotePort: req.socket.remotePort
