@@ -10,7 +10,7 @@ const ringbuffer = new Bunyan.RingBuffer({ limit: 5 });
 const logger = new Logger({
   name: "logger_tests",
   buffer: ringbuffer,
-  serializers: defaultSerializers("admin.password", "password")
+  serializers: defaultSerializers("admin.password", "password", "Authorization", "X-Webhook-Secret")
 });
 
 const mockProvider: TracingProvider = {
@@ -110,6 +110,15 @@ describe("Bunyan#Request", () => {
     expect(properties.req.body).to.not.have.property("password");
     expect(properties.req.body).to.have.property("other_prop");
   });
+
+  it("should ensure sensitive headers are not logged on request", async () => {
+    await axios.post(`${baseUrl}/req`, {}, { headers: { password: "secret", Authorization: "Bearer token", "x-webhook-secret": "whsec_abc" } });
+    const properties = ringbuffer.records[0];
+    expect(properties.req.headers).to.not.have.property("password");
+    expect(properties.req.headers).to.not.have.property("authorization");
+    expect(properties.req.headers).to.not.have.property("x-webhook-secret");
+    expect(properties.req.headers).to.have.property("content-type");
+  });
 });
 
 describe("Bunyan#Response", () => {
@@ -188,6 +197,25 @@ describe("Bunyan#httpError", () => {
     expect(properties).to.have.property("err");
     expect(properties).to.have.property("req");
     expect(properties).to.have.property("res");
+  });
+});
+
+describe("Bunyan#DataPayload", () => {
+  it("should strip sensitive fields from data logs", () => {
+    const dataBuf = new Bunyan.RingBuffer({ limit: 5 });
+    const dataLogger = new Logger({
+      name: "data_payload_test",
+      buffer: dataBuf,
+      serializers: defaultSerializers("bvn", "phone_number", "account_number")
+    });
+
+    dataLogger.log({ data: { bvn: "12345678901", phone_number: "08012345678", account_number: "0123456789", name: "John Doe" } });
+
+    const record = dataBuf.records[0];
+    expect(record.data).to.not.have.property("bvn");
+    expect(record.data).to.not.have.property("phone_number");
+    expect(record.data).to.not.have.property("account_number");
+    expect(record.data).to.have.property("name");
   });
 });
 

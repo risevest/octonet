@@ -19,6 +19,7 @@ export function defaultSerializers(...paths: string[]) {
     req: expressRequest(...paths),
     res: expressResponse(...paths),
     event: sanitized(...paths),
+    data: sanitized(...paths),
     err: serializeErr
   };
 }
@@ -127,7 +128,7 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
     const log = {
       method: req.method,
       url: req.url,
-      headers: req.headers,
+      headers: deepSanitizeObj(req.headers as object, ...paths.map(p => p.toLowerCase())),
       params: req.params,
       remoteAddress: req.socket.remoteAddress,
       remotePort: req.socket.remotePort
