@@ -10,7 +10,7 @@ const ringbuffer = new Bunyan.RingBuffer({ limit: 5 });
 const logger = new Logger({
   name: "logger_tests",
   buffer: ringbuffer,
-  serializers: defaultSerializers("admin.password", "password")
+  serializers: defaultSerializers("admin.password", "password", "authorization", "x-webhook-secret")
 });
 
 const mockProvider: TracingProvider = {
@@ -109,6 +109,15 @@ describe("Bunyan#Request", () => {
     expect(properties).to.have.property("req");
     expect(properties.req.body).to.not.have.property("password");
     expect(properties.req.body).to.have.property("other_prop");
+  });
+
+  it("should ensure sensitive headers are not logged on request", async () => {
+    await axios.post(`${baseUrl}/req`, {}, { headers: { password: "secret", Authorization: "Bearer token", "x-webhook-secret": "whsec_abc" } });
+    const properties = ringbuffer.records[0];
+    expect(properties.req.headers).to.not.have.property("password");
+    expect(properties.req.headers).to.not.have.property("authorization");
+    expect(properties.req.headers).to.not.have.property("x-webhook-secret");
+    expect(properties.req.headers).to.have.property("content-type");
   });
 });
 
