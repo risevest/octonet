@@ -200,6 +200,25 @@ describe("Bunyan#httpError", () => {
   });
 });
 
+describe("Bunyan#DataPayload", () => {
+  it("should strip sensitive fields from data logs", () => {
+    const dataBuf = new Bunyan.RingBuffer({ limit: 5 });
+    const dataLogger = new Logger({
+      name: "data_payload_test",
+      buffer: dataBuf,
+      serializers: defaultSerializers("bvn", "phone_number", "account_number")
+    });
+
+    dataLogger.log({ data: { bvn: "12345678901", phone_number: "08012345678", account_number: "0123456789", name: "John Doe" } });
+
+    const record = dataBuf.records[0];
+    expect(record.data).to.not.have.property("bvn");
+    expect(record.data).to.not.have.property("phone_number");
+    expect(record.data).to.not.have.property("account_number");
+    expect(record.data).to.have.property("name");
+  });
+});
+
 describe("Bunyan#AxiosRequest", () => {
   it("should strip sensitive headers from axios_req logs", () => {
     const axiosBuf = new Bunyan.RingBuffer({ limit: 5 });
