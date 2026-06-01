@@ -136,6 +136,27 @@ export class Logger {
   }
 
   /**
+   * Log a warning
+   * @param metadata data to be logged
+   */
+  warn(metadata: object): void;
+  /**
+   * Log a warning with a message
+   * @param message message to be logged
+   * @param metadata data to be logged
+   */
+  warn(message: string, metadata?: object): void;
+  warn(entry: string | any, metadata?: object) {
+    if (typeof entry === "string" && metadata) {
+      this.logger.warn(this.withTrace(metadata), entry);
+    } else if (typeof entry === "string") {
+      this.logger.warn(this.withTrace({}), entry);
+    } else {
+      this.logger.warn(this.withTrace(entry));
+    }
+  }
+
+  /**
    * Log internal application error
    * @param err actual error being logged
    * @param extras anything else to log with the error
