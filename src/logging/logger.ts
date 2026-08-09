@@ -146,7 +146,7 @@ export class Logger {
    * @param metadata data to be logged
    */
   warn(message: string, metadata?: object): void;
-  warn(entry: string | any, metadata?: object) {
+  warn(...args: [metadata: object] | [message: string, metadata?: object]) {
     if (typeof entry === "string" && metadata) {
       this.logger.warn(this.withTrace(metadata), entry);
     } else if (typeof entry === "string") {
