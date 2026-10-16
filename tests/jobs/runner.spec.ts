@@ -1,13 +1,18 @@
 import { faker } from "@faker-js/faker";
+import { metrics } from "@opentelemetry/api";
 import { expect } from "chai";
 import { Container } from "inversify";
 import IORedis, { Redis } from "ioredis";
+import cron from "node-cron";
 import sinon from "sinon";
 
 import { Logger, defaultSerializers } from "../../src";
-import { JobRunner, acquireLock, releaseLock } from "../../src/jobs/runner";
+import { Job } from "../../src/jobs/decorators";
+import { JobRunner, acquireLock, releaseLock, runJob } from "../../src/jobs/runner";
+import { JobTelemetry, RUN_OUTCOMES, RunOutcome } from "../../src/jobs/telemetry";
 import { jumpBy, multiply, sleep, withTimePaused } from "../helpers";
 import { GROUP_NAME, dataSpy, normalSpy, querySpy } from "./helpers/decorators";
+import { collect, testMeter } from "./helpers/metrics";
 
 const redisURL = "redis://localhost:6379";
 const logger = new Logger({
@@ -147,5 +152,240 @@ describe("JobRunner.CronGroup#dataJob", () => {
       expect(dataSpy.firstCall.firstArg).to.eq(20);
       expect(dataSpy.secondCall.firstArg).to.eq(30);
     });
+  });
+});
+
+describe("runJob", () => {
+  jest.setTimeout(20_000);
+
+  function randomJob(overrides: Partial<Job<number>> = {}): Job<number> {
+    return {
+      name: `group.${faker.lorem.word()}_${faker.datatype.uuid()}`,
+      schedule: "0 0 * * *",
+      retries: 0,
+      timeout: "10ms",
+      maxComputeTime: "1m",
+      job: async () => {},
+      ...overrides
+    };
+  }
+
+  function randomItems() {
+    return multiply(faker.datatype.number({ min: 2, max: 15 }), () => faker.datatype.number());
+  }
+
+  async function runWithTelemetry(j: Job<number>) {
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const run = runJob(redis, faker.datatype.uuid(), j, logger, telemetry);
+    const error = await run.then(
+      () => null,
+      err => err
+    );
+    return { error, points: await collect(reader) };
+  }
+
+  function expectOnlyOutcome(points: Awaited<ReturnType<typeof collect>>, name: string, outcome: RunOutcome) {
+    for (const o of RUN_OUTCOMES) {
+      expect(points("job.runs", { job_name: name, outcome: o })[0].value).to.eq(o === outcome ? 1 : 0);
+    }
+  }
+
+  it("records success for a simple job", async () => {
+    const j = randomJob();
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expectOnlyOutcome(points, j.name, "success");
+    expect(points<any>("job.duration", { job_name: j.name })[0].value.count).to.eq(1);
+    expect(points("job.last_success.timestamp", { job_name: j.name })).to.have.length(1);
+    expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
+  });
+
+  it("still runs the job when its start time can't be saved", async () => {
+    const job = sinon.spy();
+    const j = randomJob({ job: async () => job() });
+    const failure = new Error(faker.lorem.sentence());
+    sinon.stub(redis, "hset").rejects(failure);
+    const errorLog = sinon.spy(logger, "error");
+
+    try {
+      const { error, points } = await runWithTelemetry(j);
+
+      expect(error).to.be.null;
+      expect(job.calledOnce).to.be.true;
+      expect(errorLog.calledWith(failure)).to.be.true;
+      expectOnlyOutcome(points, j.name, "success");
+    } finally {
+      sinon.restore();
+    }
+  });
+
+  it("rethrows the job's error when recording the end fails", async () => {
+    const message = faker.lorem.sentence();
+    const j = randomJob({ job: async () => Promise.reject(new Error(message)) });
+    const failure = new Error(faker.lorem.sentence());
+    sinon.stub(redis, "eval").rejects(failure);
+    const errorLog = sinon.spy(logger, "error");
+
+    try {
+      const { error, points } = await runWithTelemetry(j);
+
+      expect(error.message).to.eq(message);
+      expect(errorLog.calledWith(failure)).to.be.true;
+      expectOnlyOutcome(points, j.name, "failed");
+    } finally {
+      sinon.restore();
+    }
+  });
+
+  it("records failed and rethrows when a simple job throws", async () => {
+    const message = faker.lorem.sentence();
+    const j = randomJob({ job: async () => Promise.reject(new Error(message)) });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error.message).to.eq(message);
+    expectOnlyOutcome(points, j.name, "failed");
+    expect(points("job.last_success.timestamp", { job_name: j.name })).to.have.length(0);
+  });
+
+  it("records query_failed when the query throws before queuing anything", async () => {
+    const message = faker.lorem.sentence();
+    const job = sinon.spy();
+    const j = randomJob({ job: async n => job(n), query: async () => Promise.reject(new Error(message)) });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error.message).to.eq(message);
+    expect(job.called).to.be.false;
+    expectOnlyOutcome(points, j.name, "query_failed");
+  });
+
+  it("works the queued items and records partial when the query throws partway", async () => {
+    const message = faker.lorem.sentence();
+    const pages = multiply(faker.datatype.number({ min: 1, max: 4 }), randomItems);
+    const job = sinon.spy();
+    const query: any = async function* () {
+      for (const page of pages) {
+        yield page;
+      }
+      throw new Error(message);
+    };
+    const j = randomJob({ job: async n => job(n), query });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    const queued = pages.flat();
+    expect(error.message).to.eq(message);
+    expect(job.args.map(a => a[0])).to.deep.eq(queued);
+    expectOnlyOutcome(points, j.name, "partial");
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(queued.length);
+  });
+
+  it("records partial and leaves failed items in dead-letter", async () => {
+    const items = randomItems();
+    const failing = new Set(faker.helpers.arrayElements(items, faker.datatype.number({ min: 1, max: items.length })));
+    const j = randomJob({
+      job: async n => (failing.has(n) ? Promise.reject(new Error(faker.lorem.word())) : undefined),
+      query: async () => items
+    });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    const failed = items.filter(i => failing.has(i)).length;
+    expect(error).to.be.null;
+    expectOnlyOutcome(points, j.name, "partial");
+    expect(points("job.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(failed);
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length - failed);
+    expect(await redis.hlen(`${j.name}:dead-letter`)).to.eq(failed);
+  });
+
+  it("records success when every queued item succeeds", async () => {
+    const items = randomItems();
+    const j = randomJob({ query: async () => items });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expectOnlyOutcome(points, j.name, "success");
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length);
+  });
+
+  it("counts items but no run on a replica without the lock", async () => {
+    const items = randomItems();
+    const query = sinon.spy(async () => items);
+    const job = sinon.spy();
+    const j = randomJob({ job: async n => job(n), query });
+    await acquireLock(redis, j.name, faker.datatype.uuid(), j.maxComputeTime);
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expect(query.called).to.be.false;
+    expect(job.args.map(a => a[0])).to.deep.eq(items);
+    expectOnlyOutcome(points, j.name, null);
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length);
+    expect(await redis.hget(`${j.name}:telemetry`, "start")).to.be.null;
+  });
+
+  it("works existing items without running the query when the queue isn't empty", async () => {
+    const items = randomItems();
+    let queried = false;
+    const query: any = async function* () {
+      queried = true;
+      yield randomItems();
+    };
+    const job = sinon.spy();
+    const j = randomJob({ job: async n => job(n), query });
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expect(queried).to.be.false;
+    expect(job.args.map(a => a[0])).to.deep.eq(items);
+    expectOnlyOutcome(points, j.name, "success");
+  });
+});
+
+describe("JobRunner#start", () => {
+  const global = testMeter();
+
+  beforeAll(() => {
+    metrics.setGlobalMeterProvider(global.provider);
+  });
+
+  afterEach(() => sinon.restore());
+
+  it("should log a failed scheduled run instead of dropping it", async () => {
+    const callbacks: (() => Promise<void>)[] = [];
+    sinon.stub(cron, "schedule").callsFake((_expr: string, fn: any) => {
+      callbacks.push(fn);
+      return { stop: () => {} } as any;
+    });
+    await runner.start(redis, logger);
+
+    const failure = new Error(faker.lorem.sentence());
+    sinon.stub(redis, "set").rejects(failure);
+    const errorLog = sinon.spy(logger, "error");
+
+    await Promise.all(callbacks.map(fn => fn()));
+
+    expect(errorLog.calledWith(failure)).to.be.true;
+  });
+
+  it("should count items worked on startup", async () => {
+    const items = multiply(faker.datatype.number({ min: 1, max: 10 }), () => faker.datatype.number());
+    const name = `${GROUP_NAME}.data`;
+    const before = (await collect(global.reader))("job.items", { job_name: name, outcome: "success" })[0]?.value ?? 0;
+    await redis.rpush(name, ...items.map(i => JSON.stringify(i)));
+
+    await runner.start(redis, logger);
+
+    const after = (await collect(global.reader))("job.items", { job_name: name, outcome: "success" })[0].value;
+    expect(after - before).to.eq(items.length);
   });
 });

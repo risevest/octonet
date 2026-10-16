@@ -3,6 +3,7 @@ import "reflect-metadata";
 import { expect, use } from "chai";
 
 import Redis from "ioredis";
+import { faker } from "@faker-js/faker";
 import { RedisQueue } from "../../src/jobs/queue";
 import chaiAsPromised from "chai-as-promised";
 
@@ -66,6 +67,25 @@ describe("RedisQueue#fill", () => {
       expect(e).to.eq(String(i + 1));
     });
   });
+
+  it("should not consume a generator if list not empty", async () => {
+    const existing = Array.from({ length: faker.datatype.number({ min: 1, max: 10 }) }).map(() =>
+      faker.datatype.number()
+    );
+    await queue.fill(existing);
+    let consumed = false;
+
+    const filled = await queue.fill(
+      (async function* () {
+        consumed = true;
+        yield [faker.datatype.number()];
+      })()
+    );
+
+    expect(filled).to.be.false;
+    expect(consumed).to.be.false;
+    expect(await redis.lrange(queueName, 0, -1)).to.deep.eq(existing.map(String));
+  });
 });
 
 describe("RedisQueue#work", () => {
@@ -115,7 +135,7 @@ describe("RedisQueue#work", () => {
 
     const results: number[] = [];
 
-    await queue.work(async j => {
+    const counts = await queue.work(async j => {
       if (j === 5) {
         throw new Error("exit");
       }
@@ -125,6 +145,7 @@ describe("RedisQueue#work", () => {
 
     expect(results).to.have.length(9);
     expect(results.includes(5)).to.be.false;
+    expect(counts).to.deep.eq({ success: jobs.length - 1, failed: 1 });
 
     const key = `${queueName}:dead-letter`;
     expect(redis.hlen(key)).to.eventually.eq(1);

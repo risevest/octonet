@@ -1,4 +1,6 @@
 import { ExitError, RetryError, retryOnRequest, wrapHandler } from "../retry";
+import { JobTelemetry, RunOutcome } from "./telemetry";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { Job, getJobs } from "./decorators";
 import cron, { ScheduledTask } from "node-cron";
 
@@ -16,6 +18,7 @@ interface ScheduledJob<T> extends Job<T> {
 export class JobRunner {
   private jobs: ScheduledJob<any>[];
   private lockID: string;
+  private telemetry: JobTelemetry;
 
   /**
    * Set up a job runner to run jobs attached using the cron decorators
@@ -36,18 +39,21 @@ export class JobRunner {
    */
   async start(redis: Redis, logger: Logger) {
     const preruns = [];
+    this.telemetry = new JobTelemetry(redis, this.jobs, logger);
 
     for (const j of this.jobs) {
       j.job = wrapHandler(logger, j.job);
 
       // schedule job for later
-      j.task = cron.schedule(j.schedule, () => runJob(redis, this.lockID, j, logger));
+      j.task = cron.schedule(j.schedule, () =>
+        runJob(redis, this.lockID, j, logger, this.telemetry).catch(err => logger.error(err, { job_name: j.name }))
+      );
 
       // only immediately run if a setup exists.
       if (j.query) {
         const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
         // we don't need to fill if queue already has items
-        preruns.push(queue.work(j.job, logger));
+        preruns.push(queue.work(j.job, logger).then(items => this.telemetry.recordItems(j.name, items)));
       }
     }
 
@@ -119,35 +125,126 @@ export async function releaseLock(redis: Redis, group: string, owner: string): P
 }
 
 /**
- * Run the any given job, supporting parallel execution through distributed locks
+ * Run the any given job, supporting parallel execution through distributed locks.
+ * Only the lock holder runs the query and records the run; every replica helps
+ * work the queue.
  * @param redis redis instancee
  * @param lockID ID to be used for locking
- * @param retries number of retries for query jobs
- * @param timeout minimum timeout between retries for query jobs
  * @param j job to run
+ * @param logger logger to track jobs
+ * @param telemetry records run and item metrics when given
  */
-export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger: Logger) {
+export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger: Logger, telemetry?: JobTelemetry) {
   const ownsLock = await acquireLock(redis, j.name, lockID, j.maxComputeTime);
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
-  // only run queryless jobs and queries if we own the lock
-  if (ownsLock) {
-    try {
-      // run the job directly if there's no query
-      if (!j.query) {
-        await retryOnRequest(j.retries, j.timeout, () => j.job());
-        return;
-      }
-
-      // write jobs to queue for safe consumption
-      await queue.fill(await j.query());
-    } catch (err) {
-      if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
-        throw err.wrapped;
-      }
-      throw err;
-    }
+  if (!ownsLock) {
+    const items = await queue.work(j.job, logger);
+    telemetry?.recordItems(j.name, items);
+    return;
   }
 
-  return queue.work(j.job, logger);
+  return trace.getTracer("@risemaxi/octonet").startActiveSpan(`job ${j.name}`, async span => {
+    const startedAt = Date.now();
+    let result: RunResult;
+    try {
+      await telemetry?.recordStart(j.name, startedAt);
+    } catch (err) {
+      logger.error(err, { job_name: j.name });
+    }
+
+    try {
+      if (j.query) {
+        result = await runQuery(j, queue, logger, telemetry);
+      } else {
+        await retryOnRequest(j.retries, j.timeout, () => j.job());
+        result = { outcome: "success" };
+      }
+    } catch (err) {
+      result = { outcome: "failed", error: unwrap(err) };
+    }
+
+    const duration = (Date.now() - startedAt) / 1000;
+    span.setAttribute("job.outcome", result.outcome);
+    if ("error" in result) {
+      span.recordException(result.error);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: result.error.message });
+    }
+
+    logger.log("job finished", {
+      job_name: j.name,
+      outcome: result.outcome,
+      duration_seconds: duration,
+      error: "error" in result ? result.error.message : undefined
+    });
+    try {
+      await telemetry?.recordEnd(j.name, startedAt, result.outcome, duration);
+    } catch (err) {
+      logger.error(err, { job_name: j.name });
+    } finally {
+      span.end();
+    }
+
+    if ("error" in result) {
+      throw result.error;
+    }
+  });
+}
+
+type RunResult =
+  | { outcome: Extract<RunOutcome, "success" | "partial"> }
+  | { outcome: Exclude<RunOutcome, "success">; error: Error };
+
+/**
+ * Fill the queue from the job's query and work it. If the query throws after
+ * some items were queued, those items are still worked.
+ */
+async function runQuery<T>(
+  j: Job<T>,
+  queue: RedisQueue<T>,
+  logger: Logger,
+  telemetry?: JobTelemetry
+): Promise<RunResult> {
+  let queued = 0;
+  let error: Error;
+  try {
+    const filled = await queue.fill(countQueued(await j.query(), n => (queued += n)));
+    if (!filled) {
+      logger.log("queue not empty, working remaining items without running the query", { job_name: j.name });
+    }
+  } catch (err) {
+    error = unwrap(err);
+  }
+
+  if (error && queued === 0) {
+    return { outcome: "query_failed", error };
+  }
+
+  const items = await queue.work(j.job, logger);
+  telemetry?.recordItems(j.name, items);
+
+  if (error) {
+    return { outcome: "partial", error };
+  }
+  return { outcome: items.failed > 0 ? "partial" : "success" };
+}
+
+function countQueued<T>(ts: T[] | AsyncGenerator<T[]>, onQueued: (n: number) => void) {
+  if (Array.isArray(ts)) {
+    return ts;
+  }
+
+  return (async function* () {
+    for await (const chunk of ts) {
+      yield chunk;
+      onQueued(chunk.length);
+    }
+  })();
+}
+
+function unwrap(err: any): Error {
+  if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
+    return err.wrapped;
+  }
+  return err;
 }

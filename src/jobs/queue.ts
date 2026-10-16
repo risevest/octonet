@@ -1,5 +1,6 @@
 import { RetryError, retryOnRequest } from "../retry";
 
+import { ItemCounts } from "./telemetry";
 import { Logger } from "../logging/logger";
 import Redis from "ioredis";
 import crypto from "crypto";
@@ -36,7 +37,7 @@ export class RedisQueue<T> {
    */
   async fill(ts: T[] | AsyncGenerator<T[]>) {
     const length = await this.length();
-    if (length > 0 && Array.isArray(ts)) {
+    if (length > 0) {
       return false;
     }
 
@@ -87,8 +88,10 @@ export class RedisQueue<T> {
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
+   * @returns how many items this worker processed and how many failed
    */
-  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
+  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1): Promise<ItemCounts> {
+    const counts: ItemCounts = { success: 0, failed: 0 };
     await retryOnRequest(JOB_POLL_RETRIES, JOB_POLL_TIMEOUT, async (attempt: number) => {
       try {
         let handler: Function;
@@ -112,8 +115,9 @@ export class RedisQueue<T> {
             try {
               await retryOnRequest(this.retries, this.timeout, _n => handler(data));
               await this.redis.hdel(this.deadLetterHash, bkpKey);
+              counts.success++;
             } catch (err) {
-              // no-op
+              counts.failed++;
             }
           }
         });
@@ -127,6 +131,8 @@ export class RedisQueue<T> {
         throw error;
       }
     });
+
+    return counts;
   }
 }
 
