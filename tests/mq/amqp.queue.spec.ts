@@ -90,6 +90,16 @@ describe("QueueFactory#queue", () => {
     expect(assertReply.messageCount).to.eq(10);
   });
 
+  it("should publish persistent messages", async () => {
+    const queue = await factory.queue(queueName);
+    queue.push(Number(faker.finance.amount()));
+
+    await sleep(300);
+
+    const message = await channel.get(queueName, { noAck: true });
+    expect(message && message.properties.deliveryMode).to.eq(2);
+  });
+
   it("should restrict queue length based on fixed number of items", async () => {
     const queue = await factory.queue(queueName, 10);
     const amounts = multiply(30, () => Number(faker.finance.amount()));

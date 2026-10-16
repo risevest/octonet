@@ -16,11 +16,11 @@ export class Queue<T> {
   }
 
   /**
-   * Push data to the queue, handling serilization and buffering
+   * Push data to the queue as a persistent message, handling serilization and buffering
    * @param data data to write on queue
    */
   push(data: T) {
-    const succeded = this.chan.sendToQueue(this.queue, Buffer.from(JSON.stringify(data)));
+    const succeded = this.chan.sendToQueue(this.queue, Buffer.from(JSON.stringify(data)), { persistent: true });
     // queue for later
     if (!succeded) {
       this.internalBuffer.push(data);
@@ -36,7 +36,7 @@ export class Queue<T> {
     chan.on("drain", async () => {
       while (this.internalBuffer.length !== 0) {
         const top = Buffer.from(JSON.stringify(this.internalBuffer[0]));
-        const succeeded = this.chan.sendToQueue(this.queue, top);
+        const succeeded = this.chan.sendToQueue(this.queue, top, { persistent: true });
 
         // break out if we need to wait again
         if (!succeeded) {
