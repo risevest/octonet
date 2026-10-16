@@ -8,8 +8,9 @@ import sinon from "sinon";
 import { Logger } from "../../src/logging/logger";
 import { defaultSerializers } from "../../src/logging/serializers";
 import { Queue, QueueFactory, Workers } from "../../src/mq";
+import { reconnectDelay } from "../../src/mq/amqp/factory";
 import { sleep } from "../helpers";
-import { customSpy, doSpy, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
+import { customSpy, doSpy, dropConnection, groupAfter, groupBefore, handlerAfter, handlerBefore } from "./helpers/amqp";
 
 const amqpURL = "amqp://localhost:5672";
 const logger = new Logger({
@@ -76,4 +77,19 @@ describe("Worker", () => {
     expect(handlerBefore.calledBefore(doSpy)).to.be.true;
     expect(handlerAfter.calledAfter(doSpy)).to.be.true;
   });
+
+  it("should resume consuming when RabbitMQ drops the connection", async () => {
+    dropConnection(workers);
+    await sleep(300);
+    expect(workers.isRunning()).to.be.false;
+
+    await sleep(reconnectDelay + 1000);
+    expect(workers.isRunning()).to.be.true;
+
+    const amount = faker.finance.amount(100);
+    doQueue.push(amount);
+    await sleep(300);
+
+    expect(doSpy.calledOnceWithExactly(amount)).to.be.true;
+  }, 15_000);
 });

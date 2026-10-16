@@ -1,6 +1,6 @@
 import sinon from "sinon";
 
-import { Middleware, command, worker } from "../../../src";
+import { Middleware, QueueFactory, Workers, command, worker } from "../../../src";
 
 type Spy = sinon.SinonSpy<any[], any>;
 export const groupBefore = sinon.spy();
@@ -29,4 +29,12 @@ export function middleware(before: Spy, after: Spy): Middleware {
     await handler(data);
     after(data);
   };
+}
+
+/**
+ * Destroy the socket under the connection, as a broker restart or network failure would
+ * @param owner factory or workers holding the connection
+ */
+export function dropConnection(owner: QueueFactory | Workers) {
+  (owner as any).conn.connection.stream.destroy(new Error("connection dropped"));
 }
