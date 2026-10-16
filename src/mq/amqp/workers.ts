@@ -6,6 +6,7 @@ import { RetryError } from "../../retry";
 import { dateReviver } from "../../strings";
 import { groupDecorator, handlerDecorator, parseHandlers } from "../decorators";
 import { collapse } from "../handlers";
+import { reconnectDelay } from "./factory";
 
 export const groupKey = Symbol.for("amqp.job.groups");
 export const handlerKey = Symbol.for("amqp.job.handler");
@@ -30,6 +31,7 @@ export const command = handlerDecorator(handlerKey);
  */
 export class Workers {
   private connected: boolean;
+  private stopping = false;
   private conn: Connection;
   private channel: Channel;
   private commands = new Map<string, Function>();
@@ -48,7 +50,8 @@ export class Workers {
   }
 
   /**
-   * Connect the handlers to their AMQP queues.
+   * Connect the handlers to their AMQP queues. The workers reconnect and resume
+   * consuming when RabbitMQ drops the connection.
    * @param url AMQP connection string
    * @param logger for keeping track of workers
    * @param parallel how many jobs requests to receive simultaneously
@@ -63,53 +66,15 @@ export class Workers {
   async start(conn: Connection, logger: Logger, parallel?: number): Promise<void>;
   async start(connUrl: string | Connection, logger: Logger, parallel = 5): Promise<void> {
     if (typeof connUrl === "string") {
-      this.conn = await connect(connUrl);
-      this.conn.on("error", err => {
-        logger.error(err);
-      });
+      await this.consume(await connect(connUrl), logger, parallel, connUrl);
     } else {
-      this.conn = connUrl;
-    }
-
-    this.channel = await this.conn.createChannel();
-    this.connected = true;
-
-    this.conn.on("error", err => {
-      this.connected = false;
-      logger.error(err);
-    });
-
-    this.conn.on("close", () => {
-      this.connected = false;
-    });
-
-    await this.channel.prefetch(parallel);
-
-    for (const [job, handler] of this.commands.entries()) {
-      const queue = job.split(".").join("_").toUpperCase();
-      const wrapped = wrapHandler(queue, logger, handler);
-      this.channel.assertQueue(queue, { durable: true });
-      this.channel.consume(queue, async msg => {
-        if (msg === null) {
-          return;
-        }
-
-        try {
-          await wrapped(msg);
-          this.channel.ack(msg);
-        } catch (err) {
-          if (!(err instanceof RetryError)) {
-            this.channel.ack(msg);
-          }
-          // no-op for normal errors
-        }
-      });
+      await this.consume(connUrl, logger, parallel);
     }
   }
 
   /**
-   * Tracks the health status of connection to RabbitMQ. Returns false once
-   * one connection is lost
+   * Tracks the health status of connection to RabbitMQ. Returns false while
+   * the connection is lost
    */
   isRunning() {
     return this.connected;
@@ -119,6 +84,7 @@ export class Workers {
    * Shutdown all workers
    */
   async stop() {
+    this.stopping = true;
     if (!this.connected) {
       return;
     }
@@ -126,6 +92,67 @@ export class Workers {
     await this.channel.close();
     await this.conn.close();
     return;
+  }
+
+  private async consume(conn: Connection, logger: Logger, parallel: number, url?: string) {
+    conn.on("error", err => {
+      this.connected = false;
+      logger.error(err);
+    });
+
+    const channel = await conn.createChannel();
+    await channel.prefetch(parallel);
+
+    for (const [job, handler] of this.commands.entries()) {
+      const queue = job.split(".").join("_").toUpperCase();
+      const wrapped = wrapHandler(queue, logger, handler);
+      await channel.assertQueue(queue, { durable: true });
+      await channel.consume(queue, async msg => {
+        if (msg === null) {
+          return;
+        }
+
+        try {
+          await wrapped(msg);
+          channel.ack(msg);
+        } catch (err) {
+          if (!(err instanceof RetryError)) {
+            channel.ack(msg);
+          }
+          // no-op for normal errors
+        }
+      });
+    }
+
+    this.conn = conn;
+    this.channel = channel;
+    this.connected = true;
+
+    conn.on("close", () => {
+      this.connected = false;
+      if (url && !this.stopping) {
+        this.reconnect(url, logger, parallel);
+      }
+    });
+  }
+
+  private reconnect(url: string, logger: Logger, parallel: number) {
+    setTimeout(async () => {
+      if (this.stopping) {
+        return;
+      }
+
+      let conn: Connection | undefined;
+      try {
+        conn = await connect(url);
+        await this.consume(conn, logger, parallel, url);
+        logger.log("reconnected the workers to rabbitmq");
+      } catch (err) {
+        logger.error(err);
+        conn?.close().catch(() => undefined);
+        this.reconnect(url, logger, parallel);
+      }
+    }, reconnectDelay);
   }
 }
 
