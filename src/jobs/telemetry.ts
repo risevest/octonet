@@ -16,6 +16,12 @@ export interface ItemCounts {
 
 const DURATION_BUCKETS = [1, 5, 15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
 
+const RECORD_START = `
+local start = redis.call("HGET", KEYS[1], "start")
+if not start or tonumber(start) < tonumber(ARGV[1]) then
+  redis.call("HSET", KEYS[1], "start", ARGV[1], "running", ARGV[1])
+end`;
+
 const CLEAR_RUNNING = `
 if redis.call("HGET", KEYS[1], "running") == ARGV[1] then
   redis.call("HSET", KEYS[1], "running", 0)
@@ -97,7 +103,7 @@ export class JobTelemetry {
   }
 
   async recordStart(name: string, at: number) {
-    await this.redis.hset(stateKey(name), "start", at, "running", at);
+    await this.redis.eval(RECORD_START, 1, stateKey(name), at);
   }
 
   /**
@@ -173,6 +179,10 @@ export class JobTelemetry {
 
 const MAX_DAYS = 3660;
 
+// node-cron expands names, ranges and steps its own way (e.g. 1-59/2 is the even minutes), so
+// cron-parser gets node-cron's expansion instead of the raw schedule
+const toNodeCronFields: (schedule: string) => string = require("node-cron/src/convert-expression");
+
 /**
  * First scheduled time strictly after `after`, in epoch milliseconds, or null if
  * the schedule never runs.
@@ -180,11 +190,18 @@ const MAX_DAYS = 3660;
  * @param after epoch milliseconds to search from
  */
 export function nextDueAfter(schedule: string, after: number): number | null {
+  let fields: string;
+  try {
+    fields = toNodeCronFields(schedule);
+  } catch (err) {
+    return null;
+  }
+
   let from = new Date(after);
   for (let day = 0; day < MAX_DAYS; day++) {
     let interval: parser.CronExpression;
     try {
-      interval = parser.parseExpression(shortenNames(schedule), { currentDate: from });
+      interval = parser.parseExpression(fields, { currentDate: from });
     } catch (err) {
       return null;
     }
@@ -200,16 +217,6 @@ export function nextDueAfter(schedule: string, after: number): number | null {
     from = new Date(new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime() - 1);
   }
   return null;
-}
-
-const FULL_NAMES =
-  /\b(january|february|march|april|may|june|july|august|september|october|november|december|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi;
-
-/**
- * node-cron accepts full month and weekday names, cron-parser only their three-letter aliases.
- */
-function shortenNames(schedule: string) {
-  return schedule.replace(FULL_NAMES, name => name.slice(0, 3));
 }
 
 function stateKey(name: string) {

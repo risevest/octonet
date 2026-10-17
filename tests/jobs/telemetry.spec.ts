@@ -97,6 +97,22 @@ describe("nextDueAfter", () => {
     }
   });
 
+  it("reads a range with a step the way node-cron does", () => {
+    for (let i = 0; i < 50; i++) {
+      const step = faker.datatype.number({ min: 2, max: 10 });
+      const from = faker.datatype.number({ min: 1, max: step - 1 });
+      const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+
+      const expected = new Date(after);
+      expected.setSeconds(0, 0);
+      do {
+        expected.setMinutes(expected.getMinutes() + 1);
+      } while (expected.getMinutes() < from || expected.getMinutes() % step !== 0);
+
+      expect(nextDueAfter(`${from}-59/${step} * * * *`, after)).to.eq(expected.getTime());
+    }
+  });
+
   it("reads a 6-field schedule with seconds first, like node-cron", () => {
     const second = faker.datatype.number({ min: 0, max: 59 });
     const minute = faker.datatype.number({ min: 0, max: 59 });
@@ -295,6 +311,25 @@ describe("JobTelemetry", () => {
     await telemetry.recordEnd(j.name, overrunStart, "success", faker.datatype.number({ min: 1, max: 3600 }));
 
     let points = await collect(reader);
+    expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(replacementStart / 1000);
+
+    await telemetry.recordEnd(j.name, replacementStart, "success", faker.datatype.number({ min: 1, max: 3600 }));
+    points = await collect(reader);
+    expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
+  });
+
+  it("ignores a start that arrives after a newer run's start", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const delayedStart = faker.date.recent(1).getTime();
+    const replacementStart = delayedStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+
+    await telemetry.recordStart(j.name, replacementStart);
+    await telemetry.recordStart(j.name, delayedStart);
+
+    let points = await collect(reader);
+    expect(points("job.last_start.timestamp", { job_name: j.name })[0].value).to.eq(replacementStart / 1000);
     expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(replacementStart / 1000);
 
     await telemetry.recordEnd(j.name, replacementStart, "success", faker.datatype.number({ min: 1, max: 3600 }));
