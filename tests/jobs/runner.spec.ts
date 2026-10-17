@@ -352,6 +352,21 @@ describe("runJob", () => {
     expect(await redis.hget(`${j.name}:telemetry`, "start")).to.be.null;
   });
 
+  it("works existing items without running an async query when the queue isn't empty", async () => {
+    const items = randomItems();
+    const query = sinon.spy(async () => Promise.reject(new Error(faker.lorem.sentence())));
+    const job = sinon.spy();
+    const j = randomJob({ job: async n => job(n), query });
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expect(query.called).to.be.false;
+    expect(job.args.map(a => a[0])).to.deep.eq(items);
+    expectOnlyOutcome(points, j.name, "success");
+  });
+
   it("works existing items without running the query when the queue isn't empty", async () => {
     const items = randomItems();
     let queried = false;

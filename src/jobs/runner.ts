@@ -212,13 +212,14 @@ async function runQuery<T>(
 ): Promise<RunResult> {
   let queued = 0;
   let error: Error;
-  try {
-    const filled = await queue.fill(countQueued(await j.query(), n => (queued += n)));
-    if (!filled) {
-      logger.log("queue not empty, skipped filling it from the query", { job_name: j.name });
+  if ((await queue.length()) > 0) {
+    logger.log("queue not empty, working remaining items without running the query", { job_name: j.name });
+  } else {
+    try {
+      await queue.fill(countQueued(await j.query(), n => (queued += n)));
+    } catch (err) {
+      error = unwrap(err);
     }
-  } catch (err) {
-    error = unwrap(err);
   }
 
   if (error && queued === 0) {
