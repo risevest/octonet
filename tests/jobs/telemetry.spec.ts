@@ -100,6 +100,26 @@ describe("nextDueAfter", () => {
     }
   });
 
+  it("finds a valid run far beyond the first candidate for a sparse schedule", () => {
+    for (let i = 0; i < 5; i++) {
+      const day = faker.datatype.number({ min: 1, max: 28 });
+      const weekday = faker.datatype.number({ min: 0, max: 6 });
+      const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+
+      const expected = new Date(after);
+      expected.setSeconds(0, 0);
+      expected.setMinutes(expected.getMinutes() + 1);
+      while (expected.getDate() !== day || expected.getDay() !== weekday) {
+        expected.setHours(0, 0, 0, 0);
+        expected.setDate(expected.getDate() + 1);
+      }
+
+      const began = Date.now();
+      expect(nextDueAfter(`* * ${day} * ${weekday}`, after)).to.eq(expected.getTime());
+      expect(Date.now() - began).to.be.below(1000);
+    }
+  });
+
   it("returns null for a schedule that never runs", () => {
     const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
     const day = faker.datatype.number({ min: 30, max: 31 });
@@ -175,7 +195,7 @@ describe("JobTelemetry", () => {
 
     expect(points("job.last_start.timestamp", { job_name: j.name })[0].value).to.eq(startedAt / 1000);
     expect(points("job.next_due_after_start.timestamp", { job_name: j.name })[0].value).to.eq(
-      nextDueAfter(j.schedule, startedAt) / 1000
+      nextDueAfter(j.schedule, startedAt + ms(j.maxComputeTime) - 1) / 1000
     );
     expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
     expect(points("job.last_success.timestamp", { job_name: j.name })[0].value * 1000).to.be.within(
@@ -242,6 +262,30 @@ describe("JobTelemetry", () => {
     } finally {
       sinon.restore();
     }
+  });
+
+  it("only expects the next run once the last run's lock has expired", async () => {
+    const step = faker.datatype.number({ min: 1, max: 30 });
+    const lockMinutes = faker.datatype.number({ min: 31, max: 180 });
+    const j = { ...randomJob(), schedule: `*/${step} * * * *`, maxComputeTime: `${lockMinutes}m` };
+    const startedAt = faker.date.recent(1).getTime();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+
+    await telemetry.recordStart(j.name, startedAt);
+
+    const expected = new Date(startedAt + lockMinutes * 60_000);
+    if (expected.getSeconds() !== 0 || expected.getMilliseconds() !== 0) {
+      expected.setSeconds(0, 0);
+      expected.setMinutes(expected.getMinutes() + 1);
+    }
+    while (expected.getMinutes() % step !== 0) {
+      expected.setMinutes(expected.getMinutes() + 1);
+    }
+    const points = await collect(reader);
+    expect(points("job.next_due_after_start.timestamp", { job_name: j.name })[0].value).to.eq(
+      expected.getTime() / 1000
+    );
   });
 
   it("reports dead-letter items for query jobs only", async () => {

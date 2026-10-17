@@ -53,7 +53,12 @@ export class JobRunner {
       if (j.query) {
         const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
         // we don't need to fill if queue already has items
-        preruns.push(queue.work(j.job, logger).then(items => this.telemetry.recordItems(j.name, items)));
+        preruns.push(
+          (async () => {
+            const items = await queue.work(j.job, logger);
+            this.telemetry.recordItems(j.name, items);
+          })()
+        );
       }
     }
 
@@ -210,7 +215,7 @@ async function runQuery<T>(
   try {
     const filled = await queue.fill(countQueued(await j.query(), n => (queued += n)));
     if (!filled) {
-      logger.log("queue not empty, working remaining items without running the query", { job_name: j.name });
+      logger.log("queue not empty, skipped filling it from the query", { job_name: j.name });
     }
   } catch (err) {
     error = unwrap(err);

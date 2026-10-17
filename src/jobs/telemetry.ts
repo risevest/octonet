@@ -59,7 +59,9 @@ export class JobTelemetry {
     this.nextDue = meter.createObservableGauge("job.next_due_after_start.timestamp", { unit: "s" });
     this.runningSince = meter.createObservableGauge("job.running_since.timestamp", { unit: "s" });
     this.maxComputeTime = meter.createObservableGauge("job.max_compute_time", { unit: "s" });
-    this.deadLetter = meter.createObservableGauge("job.dead_letter.items");
+    this.deadLetter = meter.createObservableGauge("job.dead_letter.items", {
+      description: "Items in the dead-letter hash: failed items plus items being worked"
+    });
 
     meter.addBatchObservableCallback(
       result => this.observe(result),
@@ -125,7 +127,8 @@ export class JobTelemetry {
       const lastStart = start ?? this.startedAt;
 
       result.observe(this.lastStart, lastStart / 1000, attrs);
-      const nextDue = nextDueAfter(j.schedule, lastStart);
+      // runJob never releases the lock, so the next run can only start once it expires
+      const nextDue = nextDueAfter(j.schedule, start === null ? lastStart : start + ms(j.maxComputeTime) - 1);
       if (nextDue !== null) {
         result.observe(this.nextDue, nextDue / 1000, attrs);
       }
@@ -141,7 +144,7 @@ export class JobTelemetry {
   }
 }
 
-const MAX_CANDIDATES = 100_000;
+const MAX_DAYS = 3660;
 
 /**
  * First scheduled time strictly after `after`, in epoch milliseconds, or null if
@@ -150,21 +153,24 @@ const MAX_CANDIDATES = 100_000;
  * @param after epoch milliseconds to search from
  */
 export function nextDueAfter(schedule: string, after: number): number | null {
-  let interval: parser.CronExpression;
-  try {
-    interval = parser.parseExpression(schedule, { currentDate: new Date(after) });
-  } catch (err) {
-    return null;
-  }
-  // cron-parser runs when either day field matches, node-cron only when both do
-  const days = new Set<number | string>(interval.fields.dayOfMonth);
-  const weekdays = new Set<number>(interval.fields.dayOfWeek.map(d => d % 7));
+  let from = new Date(after);
+  for (let day = 0; day < MAX_DAYS; day++) {
+    let interval: parser.CronExpression;
+    try {
+      interval = parser.parseExpression(schedule, { currentDate: from });
+    } catch (err) {
+      return null;
+    }
 
-  for (let i = 0; i < MAX_CANDIDATES; i++) {
     const next = interval.next().toDate();
+    // cron-parser runs when either day field matches, node-cron only when both do
+    const days = new Set<number | string>(interval.fields.dayOfMonth);
+    const weekdays = new Set<number>(interval.fields.dayOfWeek.map(d => d % 7));
     if (days.has(next.getDate()) && weekdays.has(next.getDay())) {
       return next.getTime();
     }
+
+    from = new Date(new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime() - 1);
   }
   return null;
 }
