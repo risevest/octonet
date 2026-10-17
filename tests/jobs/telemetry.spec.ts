@@ -317,6 +317,19 @@ describe("JobTelemetry", () => {
     );
   });
 
+  it("stops reporting gauges once closed", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    await telemetry.recordStart(j.name, faker.date.recent(1).getTime());
+
+    telemetry.close();
+
+    const points = await collect(reader);
+    expect(points("job.last_start.timestamp", { job_name: j.name })).to.have.length(0);
+    expect(points("job.runs", { job_name: j.name, outcome: "success" })[0].value).to.eq(0);
+  });
+
   it("reports dead-letter items for query jobs only", async () => {
     const simple = randomJob();
     const query = randomJob(true);

@@ -4,6 +4,7 @@ import { expect, use } from "chai";
 
 import Redis from "ioredis";
 import { faker } from "@faker-js/faker";
+import sinon from "sinon";
 import { RedisQueue } from "../../src/jobs/queue";
 import chaiAsPromised from "chai-as-promised";
 
@@ -173,6 +174,31 @@ describe("RedisQueue#work with parallelism", () => {
 
     expect(inFlight).to.eq(0);
     expect(counts).to.deep.eq({ success: jobs.length, failed: 0 });
+  });
+});
+
+describe("RedisQueue#work when redis fails", () => {
+  afterEach(() => sinon.restore());
+
+  it("should keep the counts of items finished before the failure", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 3, max: 10 }) }).map(() => faker.datatype.number());
+    const done = faker.datatype.number({ min: 1, max: jobs.length - 1 });
+    await queue.fill(jobs);
+    const lpop = redis.lpop.bind(redis);
+    let pops = 0;
+    sinon.stub(redis, "lpop").callsFake(((key: string) => {
+      pops++;
+      return pops > done ? Promise.reject(new Error(faker.lorem.word())) : lpop(key);
+    }) as any);
+    const counts = { success: 0, failed: 0 };
+
+    const error = await queue.work(async () => {}, undefined, 1, counts).then(
+      () => null,
+      err => err
+    );
+
+    expect(error).to.be.instanceOf(Error);
+    expect(counts).to.deep.eq({ success: done, failed: 0 });
   });
 });
 

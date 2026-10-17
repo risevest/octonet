@@ -1,5 +1,5 @@
 import { ExitError, RetryError, retryOnRequest, wrapHandler } from "../retry";
-import { JobTelemetry, RunOutcome } from "./telemetry";
+import { ItemCounts, JobTelemetry, RunOutcome } from "./telemetry";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { Job, getJobs } from "./decorators";
 import cron, { ScheduledTask } from "node-cron";
@@ -39,6 +39,7 @@ export class JobRunner {
    */
   async start(redis: Redis, logger: Logger) {
     const preruns = [];
+    this.telemetry?.close();
     this.telemetry = new JobTelemetry(redis, this.jobs, logger);
 
     for (const j of this.jobs) {
@@ -53,12 +54,7 @@ export class JobRunner {
       if (j.query) {
         const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
         // we don't need to fill if queue already has items
-        preruns.push(
-          (async () => {
-            const items = await queue.work(j.job, logger);
-            this.telemetry.recordItems(j.name, items);
-          })()
-        );
+        preruns.push(workQueue(queue, j, logger, this.telemetry));
       }
     }
 
@@ -144,8 +140,7 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger:
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
   if (!ownsLock) {
-    const items = await queue.work(j.job, logger);
-    telemetry?.recordItems(j.name, items);
+    await workQueue(queue, j, logger, telemetry);
     return;
   }
 
@@ -215,10 +210,20 @@ async function runQuery<T>(
   if ((await queue.length()) > 0) {
     logger.log("queue not empty, working remaining items without running the query", { job_name: j.name });
   } else {
+    let source: T[] | AsyncGenerator<T[]>;
     try {
-      await queue.fill(countQueued(await j.query(), n => (queued += n)));
+      source = await j.query();
     } catch (err) {
       error = unwrap(err);
+    }
+    if (!error) {
+      await queue.fill(
+        tapQueued(
+          source,
+          n => (queued += n),
+          err => (error = unwrap(err))
+        )
+      );
     }
   }
 
@@ -226,8 +231,7 @@ async function runQuery<T>(
     return { outcome: "query_failed", error };
   }
 
-  const items = await queue.work(j.job, logger);
-  telemetry?.recordItems(j.name, items);
+  const items = await workQueue(queue, j, logger, telemetry);
 
   if (error) {
     return { outcome: "partial", error };
@@ -235,15 +239,34 @@ async function runQuery<T>(
   return { outcome: items.failed > 0 ? "partial" : "success" };
 }
 
-function countQueued<T>(ts: T[] | AsyncGenerator<T[]>, onQueued: (n: number) => void) {
+async function workQueue<T>(queue: RedisQueue<T>, j: Job<T>, logger: Logger, telemetry?: JobTelemetry) {
+  const items: ItemCounts = { success: 0, failed: 0 };
+  try {
+    await queue.work(j.job, logger, 1, items);
+  } finally {
+    telemetry?.recordItems(j.name, items);
+  }
+  return items;
+}
+
+/**
+ * Pass a query's chunks through to the queue, counting what was queued. An error
+ * from the query itself ends the chunks and is reported to `onError`; errors from
+ * the queue still propagate.
+ */
+function tapQueued<T>(ts: T[] | AsyncGenerator<T[]>, onQueued: (n: number) => void, onError: (err: any) => void) {
   if (Array.isArray(ts)) {
     return ts;
   }
 
   return (async function* () {
-    for await (const chunk of ts) {
-      yield chunk;
-      onQueued(chunk.length);
+    try {
+      for await (const chunk of ts) {
+        yield chunk;
+        onQueued(chunk.length);
+      }
+    } catch (err) {
+      onError(err);
     }
   })();
 }

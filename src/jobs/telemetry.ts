@@ -33,6 +33,8 @@ export class JobTelemetry {
   private maxComputeTime: ObservableGauge;
   private deadLetter: ObservableGauge;
   private startedAt = Date.now();
+  private observables: ObservableGauge[];
+  private callback = (result: BatchObservableResult) => this.observe(result);
 
   /**
    * Metrics for scheduled jobs. Run times are kept in Redis so replicas agree once
@@ -46,7 +48,7 @@ export class JobTelemetry {
     private redis: Redis,
     private jobs: Job<any>[],
     private logger: Logger,
-    meter: Meter = metrics.getMeter("@risemaxi/octonet")
+    private meter: Meter = metrics.getMeter("@risemaxi/octonet")
   ) {
     this.runs = meter.createCounter("job.runs", { description: "Scheduled job runs by outcome" });
     this.items = meter.createCounter("job.items", { description: "Query job items by outcome" });
@@ -68,18 +70,16 @@ export class JobTelemetry {
       description: "Items in the dead-letter hash: failed items plus items being worked"
     });
 
-    meter.addBatchObservableCallback(
-      result => this.observe(result),
-      [
-        this.lastStart,
-        this.lastSuccess,
-        this.nextDue,
-        this.runningSince,
-        this.lastDuration,
-        this.maxComputeTime,
-        this.deadLetter
-      ]
-    );
+    this.observables = [
+      this.lastStart,
+      this.lastSuccess,
+      this.nextDue,
+      this.runningSince,
+      this.lastDuration,
+      this.maxComputeTime,
+      this.deadLetter
+    ];
+    meter.addBatchObservableCallback(this.callback, this.observables);
 
     for (const j of jobs) {
       RUN_OUTCOMES.forEach(outcome => this.runs.add(0, { job_name: j.name, outcome }));
@@ -87,6 +87,13 @@ export class JobTelemetry {
         this.recordItems(j.name, { success: 0, failed: 0 });
       }
     }
+  }
+
+  /**
+   * Stop reporting the gauges, so a replaced instance doesn't keep reading Redis.
+   */
+  close() {
+    this.meter.removeBatchObservableCallback(this.callback, this.observables);
   }
 
   async recordStart(name: string, at: number) {

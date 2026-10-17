@@ -261,6 +261,47 @@ describe("runJob", () => {
     expectOnlyOutcome(points, j.name, "query_failed");
   });
 
+  it("records failed, not query_failed, when filling the queue fails", async () => {
+    const items = randomItems();
+    const failure = new Error(faker.lorem.sentence());
+    const job = sinon.spy();
+    const j = randomJob({ job: async n => job(n), query: async () => items });
+    sinon.stub(redis, "multi").returns({ exec: () => Promise.reject(failure) } as any);
+
+    try {
+      const { error, points } = await runWithTelemetry(j);
+
+      expect(error.message).to.eq(failure.message);
+      expect(job.called).to.be.false;
+      expectOnlyOutcome(points, j.name, "failed");
+    } finally {
+      sinon.restore();
+    }
+  });
+
+  it("records items finished before redis fails while working the queue", async () => {
+    const items = randomItems();
+    const done = faker.datatype.number({ min: 1, max: items.length - 1 });
+    const j = randomJob();
+    await acquireLock(redis, j.name, faker.datatype.uuid(), j.maxComputeTime);
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+    const lpop = redis.lpop.bind(redis);
+    let pops = 0;
+    sinon.stub(redis, "lpop").callsFake(((key: string) => {
+      pops++;
+      return pops > done ? Promise.reject(new Error(faker.lorem.word())) : lpop(key);
+    }) as any);
+
+    try {
+      const { error, points } = await runWithTelemetry(j);
+
+      expect(error).to.be.instanceOf(Error);
+      expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(done);
+    } finally {
+      sinon.restore();
+    }
+  });
+
   it("records failed and rethrows when a simple job throws", async () => {
     const message = faker.lorem.sentence();
     const j = randomJob({ job: async () => Promise.reject(new Error(message)) });
@@ -411,6 +452,16 @@ describe("JobRunner#start", () => {
     await Promise.all(callbacks.map(fn => fn()));
 
     expect(errorLog.calledWith(failure)).to.be.true;
+  });
+
+  it("should close the previous telemetry when started again", async () => {
+    sinon.stub(cron, "schedule").returns({ stop: () => {} } as any);
+    const close = sinon.spy(JobTelemetry.prototype, "close");
+
+    await runner.start(redis, logger);
+    await runner.start(redis, logger);
+
+    expect(close.called).to.be.true;
   });
 
   it("should count items worked on startup", async () => {

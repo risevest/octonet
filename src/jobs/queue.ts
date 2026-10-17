@@ -88,10 +88,15 @@ export class RedisQueue<T> {
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
+   * @param counts updated as each item finishes, so callers keep the counts if a Redis call fails midway
    * @returns how many items this worker processed and how many failed
    */
-  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1): Promise<ItemCounts> {
-    const counts: ItemCounts = { success: 0, failed: 0 };
+  async work(
+    f: (t: T) => Promise<void>,
+    logger?: Logger,
+    parallelism = 1,
+    counts: ItemCounts = { success: 0, failed: 0 }
+  ): Promise<ItemCounts> {
     await retryOnRequest(JOB_POLL_RETRIES, JOB_POLL_TIMEOUT, async (attempt: number) => {
       try {
         let handler: Function;
