@@ -29,6 +29,7 @@ export class JobTelemetry {
   private lastSuccess: ObservableGauge;
   private nextDue: ObservableGauge;
   private runningSince: ObservableGauge;
+  private lastDuration: ObservableGauge;
   private maxComputeTime: ObservableGauge;
   private deadLetter: ObservableGauge;
   private startedAt = Date.now();
@@ -58,6 +59,10 @@ export class JobTelemetry {
     this.lastSuccess = meter.createObservableGauge("job.last_success.timestamp", { unit: "s" });
     this.nextDue = meter.createObservableGauge("job.next_due_after_start.timestamp", { unit: "s" });
     this.runningSince = meter.createObservableGauge("job.running_since.timestamp", { unit: "s" });
+    this.lastDuration = meter.createObservableGauge("job.last_duration", {
+      unit: "s",
+      description: "How long the most recently finished run took"
+    });
     this.maxComputeTime = meter.createObservableGauge("job.max_compute_time", { unit: "s" });
     this.deadLetter = meter.createObservableGauge("job.dead_letter.items", {
       description: "Items in the dead-letter hash: failed items plus items being worked"
@@ -65,7 +70,15 @@ export class JobTelemetry {
 
     meter.addBatchObservableCallback(
       result => this.observe(result),
-      [this.lastStart, this.lastSuccess, this.nextDue, this.runningSince, this.maxComputeTime, this.deadLetter]
+      [
+        this.lastStart,
+        this.lastSuccess,
+        this.nextDue,
+        this.runningSince,
+        this.lastDuration,
+        this.maxComputeTime,
+        this.deadLetter
+      ]
     );
 
     for (const j of jobs) {
@@ -88,9 +101,11 @@ export class JobTelemetry {
     this.runs.add(1, { job_name: name, outcome });
     this.duration.record(durationSeconds, { job_name: name });
 
+    const fields: (string | number)[] = ["duration", durationSeconds];
     if (outcome === "success") {
-      await this.redis.hset(stateKey(name), "success", Date.now());
+      fields.push("success", Date.now());
     }
+    await this.redis.hset(stateKey(name), ...fields);
     await this.redis.eval(CLEAR_RUNNING, 1, stateKey(name), startedAt);
   }
 
@@ -102,7 +117,7 @@ export class JobTelemetry {
   private async observe(result: BatchObservableResult) {
     const pipeline = this.redis.pipeline();
     for (const j of this.jobs) {
-      pipeline.hmget(stateKey(j.name), "start", "success", "running");
+      pipeline.hmget(stateKey(j.name), "start", "success", "running", "duration");
       pipeline.hlen(`${j.name}:dead-letter`);
     }
 
@@ -122,7 +137,9 @@ export class JobTelemetry {
         return;
       }
 
-      const [start, success, running] = (state as (string | null)[]).map(v => (v === null ? null : Number(v)));
+      const [start, success, running, duration] = (state as (string | null)[]).map(v =>
+        v === null ? null : Number(v)
+      );
       const attrs = { job_name: j.name };
       const lastStart = start ?? this.startedAt;
 
@@ -136,6 +153,9 @@ export class JobTelemetry {
       result.observe(this.maxComputeTime, ms(j.maxComputeTime) / 1000, attrs);
       if (success !== null) {
         result.observe(this.lastSuccess, success / 1000, attrs);
+      }
+      if (duration !== null) {
+        result.observe(this.lastDuration, duration, attrs);
       }
       if (j.query) {
         result.observe(this.deadLetter, dead as number, attrs);

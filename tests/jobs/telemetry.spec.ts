@@ -174,6 +174,35 @@ describe("JobTelemetry", () => {
     expect(points("job.max_compute_time", { job_name: j.name })[0].value).to.eq(ms(j.maxComputeTime) / 1000);
   });
 
+  it("reports how long the most recently finished run took", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const firstStart = faker.date.recent(2).getTime();
+    const secondStart = firstStart + faker.datatype.number({ min: 60_000, max: 3_600_000 });
+    const first = faker.datatype.number({ min: 1, max: 3600, precision: 0.001 });
+    const second = faker.datatype.number({ min: 1, max: 3600, precision: 0.001 });
+
+    let points = await collect(reader);
+    expect(points("job.last_duration", { job_name: j.name })).to.have.length(0);
+
+    await telemetry.recordStart(j.name, firstStart);
+    await telemetry.recordEnd(j.name, firstStart, "success", first);
+    points = await collect(reader);
+    expect(points("job.last_duration", { job_name: j.name })[0].value).to.eq(first);
+
+    const outcome = faker.helpers.arrayElement(RUN_OUTCOMES.filter(o => o !== "success"));
+    await telemetry.recordStart(j.name, secondStart);
+    await telemetry.recordEnd(j.name, secondStart, outcome, second);
+    points = await collect(reader);
+    expect(points("job.last_duration", { job_name: j.name })[0].value).to.eq(second);
+
+    const restarted = testMeter();
+    new JobTelemetry(redis, [j], logger, restarted.meter);
+    points = await collect(restarted.reader);
+    expect(points("job.last_duration", { job_name: j.name })[0].value).to.eq(second);
+  });
+
   it("reads run times back from redis after a restart", async () => {
     const j = randomJob();
     const startedAt = faker.date.recent(10).getTime();
