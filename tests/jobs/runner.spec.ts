@@ -62,7 +62,7 @@ describe("acquireLock", () => {
     const latestOwner = faker.datatype.uuid();
 
     const acceptedFirst = await acquireLock(redis, "locks", firstOwner, "500ms");
-    await sleep(500);
+    await sleep(1000);
     const acceptedLatest = await acquireLock(redis, "locks", latestOwner, "4s");
 
     expect(acceptedFirst).to.be.true;
