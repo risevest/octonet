@@ -82,6 +82,31 @@ describe("nextDueAfter", () => {
     expect(nextDueAfter(`${second} ${minute} ${hour} * * *`, after)).to.eq(expected.getTime());
   });
 
+  it("needs both day fields to match when both are set, like node-cron", () => {
+    for (let i = 0; i < 20; i++) {
+      const minute = faker.datatype.number({ min: 0, max: 59 });
+      const hour = faker.datatype.number({ min: 0, max: 23 });
+      const day = faker.datatype.number({ min: 1, max: 28 });
+      const weekday = faker.datatype.number({ min: 0, max: 6 });
+      const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+
+      const expected = new Date(after);
+      expected.setHours(hour, minute, 0, 0);
+      while (expected.getTime() <= after || expected.getDate() !== day || expected.getDay() !== weekday) {
+        expected.setDate(expected.getDate() + 1);
+      }
+
+      expect(nextDueAfter(`${minute} ${hour} ${day} * ${weekday}`, after)).to.eq(expected.getTime());
+    }
+  });
+
+  it("returns null for a schedule that never runs", () => {
+    const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+    const day = faker.datatype.number({ min: 30, max: 31 });
+
+    expect(nextDueAfter(`0 0 ${day} 2 *`, after)).to.be.null;
+  });
+
   it("moves past a start exactly on the scheduled time", () => {
     const minute = faker.datatype.number({ min: 0, max: 59 });
     const due = new Date(faker.date.between("2020-01-01", "2030-01-01"));

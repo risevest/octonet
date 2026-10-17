@@ -246,5 +246,5 @@ function unwrap(err: any): Error {
   if ((err instanceof RetryError || err instanceof ExitError) && err.wrapped) {
     return err.wrapped;
   }
-  return err;
+  return err instanceof Error ? err : new Error(String(err));
 }

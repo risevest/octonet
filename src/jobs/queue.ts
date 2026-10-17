@@ -122,7 +122,8 @@ export class RedisQueue<T> {
           }
         });
 
-        return await Promise.all(work);
+        const errors = await Promise.all(work.map(w => w.catch(err => err)));
+        throw errors.find(err => !(err instanceof RetryError)) ?? errors[0];
       } catch (error) {
         if (error instanceof RetryError && attempt >= JOB_POLL_RETRIES) {
           return;

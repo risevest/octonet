@@ -154,6 +154,28 @@ describe("RedisQueue#work", () => {
   });
 });
 
+describe("RedisQueue#work with parallelism", () => {
+  it("should only return once every worker has finished", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 5, max: 20 }) }).map(() => faker.datatype.number());
+    const parallelism = faker.datatype.number({ min: 2, max: 5 });
+    await queue.fill(jobs);
+    let inFlight = 0;
+
+    const counts = await queue.work(
+      async () => {
+        inFlight++;
+        await new Promise(r => setTimeout(r, faker.datatype.number({ min: 10, max: 100 })));
+        inFlight--;
+      },
+      undefined,
+      parallelism
+    );
+
+    expect(inFlight).to.eq(0);
+    expect(counts).to.deep.eq({ success: jobs.length, failed: 0 });
+  });
+});
+
 describe("RedisQueue#requeue", () => {
   it("should re-process failed jobs", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);

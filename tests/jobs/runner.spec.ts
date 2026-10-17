@@ -83,7 +83,7 @@ describe("releaseLock", () => {
   it("should ignore expired lock", async () => {
     const owner = faker.datatype.uuid();
     const owned = await acquireLock(redis, "locks", owner, "1s");
-    await sleep(1000);
+    await sleep(1500);
     const released = await releaseLock(redis, "locks", owner);
 
     expect(owned).to.be.true;
@@ -238,6 +238,27 @@ describe("runJob", () => {
     } finally {
       sinon.restore();
     }
+  });
+
+  it("records failed with a real error when a job rejects with a non-error", async () => {
+    const value = faker.helpers.arrayElement([undefined, null, faker.lorem.word()]);
+    const j = randomJob({ job: async () => Promise.reject(value) });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.instanceOf(Error);
+    expect(error.message).to.eq(String(value));
+    expectOnlyOutcome(points, j.name, "failed");
+  });
+
+  it("records query_failed when the query rejects with a non-error", async () => {
+    const value = faker.helpers.arrayElement([undefined, null, faker.lorem.word()]);
+    const j = randomJob({ query: async () => Promise.reject(value) });
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.instanceOf(Error);
+    expectOnlyOutcome(points, j.name, "query_failed");
   });
 
   it("records failed and rethrows when a simple job throws", async () => {
