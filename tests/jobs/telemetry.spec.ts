@@ -52,6 +52,36 @@ describe("nextDueAfter", () => {
     }
   });
 
+  it("accepts full month and weekday names like node-cron", () => {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    for (let i = 0; i < 20; i++) {
+      const minute = faker.datatype.number({ min: 0, max: 59 });
+      const hour = faker.datatype.number({ min: 0, max: 23 });
+      const month = faker.helpers.arrayElement(months);
+      const day = faker.helpers.arrayElement(days);
+      const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+
+      const expected = nextDueAfter(`${minute} ${hour} * ${month.slice(0, 3)} ${day.slice(0, 3)}`, after);
+
+      expect(expected).to.not.be.null;
+      expect(nextDueAfter(`${minute} ${hour} * ${month} ${day}`, after)).to.eq(expected);
+    }
+  });
+
   it("returns the next step for frequent jobs", () => {
     for (let i = 0; i < 50; i++) {
       const step = faker.datatype.number({ min: 1, max: 30 });

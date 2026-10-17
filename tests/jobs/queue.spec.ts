@@ -202,6 +202,32 @@ describe("RedisQueue#work when redis fails", () => {
   });
 });
 
+describe("RedisQueue#work when acknowledging an item fails", () => {
+  afterEach(() => sinon.restore());
+
+  it("should count the item as a success and reject with the redis error", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 2, max: 10 }) }).map(() => faker.datatype.number());
+    const acked = faker.datatype.number({ min: 0, max: jobs.length - 1 });
+    await queue.fill(jobs);
+    const failure = new Error(faker.lorem.sentence());
+    const hdel = redis.hdel.bind(redis);
+    let calls = 0;
+    sinon.stub(redis, "hdel").callsFake(((...args: [string, string]) => {
+      calls++;
+      return calls > acked ? Promise.reject(failure) : hdel(...args);
+    }) as any);
+    const counts = { success: 0, failed: 0 };
+
+    const error = await queue.work(async () => {}, undefined, 1, counts).then(
+      () => null,
+      err => err
+    );
+
+    expect(error).to.eq(failure);
+    expect(counts).to.deep.eq({ success: acked + 1, failed: 0 });
+  });
+});
+
 describe("RedisQueue#requeue", () => {
   it("should re-process failed jobs", async () => {
     const jobs = Array.from({ length: 10 }).map((_x, i) => i + 1);

@@ -119,11 +119,13 @@ export class RedisQueue<T> {
 
             try {
               await retryOnRequest(this.retries, this.timeout, _n => handler(data));
-              await this.redis.hdel(this.deadLetterHash, bkpKey);
-              counts.success++;
             } catch (err) {
               counts.failed++;
+              continue;
             }
+
+            counts.success++;
+            await this.redis.hdel(this.deadLetterHash, bkpKey);
           }
         });
 

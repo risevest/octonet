@@ -184,7 +184,7 @@ export function nextDueAfter(schedule: string, after: number): number | null {
   for (let day = 0; day < MAX_DAYS; day++) {
     let interval: parser.CronExpression;
     try {
-      interval = parser.parseExpression(schedule, { currentDate: from });
+      interval = parser.parseExpression(shortenNames(schedule), { currentDate: from });
     } catch (err) {
       return null;
     }
@@ -200,6 +200,16 @@ export function nextDueAfter(schedule: string, after: number): number | null {
     from = new Date(new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime() - 1);
   }
   return null;
+}
+
+const FULL_NAMES =
+  /\b(january|february|march|april|may|june|july|august|september|october|november|december|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi;
+
+/**
+ * node-cron accepts full month and weekday names, cron-parser only their three-letter aliases.
+ */
+function shortenNames(schedule: string) {
+  return schedule.replace(FULL_NAMES, name => name.slice(0, 3));
 }
 
 function stateKey(name: string) {

@@ -464,6 +464,16 @@ describe("JobRunner#start", () => {
     expect(close.called).to.be.true;
   });
 
+  it("should close the telemetry when every job is stopped", async () => {
+    sinon.stub(cron, "schedule").returns({ stop: () => {} } as any);
+    await runner.start(redis, logger);
+    const close = sinon.spy(JobTelemetry.prototype, "close");
+
+    runner.stop();
+
+    expect(close.calledOnce).to.be.true;
+  });
+
   it("should count items worked on startup", async () => {
     const items = multiply(faker.datatype.number({ min: 1, max: 10 }), () => faker.datatype.number());
     const name = `${GROUP_NAME}.data`;

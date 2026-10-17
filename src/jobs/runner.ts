@@ -83,6 +83,7 @@ export class JobRunner {
    */
   stop(job?: string) {
     if (!job) {
+      this.telemetry?.close();
       return this.jobs.forEach(j => j.task?.stop());
     }
 
