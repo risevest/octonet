@@ -14,11 +14,7 @@ Use the gRPC module when:
 
 ## Prerequisites
 
-Install the required peer dependencies alongside Octonet:
-
-```bash
-yarn add @grpc/grpc-js @grpc/proto-loader
-```
+`@grpc/grpc-js` and `@grpc/proto-loader` ship as Octonet dependencies, so they install with the package — no extra step. Import them directly only if your service calls them outside the agent.
 
 You will also need a `.proto` file that defines the service contract. Both the calling service and the receiving service must use the same file.
 
@@ -75,7 +71,7 @@ Specifies the target gRPC server. **Required** — must be called before `.do()`
   address: string,           // host:port, e.g. "users-service:50051"
   protoPath: string,         // absolute path to the .proto file
   service: string,           // fully qualified service name, e.g. "users.UserService"
-  credentials?: ChannelCredentials  // defaults to insecure (suitable for in-cluster traffic)
+  credentials?: ChannelCredentials  // defaults to insecure. Only safe for in-cluster traffic protected by a service mesh / mTLS; pass TLS ChannelCredentials for anything crossing a trust boundary.
 ): this
 ```
 
@@ -83,7 +79,7 @@ Specifies the target gRPC server. **Required** — must be called before `.do()`
 
 Attaches an authorization token to the call metadata. Supports three modes:
 
-| Call | Behaviour |
+| Call | Behavior |
 |---|---|
 | `.auth(req)` | Forwards the `Authorization` header from an Express request |
 | `.auth(session)` | Generates a signed system JWT containing the given session payload |
@@ -93,7 +89,7 @@ Attaches an authorization token to the call metadata. Supports three modes:
 
 Enables distributed tracing on the call.
 
-| Call | Behaviour |
+| Call | Behavior |
 |---|---|
 | `.track(req)` | Forwards `x-request-id` from an Express request |
 | `.track()` | Generates a new UUID as `x-request-id` |
@@ -138,7 +134,7 @@ Common gRPC status codes:
 | `1` | `CANCELLED` | Call cancelled by the client |
 | `4` | `DEADLINE_EXCEEDED` | Call did not complete before the deadline |
 | `5` | `NOT_FOUND` | Requested resource does not exist |
-| `7` | `PERMISSION_DENIED` | Caller is not authorised |
+| `7` | `PERMISSION_DENIED` | Caller is not authorized |
 | `13` | `INTERNAL` | Unhandled error on the server |
 | `14` | `UNAVAILABLE` | Server is down or unreachable |
 

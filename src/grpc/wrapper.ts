@@ -2,9 +2,10 @@ import * as grpc from "@grpc/grpc-js";
 import { Request } from "express";
 import { v4 as uuidv4 } from "uuid";
 
+import { NoAuthorizationTokenError, NoRequestIDError } from "../http/errors";
 import { encode } from "../http/jwt";
 import { Action, AuthConfig } from "../http/wrapper";
-import { GrpcError } from "./errors";
+import { GrpcError, GrpcMethodNotFoundError } from "./errors";
 
 /**
  * Resolves a gRPC stub for a given connection target.
@@ -78,7 +79,7 @@ export class GrpcRequestWrapper<TRequest extends object> {
     if (isExpressReq) {
       const authHeader = (reqOrSession as Request).headers.authorization;
       if (!authHeader) {
-        throw new Error(`gRPC call ${this.serviceName}/${this.method} requires an authorization token`);
+        throw new NoAuthorizationTokenError(`${this.serviceName}/${this.method}`);
       }
       this.metadata.set("authorization", authHeader);
       return this;
@@ -94,11 +95,16 @@ export class GrpcRequestWrapper<TRequest extends object> {
 
   /**
    * Enable distributed tracing on the call.
-   * Forwards x-request-id from an Express request, or generates a new one.
-   * Also sets x-origin-service so the receiver knows where the call came from.
+   * Forwards x-request-id from an Express request; a request without one throws,
+   * so a broken trace chain is loud (matches the HTTP RequestWrapper). The no-arg
+   * form mints a fresh id for a base request. Also sets x-origin-service.
    */
   track(req?: Request): this {
-    const requestId = req?.headers["x-request-id"] as string | undefined;
+    if (req && !req.headers["x-request-id"]) {
+      throw new NoRequestIDError(`${this.serviceName}/${this.method}`);
+    }
+    const header = req?.headers["x-request-id"];
+    const requestId = Array.isArray(header) ? header[0] : header;
     this.metadata.set("x-request-id", requestId ?? uuidv4());
     this.metadata.set("x-origin-service", this.serviceName);
     return this;
@@ -125,6 +131,10 @@ export class GrpcRequestWrapper<TRequest extends object> {
       );
     }
 
+    if (!Number.isFinite(deadline)) {
+      throw new Error(`gRPC call ${this.serviceName}/${this.method} needs a finite deadline in seconds`);
+    }
+
     for (const action of this.asyncActions) {
       await action();
     }
@@ -137,9 +147,7 @@ export class GrpcRequestWrapper<TRequest extends object> {
     );
 
     if (typeof stub[this.method] !== "function") {
-      throw new Error(
-        `gRPC method "${this.method}" does not exist on stub for service "${this.serviceName}"`
-      );
+      throw new GrpcMethodNotFoundError(this.connection.service, this.method);
     }
 
     const callOptions: grpc.CallOptions = {
@@ -152,7 +160,10 @@ export class GrpcRequestWrapper<TRequest extends object> {
         this.metadata,
         callOptions,
         (err: grpc.ServiceError | null, response: TResponse) => {
-          if (err) return reject(new GrpcError(this.serviceName, this.method, err));
+          if (err) {
+            reject(new GrpcError(this.serviceName, this.method, err));
+            return;
+          }
           resolve(response);
         }
       );

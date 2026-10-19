@@ -6,6 +6,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
 import * as jwt from "../../src/http/jwt";
+import { NoRequestIDError } from "../../src/http/errors";
 import { GrpcError } from "../../src/grpc/errors";
 import { GrpcRequestWrapper, StubResolver } from "../../src/grpc/wrapper";
 import { randomString } from "../helpers";
@@ -125,6 +126,11 @@ describe("GrpcRequestWrapper#track", () => {
 
     expect(res.request_id).to.be.a("string").with.length(36);
     expect(res.origin_service).to.eq(service);
+  });
+
+  it("should throw when a source request has no x-request-id", () => {
+    const req: any = { headers: {} };
+    expect(() => echo("hello").track(req)).to.throw(NoRequestIDError);
   });
 });
 

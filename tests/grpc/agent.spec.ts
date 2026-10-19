@@ -107,4 +107,17 @@ describe("GrpcAgent#call", () => {
     expect(res1.message).to.eq("first");
     expect(res2.message).to.eq("second");
   });
+
+  it("should close cached stubs and still serve calls afterwards", async () => {
+    const localAgent = new GrpcAgent(agentConfig);
+    await localAgent.call("Echo", { message: "before" }).via(serverAddress, PROTO_PATH, "test.TestService").do();
+
+    expect(() => localAgent.close()).to.not.throw();
+
+    const res = await localAgent
+      .call("Echo", { message: "after" })
+      .via(serverAddress, PROTO_PATH, "test.TestService")
+      .do<EchoResponse>();
+    expect(res.message).to.eq("after");
+  });
 });
