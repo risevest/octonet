@@ -166,7 +166,15 @@ describe("GrpcRequestWrapper#do", () => {
     expect(err!.details).to.eq("intentional failure");
   });
 
-  it("should respect the deadline and reject with a timeout error", async () => {
-    await expect(echo("slow").do(0)).to.be.rejectedWith(GrpcError);
+  it("should respect the deadline and reject with DEADLINE_EXCEEDED", async () => {
+    let err: GrpcError | undefined;
+    try {
+      await echo("slow").do(0);
+    } catch (e) {
+      err = e as GrpcError;
+    }
+
+    expect(err).to.be.instanceOf(GrpcError);
+    expect(err!.code).to.eq(grpc.status.DEADLINE_EXCEEDED);
   });
 });

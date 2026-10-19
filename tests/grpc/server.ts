@@ -24,12 +24,21 @@ export interface EchoResponse {
 
 function echoHandler(call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
   const meta = call.metadata;
-  callback(null, {
-    message: call.request.message,
-    authorization: (meta.get("authorization")[0] as string) ?? "",
-    request_id: (meta.get("x-request-id")[0] as string) ?? "",
-    origin_service: (meta.get("x-origin-service")[0] as string) ?? ""
-  });
+  const reply = () =>
+    callback(null, {
+      message: call.request.message,
+      authorization: (meta.get("authorization")[0] as string) ?? "",
+      request_id: (meta.get("x-request-id")[0] as string) ?? "",
+      origin_service: (meta.get("x-origin-service")[0] as string) ?? ""
+    });
+
+  // "slow" holds the response long past any short deadline, so a deadline test
+  // always loses the race and gets DEADLINE_EXCEEDED rather than flaking.
+  if (call.request.message === "slow") {
+    setTimeout(reply, 1000);
+    return;
+  }
+  reply();
 }
 
 function failHandler(_call: grpc.ServerUnaryCall<any, any>, callback: grpc.sendUnaryData<any>) {
