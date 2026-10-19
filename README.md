@@ -7,7 +7,7 @@
 
 octonet is a library that provides utility functions for building microservices such as:
 
-- Interservice communication (via REST)
+- Interservice communication (via REST or gRPC)
 - Subscribing to events from RabbitMQ queues and NATS servers.
 - Logging
 - Distributed Tracing
@@ -67,7 +67,8 @@ yarn upgrade @risemaxi/octonet --latest
 
 Below are links to detailed explanations to the various features of Octonet as well as practical examples:
 
-- [HTTP (Interservice Comunication)](docs/HTTP.md)
+- [HTTP (Interservice Communication)](docs/HTTP.md)
+- [gRPC (Interservice Communication)](docs/GRPC.md)
 - [NatsConsumer (subscribing to Nats topics)](docs/Consumer.md)
 - [QueueManager (subscribing to RabbitMQ queues)](docs/Manager.md)
 - [Authentication](docs/Authentication.md)
