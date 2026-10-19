@@ -217,3 +217,32 @@ const logger = new Logger({
   await queue.push("WALLET_WITHDRAW", 100);
 })();
 ```
+
+## Retries
+
+A handler asks for a job to be run again by throwing `RetryError`. Any other error acks the job and drops it.
+
+```ts
+await workers.start(amqpURL, logger, 5, { max_attempts: 5, backoff: ["10s", "1m", "5m", "15m"] });
+```
+
+- `max_attempts` (default `5`): how many times a job runs before it is given up on.
+- `backoff` (default `["10s", "1m", "5m", "15m"]`): the delay before each rerun. The last delay is reused once the list runs out.
+
+When a job throws `RetryError`, octonet copies it to `<QUEUE>_RETRY_<delay in ms>` and acks the original, so retrying jobs never hold a prefetch slot. The retry queue sends the job back to `<QUEUE>` once the delay passes. After the last attempt the job goes to `<QUEUE>_DEAD`, where it stays until someone inspects it. The attempt count travels in the `x-octonet-attempt` header.
+
+Handlers receive the delivery details as a second argument, so the last attempt can be handled explicitly:
+
+```ts
+@command("wallet.fund")
+async fund(data: FundRequest, { attempt, max_attempts }: DeliveryInfo) {
+  try {
+    await this.wallets.fund(data);
+  } catch (err) {
+    if (attempt === max_attempts) {
+      await this.requests.recordFailure(data.id, err);
+    }
+    throw new RetryError(err);
+  }
+}
+```
