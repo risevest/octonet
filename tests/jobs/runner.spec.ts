@@ -207,13 +207,14 @@ describe("runJob", () => {
     const job = sinon.spy();
     const j = randomJob({ job: async () => job() });
     const failure = new Error(faker.lorem.sentence());
-    sinon.stub(redis, "hset").rejects(failure);
+    const recordStart = sinon.stub(JobTelemetry.prototype, "recordStart").rejects(failure);
     const errorLog = sinon.spy(logger, "error");
 
     try {
       const { error, points } = await runWithTelemetry(j);
 
       expect(error).to.be.null;
+      expect(recordStart.calledOnce).to.be.true;
       expect(job.calledOnce).to.be.true;
       expect(errorLog.calledWith(failure)).to.be.true;
       expectOnlyOutcome(points, j.name, "success");

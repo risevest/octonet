@@ -22,9 +22,13 @@ if not start or tonumber(start) < tonumber(ARGV[1]) then
   redis.call("HSET", KEYS[1], "start", ARGV[1], "running", ARGV[1])
 end`;
 
-const CLEAR_RUNNING = `
-if redis.call("HGET", KEYS[1], "running") == ARGV[1] then
-  redis.call("HSET", KEYS[1], "running", 0)
+const RECORD_END = `
+if redis.call("HGET", KEYS[1], "start") ~= ARGV[1] then
+  return
+end
+redis.call("HSET", KEYS[1], "running", 0, "duration", ARGV[2])
+if ARGV[3] ~= "" then
+  redis.call("HSET", KEYS[1], "success", ARGV[3])
 end`;
 
 export class JobTelemetry {
@@ -107,19 +111,15 @@ export class JobTelemetry {
   }
 
   /**
-   * Record how a run ended. `startedAt` must be the value given to `recordStart`, so a
-   * run that outlived its lock doesn't clear the running time of the run that replaced it.
+   * Record how a run ended. `startedAt` must be the value given to `recordStart`: a run
+   * that outlived its lock and was replaced doesn't overwrite the replacement's run times.
    */
   async recordEnd(name: string, startedAt: number, outcome: RunOutcome, durationSeconds: number) {
     this.runs.add(1, { job_name: name, outcome });
     this.duration.record(durationSeconds, { job_name: name });
 
-    const fields: (string | number)[] = ["duration", durationSeconds];
-    if (outcome === "success") {
-      fields.push("success", Date.now());
-    }
-    await this.redis.hset(stateKey(name), ...fields);
-    await this.redis.eval(CLEAR_RUNNING, 1, stateKey(name), startedAt);
+    const success = outcome === "success" ? Date.now() : "";
+    await this.redis.eval(RECORD_END, 1, stateKey(name), startedAt, durationSeconds, success);
   }
 
   recordItems(name: string, counts: ItemCounts) {
@@ -179,9 +179,20 @@ export class JobTelemetry {
 
 const MAX_DAYS = 3660;
 
-// node-cron expands names, ranges and steps its own way (e.g. 1-59/2 is the even minutes), so
-// cron-parser gets node-cron's expansion instead of the raw schedule
-const toNodeCronFields: (schedule: string) => string = require("node-cron/src/convert-expression");
+const toNodeCronFields = loadNodeCronExpansion();
+
+/**
+ * node-cron expands names, ranges and steps its own way (e.g. 1-59/2 is the even minutes), so
+ * cron-parser reads node-cron's expansion instead of the raw schedule. The expansion isn't public
+ * API: if a node-cron upgrade moves it, fall back to the raw schedule rather than fail to load.
+ */
+function loadNodeCronExpansion(): (schedule: string) => string {
+  try {
+    return require("node-cron/src/convert-expression");
+  } catch (err) {
+    return schedule => schedule;
+  }
+}
 
 /**
  * First scheduled time strictly after `after`, in epoch milliseconds, or null if

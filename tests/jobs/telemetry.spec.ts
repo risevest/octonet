@@ -113,6 +113,22 @@ describe("nextDueAfter", () => {
     }
   });
 
+  it("falls back to the raw schedule when node-cron's expansion can't be loaded", () => {
+    const minute = faker.datatype.number({ min: 0, max: 59 });
+    const hour = faker.datatype.number({ min: 0, max: 23 });
+    const after = faker.date.between("2020-01-01", "2030-01-01").getTime();
+
+    jest.isolateModules(() => {
+      jest.doMock("node-cron/src/convert-expression", () => {
+        throw new Error(faker.lorem.sentence());
+      });
+      const { nextDueAfter: withoutExpansion } = require("../../src/jobs/telemetry");
+
+      expect(withoutExpansion(`${minute} ${hour} * * *`, after)).to.eq(nextDueAfter(`${minute} ${hour} * * *`, after));
+    });
+    jest.dontMock("node-cron/src/convert-expression");
+  });
+
   it("reads a 6-field schedule with seconds first, like node-cron", () => {
     const second = faker.datatype.number({ min: 0, max: 59 });
     const minute = faker.datatype.number({ min: 0, max: 59 });
@@ -334,6 +350,30 @@ describe("JobTelemetry", () => {
 
     await telemetry.recordEnd(j.name, replacementStart, "success", faker.datatype.number({ min: 1, max: 3600 }));
     points = await collect(reader);
+    expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
+  });
+
+  it("keeps the replacement's run times when a run that outlived its lock ends later", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const overrunStart = faker.date.recent(1).getTime();
+    const replacementStart = overrunStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    const replacementDuration = faker.datatype.number({ min: 1, max: 3600 });
+
+    await telemetry.recordStart(j.name, overrunStart);
+    await telemetry.recordStart(j.name, replacementStart);
+    await telemetry.recordEnd(j.name, replacementStart, "failed", replacementDuration);
+    await telemetry.recordEnd(
+      j.name,
+      overrunStart,
+      "success",
+      replacementDuration + faker.datatype.number({ min: 1, max: 3600 })
+    );
+
+    const points = await collect(reader);
+    expect(points("job.last_duration", { job_name: j.name })[0].value).to.eq(replacementDuration);
+    expect(points("job.last_success.timestamp", { job_name: j.name })).to.have.length(0);
     expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
   });
 
