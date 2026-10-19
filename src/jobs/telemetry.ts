@@ -23,10 +23,11 @@ if not start or tonumber(start) < tonumber(ARGV[1]) then
 end`;
 
 const RECORD_END = `
-if redis.call("HGET", KEYS[1], "start") ~= ARGV[1] then
+local start = redis.call("HGET", KEYS[1], "start")
+if start and tonumber(start) > tonumber(ARGV[1]) then
   return
 end
-redis.call("HSET", KEYS[1], "running", 0, "duration", ARGV[2])
+redis.call("HSET", KEYS[1], "start", ARGV[1], "running", 0, "duration", ARGV[2])
 if ARGV[3] ~= "" then
   redis.call("HSET", KEYS[1], "success", ARGV[3])
 end`;
@@ -112,7 +113,8 @@ export class JobTelemetry {
 
   /**
    * Record how a run ended. `startedAt` must be the value given to `recordStart`: a run
-   * that outlived its lock and was replaced doesn't overwrite the replacement's run times.
+   * that outlived its lock and was replaced doesn't overwrite the replacement's run times,
+   * and a run whose start write failed still saves its start along with its end.
    */
   async recordEnd(name: string, startedAt: number, outcome: RunOutcome, durationSeconds: number) {
     this.runs.add(1, { job_name: name, outcome });

@@ -218,6 +218,8 @@ describe("runJob", () => {
       expect(job.calledOnce).to.be.true;
       expect(errorLog.calledWith(failure)).to.be.true;
       expectOnlyOutcome(points, j.name, "success");
+      expect(points("job.last_success.timestamp", { job_name: j.name })).to.have.length(1);
+      expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
     } finally {
       sinon.restore();
     }

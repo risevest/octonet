@@ -377,6 +377,29 @@ describe("JobTelemetry", () => {
     expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
   });
 
+  it("saves the start with the end when the start write was lost", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const previousStart = faker.date.recent(2).getTime();
+    const lostStart = previousStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    const duration = faker.datatype.number({ min: 1, max: 3600 });
+    if (faker.datatype.boolean()) {
+      await telemetry.recordStart(j.name, previousStart);
+    }
+
+    await telemetry.recordEnd(j.name, lostStart, "success", duration);
+
+    const points = await collect(reader);
+    expect(points("job.last_start.timestamp", { job_name: j.name })[0].value).to.eq(lostStart / 1000);
+    expect(points("job.next_due_after_start.timestamp", { job_name: j.name })[0].value).to.eq(
+      nextDueAfter(j.schedule, lostStart + ms(j.maxComputeTime) - 1) / 1000
+    );
+    expect(points("job.last_duration", { job_name: j.name })[0].value).to.eq(duration);
+    expect(points("job.last_success.timestamp", { job_name: j.name })).to.have.length(1);
+    expect(points("job.running_since.timestamp", { job_name: j.name })[0].value).to.eq(0);
+  });
+
   it("logs and skips the gauges when run times can't be read", async () => {
     const j = randomJob(true);
     const { meter, reader } = testMeter();
