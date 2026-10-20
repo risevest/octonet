@@ -364,6 +364,10 @@ describe("runJob", () => {
     expectOnlyOutcome(points, j.name, "partial");
     expect(points("job.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(failed);
     expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length - failed);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(failed);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(
+      items.length - failed
+    );
     expect(await redis.hlen(`${j.name}:dead-letter`)).to.eq(failed);
   });
 

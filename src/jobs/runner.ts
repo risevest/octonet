@@ -245,7 +245,7 @@ async function workQueue<T>(queue: RedisQueue<T>, j: Job<T>, logger: Logger, tel
   try {
     await queue.work(j.job, logger, 1, items);
   } finally {
-    telemetry?.recordItems(j.name, items);
+    await telemetry?.recordItems(j.name, items).catch(err => logger.error(err, { job_name: j.name }));
   }
   return items;
 }

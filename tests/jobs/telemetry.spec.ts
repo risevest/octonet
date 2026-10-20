@@ -458,6 +458,40 @@ describe("JobTelemetry", () => {
     expect(points("job.runs", { job_name: j.name, outcome: "success" })[0].value).to.eq(0);
   });
 
+  it("reports the last run's items from every replica, reset when a run starts", async () => {
+    const simple = randomJob();
+    const query = randomJob(true);
+    const { meter, reader } = testMeter();
+    const replicas = [
+      new JobTelemetry(redis, [simple, query], logger, meter),
+      new JobTelemetry(redis, [query], logger)
+    ];
+    const runCounts = () =>
+      replicas.map(() => ({
+        success: faker.datatype.number({ min: 0, max: 50 }),
+        failed: faker.datatype.number({ min: 0, max: 50 })
+      }));
+    const firstStart = faker.date.recent(2).getTime();
+
+    await replicas[0].recordStart(query.name, firstStart);
+    for (const counts of [runCounts(), runCounts()]) {
+      await Promise.all(replicas.map((t, i) => t.recordItems(query.name, counts[i])));
+    }
+    const second = runCounts();
+    await replicas[0].recordStart(query.name, firstStart + ms(query.maxComputeTime) + 1);
+    await Promise.all(replicas.map((t, i) => t.recordItems(query.name, second[i])));
+
+    const points = await collect(reader);
+    expect(points("job.last_run.items", { job_name: query.name, outcome: "success" })[0].value).to.eq(
+      second[0].success + second[1].success
+    );
+    expect(points("job.last_run.items", { job_name: query.name, outcome: "failed" })[0].value).to.eq(
+      second[0].failed + second[1].failed
+    );
+    expect(points("job.last_run.items", { job_name: simple.name })).to.have.length(0);
+    replicas.forEach(t => t.close());
+  });
+
   it("reports dead-letter items for query jobs only", async () => {
     const simple = randomJob();
     const query = randomJob(true);
