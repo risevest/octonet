@@ -22,6 +22,13 @@ if not start or tonumber(start) < tonumber(ARGV[1]) then
   redis.call("HSET", KEYS[1], "start", ARGV[1], "running", ARGV[1], "items_success", 0, "items_failed", 0)
 end`;
 
+const RECORD_ITEMS = `
+if ARGV[1] ~= "" and redis.call("HGET", KEYS[1], "start") ~= ARGV[1] then
+  return
+end
+redis.call("HINCRBY", KEYS[1], "items_success", ARGV[2])
+redis.call("HINCRBY", KEYS[1], "items_failed", ARGV[3])`;
+
 const RECORD_END = `
 local start = redis.call("HGET", KEYS[1], "start")
 if start and tonumber(start) > tonumber(ARGV[1]) then
@@ -132,14 +139,13 @@ export class JobTelemetry {
   /**
    * Count items worked by this replica, and add them to the current run's totals in Redis,
    * which `recordStart` resets.
+   * @param runStart the `recordStart` time of the run that worked the items. When given, the
+   * totals are only updated while that run is still the latest, so a run that outlived its lock
+   * doesn't add to the run that replaced it.
    */
-  async recordItems(name: string, counts: ItemCounts) {
+  async recordItems(name: string, counts: ItemCounts, runStart?: number) {
     this.countItems(name, counts);
-    await this.redis
-      .multi()
-      .hincrby(stateKey(name), "items_success", counts.success)
-      .hincrby(stateKey(name), "items_failed", counts.failed)
-      .exec();
+    await this.redis.eval(RECORD_ITEMS, 1, stateKey(name), runStart ?? "", counts.success, counts.failed);
   }
 
   private countItems(name: string, counts: ItemCounts) {

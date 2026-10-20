@@ -156,7 +156,7 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger:
 
     try {
       if (j.query) {
-        result = await runQuery(j, queue, logger, telemetry);
+        result = await runQuery(j, queue, logger, telemetry, startedAt);
       } else {
         await retryOnRequest(j.retries, j.timeout, () => j.job());
         result = { outcome: "success" };
@@ -204,7 +204,8 @@ async function runQuery<T>(
   j: Job<T>,
   queue: RedisQueue<T>,
   logger: Logger,
-  telemetry?: JobTelemetry
+  telemetry?: JobTelemetry,
+  runStart?: number
 ): Promise<RunResult> {
   let queued = 0;
   let error: Error;
@@ -232,7 +233,7 @@ async function runQuery<T>(
     return { outcome: "query_failed", error };
   }
 
-  const items = await workQueue(queue, j, logger, telemetry);
+  const items = await workQueue(queue, j, logger, telemetry, runStart);
 
   if (error) {
     return { outcome: "partial", error };
@@ -240,12 +241,18 @@ async function runQuery<T>(
   return { outcome: items.failed > 0 ? "partial" : "success" };
 }
 
-async function workQueue<T>(queue: RedisQueue<T>, j: Job<T>, logger: Logger, telemetry?: JobTelemetry) {
+async function workQueue<T>(
+  queue: RedisQueue<T>,
+  j: Job<T>,
+  logger: Logger,
+  telemetry?: JobTelemetry,
+  runStart?: number
+) {
   const items: ItemCounts = { success: 0, failed: 0 };
   try {
     await queue.work(j.job, logger, 1, items);
   } finally {
-    await telemetry?.recordItems(j.name, items).catch(err => logger.error(err, { job_name: j.name }));
+    await telemetry?.recordItems(j.name, items, runStart).catch(err => logger.error(err, { job_name: j.name }));
   }
   return items;
 }

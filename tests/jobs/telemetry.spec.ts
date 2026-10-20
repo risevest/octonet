@@ -492,6 +492,35 @@ describe("JobTelemetry", () => {
     replicas.forEach(t => t.close());
   });
 
+  it("keeps a replaced run's late items out of the newer run's totals", async () => {
+    const j = randomJob(true);
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const counts = () => ({
+      success: faker.datatype.number({ min: 0, max: 50 }),
+      failed: faker.datatype.number({ min: 0, max: 50 })
+    });
+    const overrunStart = faker.date.recent(1).getTime();
+    const replacementStart = overrunStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    const overrun = counts();
+    const replacement = counts();
+
+    await telemetry.recordStart(j.name, overrunStart);
+    await telemetry.recordStart(j.name, replacementStart);
+    await telemetry.recordItems(j.name, replacement, replacementStart);
+    await telemetry.recordItems(j.name, overrun, overrunStart);
+
+    const points = await collect(reader);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(replacement.success);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(replacement.failed);
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(
+      overrun.success + replacement.success
+    );
+    expect(points("job.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(
+      overrun.failed + replacement.failed
+    );
+  });
+
   it("reports dead-letter items for query jobs only", async () => {
     const simple = randomJob();
     const query = randomJob(true);
