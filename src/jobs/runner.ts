@@ -141,7 +141,7 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger:
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
   if (!ownsLock) {
-    await workQueue(queue, j, logger, telemetry);
+    await workQueue(queue, j, logger, telemetry, "current");
     return;
   }
 
@@ -246,13 +246,13 @@ async function workQueue<T>(
   j: Job<T>,
   logger: Logger,
   telemetry?: JobTelemetry,
-  runStart?: number
+  run?: number | "current"
 ) {
   const items: ItemCounts = { success: 0, failed: 0 };
   try {
     await queue.work(j.job, logger, 1, items);
   } finally {
-    await telemetry?.recordItems(j.name, items, runStart).catch(err => logger.error(err, { job_name: j.name }));
+    await telemetry?.recordItems(j.name, items, run).catch(err => logger.error(err, { job_name: j.name }));
   }
   return items;
 }

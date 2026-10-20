@@ -475,11 +475,11 @@ describe("JobTelemetry", () => {
 
     await replicas[0].recordStart(query.name, firstStart);
     for (const counts of [runCounts(), runCounts()]) {
-      await Promise.all(replicas.map((t, i) => t.recordItems(query.name, counts[i])));
+      await Promise.all(replicas.map((t, i) => t.recordItems(query.name, counts[i], "current")));
     }
     const second = runCounts();
     await replicas[0].recordStart(query.name, firstStart + ms(query.maxComputeTime) + 1);
-    await Promise.all(replicas.map((t, i) => t.recordItems(query.name, second[i])));
+    await Promise.all(replicas.map((t, i) => t.recordItems(query.name, second[i], "current")));
 
     const points = await collect(reader);
     expect(points("job.last_run.items", { job_name: query.name, outcome: "success" })[0].value).to.eq(
@@ -519,6 +519,52 @@ describe("JobTelemetry", () => {
     expect(points("job.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(
       overrun.failed + replacement.failed
     );
+  });
+
+  it("starts a run's item totals when its start write was lost", async () => {
+    const j = randomJob(true);
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const counts = () => ({
+      success: faker.datatype.number({ min: 0, max: 50 }),
+      failed: faker.datatype.number({ min: 0, max: 50 })
+    });
+    const previousStart = faker.date.recent(2).getTime();
+    const lostStart = previousStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    const previous = counts();
+    const lost = counts();
+    await telemetry.recordStart(j.name, previousStart);
+    await telemetry.recordItems(j.name, previous, previousStart);
+
+    await telemetry.recordItems(j.name, lost, lostStart);
+    await telemetry.recordEnd(j.name, lostStart, "partial", faker.datatype.number({ min: 1, max: 3600 }));
+
+    const points = await collect(reader);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(lost.success);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(lost.failed);
+    expect(points("job.last_start.timestamp", { job_name: j.name })[0].value).to.eq(lostStart / 1000);
+  });
+
+  it("leaves the last run's items alone for work outside a run", async () => {
+    const j = randomJob(true);
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const counts = () => ({
+      success: faker.datatype.number({ min: 0, max: 50 }),
+      failed: faker.datatype.number({ min: 0, max: 50 })
+    });
+    const start = faker.date.recent(1).getTime();
+    const run = counts();
+    const outside = counts();
+    await telemetry.recordStart(j.name, start);
+    await telemetry.recordItems(j.name, run, start);
+
+    await telemetry.recordItems(j.name, outside);
+
+    const points = await collect(reader);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(run.success);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(run.failed);
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(run.success + outside.success);
   });
 
   it("reports dead-letter items for query jobs only", async () => {
