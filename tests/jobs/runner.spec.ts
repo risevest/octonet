@@ -400,6 +400,45 @@ describe("runJob", () => {
     expect(await redis.hget(`${j.name}:telemetry`, "start")).to.be.null;
   });
 
+  it("adds a lock loser's items to the run whose items it worked", async () => {
+    const items = randomItems();
+    const j = randomJob({ query: async () => items });
+    const runStart = faker.date.recent(1).getTime();
+    await redis.hset(`${j.name}:telemetry`, "start", runStart, "running", runStart);
+    await acquireLock(redis, j.name, faker.datatype.uuid(), j.maxComputeTime);
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(0);
+  });
+
+  it("keeps a lock loser's late items out of a run that started after them", async () => {
+    const items = randomItems();
+    const runStart = faker.date.recent(1).getTime();
+    let replaced = false;
+    const j = randomJob({
+      job: async () => {
+        if (!replaced) {
+          replaced = true;
+          await redis.hset(`${j.name}:telemetry`, "start", runStart + 1, "items_success", 0, "items_failed", 0);
+        }
+      },
+      query: async () => items
+    });
+    await redis.hset(`${j.name}:telemetry`, "start", runStart, "running", runStart);
+    await acquireLock(redis, j.name, faker.datatype.uuid(), j.maxComputeTime);
+    await redis.rpush(j.name, ...items.map(i => JSON.stringify(i)));
+
+    const { error, points } = await runWithTelemetry(j);
+
+    expect(error).to.be.null;
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(0);
+    expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length);
+  });
+
   it("works existing items without running an async query when the queue isn't empty", async () => {
     const items = randomItems();
     const query = sinon.spy(async () => Promise.reject(new Error(faker.lorem.sentence())));

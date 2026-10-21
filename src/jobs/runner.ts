@@ -141,7 +141,7 @@ export async function runJob<T>(redis: Redis, lockID: string, j: Job<T>, logger:
   const queue = new RedisQueue(j.name, redis, j.retries, j.timeout);
 
   if (!ownsLock) {
-    await workQueue(queue, j, logger, telemetry, "current");
+    await workQueue(queue, j, logger, telemetry, "first-item");
     return;
   }
 
@@ -241,18 +241,31 @@ async function runQuery<T>(
   return { outcome: items.failed > 0 ? "partial" : "success" };
 }
 
+/**
+ * Work the job's queue and record its items.
+ * @param run the start of the run the items belong to, or "first-item" (lock losers) to use the
+ * latest run when the first item is picked up; without it only the cumulative counters change
+ */
 async function workQueue<T>(
   queue: RedisQueue<T>,
   j: Job<T>,
   logger: Logger,
   telemetry?: JobTelemetry,
-  run?: number | "current"
+  run?: number | "first-item"
 ) {
   const items: ItemCounts = { success: 0, failed: 0 };
+  let runStart = run === "first-item" ? undefined : run;
+  const handler =
+    run === "first-item" && telemetry
+      ? async (item: T) => {
+          runStart ??= await telemetry.latestStart(j.name).catch((): undefined => undefined);
+          return j.job(item);
+        }
+      : j.job;
   try {
-    await queue.work(j.job, logger, 1, items);
+    await queue.work(handler, logger, 1, items);
   } finally {
-    await telemetry?.recordItems(j.name, items, run).catch(err => logger.error(err, { job_name: j.name }));
+    await telemetry?.recordItems(j.name, items, runStart).catch(err => logger.error(err, { job_name: j.name }));
   }
   return items;
 }

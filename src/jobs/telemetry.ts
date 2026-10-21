@@ -29,14 +29,12 @@ end
 return 0`;
 
 const RECORD_ITEMS = `
-if ARGV[1] ~= "" then
-  local start = redis.call("HGET", KEYS[1], "start")
-  if start and tonumber(start) > tonumber(ARGV[1]) then
-    return
-  end
-  if not start or tonumber(start) < tonumber(ARGV[1]) then
-    redis.call("HSET", KEYS[1], "start", ARGV[1], "items_success", 0, "items_failed", 0)
-  end
+local start = redis.call("HGET", KEYS[1], "start")
+if start and tonumber(start) > tonumber(ARGV[1]) then
+  return
+end
+if not start or tonumber(start) < tonumber(ARGV[1]) then
+  redis.call("HSET", KEYS[1], "start", ARGV[1], "items_success", 0, "items_failed", 0)
 end
 redis.call("HINCRBY", KEYS[1], "items_success", ARGV[2])
 redis.call("HINCRBY", KEYS[1], "items_failed", ARGV[3])`;
@@ -166,16 +164,24 @@ export class JobTelemetry {
   /**
    * Count items worked by this replica, and add them to a run's totals in Redis, which
    * `recordStart` resets.
-   * @param run which run's totals get the items: the `recordStart` time of the run that worked
-   * them (skipped if a newer run has started, and starting that run's totals if its start write
-   * was lost), "current" for whichever run is latest, or nothing to leave the totals alone
+   * @param run the `recordStart` time of the run the items belong to: skipped if a newer run has
+   * started, and starting that run's totals if its start write was lost. Without it only the
+   * cumulative counters change.
    */
-  async recordItems(name: string, counts: ItemCounts, run?: number | "current") {
+  async recordItems(name: string, counts: ItemCounts, run?: number) {
     this.countItems(name, counts);
     if (run === undefined) {
       return;
     }
-    await this.redis.eval(RECORD_ITEMS, 1, stateKey(name), run === "current" ? "" : run, counts.success, counts.failed);
+    await this.redis.eval(RECORD_ITEMS, 1, stateKey(name), run, counts.success, counts.failed);
+  }
+
+  /**
+   * The `recordStart` time of the latest run, if any.
+   */
+  async latestStart(name: string): Promise<number | undefined> {
+    const start = await this.redis.hget(stateKey(name), "start");
+    return start === null ? undefined : Number(start);
   }
 
   private countItems(name: string, counts: ItemCounts) {

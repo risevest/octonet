@@ -475,11 +475,12 @@ describe("JobTelemetry", () => {
 
     await replicas[0].recordStart(query.name, firstStart);
     for (const counts of [runCounts(), runCounts()]) {
-      await Promise.all(replicas.map((t, i) => t.recordItems(query.name, counts[i], "current")));
+      await Promise.all(replicas.map((t, i) => t.recordItems(query.name, counts[i], firstStart)));
     }
     const second = runCounts();
-    await replicas[0].recordStart(query.name, firstStart + ms(query.maxComputeTime) + 1);
-    await Promise.all(replicas.map((t, i) => t.recordItems(query.name, second[i], "current")));
+    const secondStart = firstStart + ms(query.maxComputeTime) + 1;
+    await replicas[0].recordStart(query.name, secondStart);
+    await Promise.all(replicas.map((t, i) => t.recordItems(query.name, second[i], secondStart)));
 
     const points = await collect(reader);
     expect(points("job.last_run.items", { job_name: query.name, outcome: "success" })[0].value).to.eq(
