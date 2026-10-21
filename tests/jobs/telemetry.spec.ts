@@ -567,6 +567,46 @@ describe("JobTelemetry", () => {
     expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(run.success + outside.success);
   });
 
+  it("counts a run that never finished as abandoned, once", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const unfinishedStart = faker.date.recent(1).getTime();
+    const nextStart = unfinishedStart + ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    const outcome = faker.helpers.arrayElement(["success", "failed", "partial"] as const);
+
+    await telemetry.recordStart(j.name, unfinishedStart);
+    await telemetry.recordStart(j.name, nextStart);
+    await telemetry.recordEnd(j.name, unfinishedStart, outcome, faker.datatype.number({ min: 1, max: 3600 }));
+
+    let points = await collect(reader);
+    expect(points("job.runs", { job_name: j.name, outcome: "abandoned" })[0].value).to.eq(1);
+    expect(points("job.runs", { job_name: j.name, outcome })[0].value).to.eq(0);
+
+    await telemetry.recordEnd(j.name, nextStart, outcome, faker.datatype.number({ min: 1, max: 3600 }));
+    points = await collect(reader);
+    expect(points("job.runs", { job_name: j.name, outcome })[0].value).to.eq(1);
+    expect(points("job.runs", { job_name: j.name, outcome: "abandoned" })[0].value).to.eq(1);
+  });
+
+  it("doesn't count runs that finished as abandoned", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const runs = faker.datatype.number({ min: 2, max: 6 });
+    let start = faker.date.recent(2).getTime();
+
+    for (let i = 0; i < runs; i++) {
+      await telemetry.recordStart(j.name, start);
+      await telemetry.recordEnd(j.name, start, "success", faker.datatype.number({ min: 1, max: 3600 }));
+      start += ms(j.maxComputeTime) + faker.datatype.number({ min: 1, max: 60_000 });
+    }
+
+    const points = await collect(reader);
+    expect(points("job.runs", { job_name: j.name, outcome: "abandoned" })[0].value).to.eq(0);
+    expect(points("job.runs", { job_name: j.name, outcome: "success" })[0].value).to.eq(runs);
+  });
+
   it("reports dead-letter items for query jobs only", async () => {
     const simple = randomJob();
     const query = randomJob(true);

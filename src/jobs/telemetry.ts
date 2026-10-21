@@ -6,7 +6,7 @@ import ms from "ms";
 import { Logger } from "../logging/logger";
 import { Job } from "./decorators";
 
-export const RUN_OUTCOMES = ["success", "failed", "query_failed", "partial"] as const;
+export const RUN_OUTCOMES = ["success", "failed", "query_failed", "partial", "abandoned"] as const;
 export type RunOutcome = (typeof RUN_OUTCOMES)[number];
 
 export interface ItemCounts {
@@ -18,9 +18,15 @@ const DURATION_BUCKETS = [1, 5, 15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 144
 
 const RECORD_START = `
 local start = redis.call("HGET", KEYS[1], "start")
-if not start or tonumber(start) < tonumber(ARGV[1]) then
-  redis.call("HSET", KEYS[1], "start", ARGV[1], "running", ARGV[1], "items_success", 0, "items_failed", 0)
-end`;
+if start and tonumber(start) >= tonumber(ARGV[1]) then
+  return 0
+end
+local running = redis.call("HGET", KEYS[1], "running")
+redis.call("HSET", KEYS[1], "start", ARGV[1], "running", ARGV[1], "items_success", 0, "items_failed", 0)
+if running and running ~= "0" then
+  return 1
+end
+return 0`;
 
 const RECORD_ITEMS = `
 if ARGV[1] ~= "" then
@@ -38,12 +44,13 @@ redis.call("HINCRBY", KEYS[1], "items_failed", ARGV[3])`;
 const RECORD_END = `
 local start = redis.call("HGET", KEYS[1], "start")
 if start and tonumber(start) > tonumber(ARGV[1]) then
-  return
+  return 0
 end
 redis.call("HSET", KEYS[1], "start", ARGV[1], "running", 0, "duration", ARGV[2])
 if ARGV[3] ~= "" then
   redis.call("HSET", KEYS[1], "success", ARGV[3])
-end`;
+end
+return 1`;
 
 export class JobTelemetry {
   private runs: Counter;
@@ -125,21 +132,35 @@ export class JobTelemetry {
     this.meter.removeBatchObservableCallback(this.callback, this.observables);
   }
 
+  /**
+   * Record that a run started. If the previous run is still marked running, it never finished
+   * (killed, or it outlived its lock) and is counted as abandoned.
+   */
   async recordStart(name: string, at: number) {
-    await this.redis.eval(RECORD_START, 1, stateKey(name), at);
+    const previousUnfinished = await this.redis.eval(RECORD_START, 1, stateKey(name), at);
+    if (previousUnfinished === 1) {
+      this.runs.add(1, { job_name: name, outcome: "abandoned" });
+    }
   }
 
   /**
    * Record how a run ended. `startedAt` must be the value given to `recordStart`: a run
-   * that outlived its lock and was replaced doesn't overwrite the replacement's run times,
-   * and a run whose start write failed still saves its start along with its end.
+   * that outlived its lock and was replaced doesn't overwrite the replacement's run times or
+   * count its outcome (it was counted as abandoned when the replacement started), and a run
+   * whose start write failed still saves its start along with its end.
    */
   async recordEnd(name: string, startedAt: number, outcome: RunOutcome, durationSeconds: number) {
-    this.runs.add(1, { job_name: name, outcome });
     this.duration.record(durationSeconds, { job_name: name });
 
     const success = outcome === "success" ? Date.now() : "";
-    await this.redis.eval(RECORD_END, 1, stateKey(name), startedAt, durationSeconds, success);
+    let replaced = false;
+    try {
+      replaced = (await this.redis.eval(RECORD_END, 1, stateKey(name), startedAt, durationSeconds, success)) === 0;
+    } finally {
+      if (!replaced) {
+        this.runs.add(1, { job_name: name, outcome });
+      }
+    }
   }
 
   /**
