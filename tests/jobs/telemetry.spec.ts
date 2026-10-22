@@ -6,7 +6,7 @@ import sinon from "sinon";
 
 import { Job } from "../../src/jobs/decorators";
 import { Logger, defaultSerializers } from "../../src";
-import { JobTelemetry, RUN_OUTCOMES, nextDueAfter } from "../../src/jobs/telemetry";
+import { DURATION_BUCKETS, JobTelemetry, RUN_OUTCOMES, nextDueAfter } from "../../src/jobs/telemetry";
 import { collect, testMeter } from "./helpers/metrics";
 
 const redisURL = "redis://localhost:6379";
@@ -606,6 +606,56 @@ describe("JobTelemetry", () => {
     const points = await collect(reader);
     expect(points("job.runs", { job_name: j.name, outcome: "abandoned" })[0].value).to.eq(0);
     expect(points("job.runs", { job_name: j.name, outcome: "success" })[0].value).to.eq(runs);
+  });
+
+  it("keeps per-run duration totals across replicas and restarts", async () => {
+    const j = randomJob();
+    const replicas = [new JobTelemetry(redis, [j], logger, testMeter().meter), new JobTelemetry(redis, [j], logger)];
+    const durations = Array.from({ length: faker.datatype.number({ min: 2, max: 20 }) }, () =>
+      faker.datatype.number({ min: 1, max: 20_000, precision: 0.001 })
+    );
+    let start = faker.date.recent(10).getTime();
+    for (const duration of durations) {
+      const replica = faker.helpers.arrayElement(replicas);
+      await replica.recordStart(j.name, start);
+      await replica.recordEnd(j.name, start, "success", duration);
+      start += ms(j.maxComputeTime) + 1;
+    }
+    replicas.forEach(r => r.close());
+
+    const { meter, reader } = testMeter();
+    new JobTelemetry(redis, [j], logger, meter);
+    const points = await collect(reader);
+
+    expect(points("job.run_durations.count", { job_name: j.name })[0].value).to.eq(durations.length);
+    expect(points("job.run_durations.sum", { job_name: j.name })[0].value).to.be.closeTo(
+      durations.reduce((a, b) => a + b, 0),
+      0.01
+    );
+    for (const le of DURATION_BUCKETS) {
+      expect(points("job.run_durations.bucket", { job_name: j.name, le: String(le) })[0].value).to.eq(
+        durations.filter(d => d <= le).length
+      );
+    }
+    expect(points("job.run_durations.bucket", { job_name: j.name, le: "+Inf" })[0].value).to.eq(durations.length);
+  });
+
+  it("leaves a replaced run out of the duration totals", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    const replacedStart = faker.date.recent(1).getTime();
+    const nextStart = replacedStart + ms(j.maxComputeTime) + 1;
+    const duration = faker.datatype.number({ min: 1, max: 3600 });
+
+    await telemetry.recordStart(j.name, replacedStart);
+    await telemetry.recordStart(j.name, nextStart);
+    await telemetry.recordEnd(j.name, nextStart, "success", duration);
+    await telemetry.recordEnd(j.name, replacedStart, "success", faker.datatype.number({ min: 1, max: 3600 }));
+
+    const points = await collect(reader);
+    expect(points("job.run_durations.count", { job_name: j.name })[0].value).to.eq(1);
+    expect(points("job.run_durations.sum", { job_name: j.name })[0].value).to.eq(duration);
   });
 
   it("reports dead-letter items for query jobs only", async () => {

@@ -95,7 +95,8 @@ export class RedisQueue<T> {
     f: (t: T) => Promise<void>,
     logger?: Logger,
     parallelism = 1,
-    counts: ItemCounts = { success: 0, failed: 0 }
+    counts: ItemCounts = { success: 0, failed: 0 },
+    onItem?: (outcome: keyof ItemCounts) => void
   ): Promise<ItemCounts> {
     await retryOnRequest(JOB_POLL_RETRIES, JOB_POLL_TIMEOUT, async (attempt: number) => {
       try {
@@ -121,10 +122,12 @@ export class RedisQueue<T> {
               await retryOnRequest(this.retries, this.timeout, _n => handler(data));
             } catch (err) {
               counts.failed++;
+              onItem?.("failed");
               continue;
             }
 
             counts.success++;
+            onItem?.("success");
             await this.redis.hdel(this.deadLetterHash, bkpKey);
           }
         });

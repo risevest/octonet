@@ -243,8 +243,8 @@ async function runQuery<T>(
 
 /**
  * Work the job's queue and record its items.
- * @param run the start of the run the items belong to, or "first-item" (lock losers) to use the
- * latest run when the first item is picked up; without it only the cumulative counters change
+ * @param run the start of the run the items belong to, or "first-item" (lock losers) to attribute
+ * each item to the latest run when it is picked up; without it only the cumulative counters change
  */
 async function workQueue<T>(
   queue: RedisQueue<T>,
@@ -254,18 +254,39 @@ async function workQueue<T>(
   run?: number | "first-item"
 ) {
   const items: ItemCounts = { success: 0, failed: 0 };
-  let runStart = run === "first-item" ? undefined : run;
-  const handler =
-    run === "first-item" && telemetry
-      ? async (item: T) => {
-          runStart ??= await telemetry.latestStart(j.name).catch((): undefined => undefined);
-          return j.job(item);
-        }
-      : j.job;
+  if (run !== "first-item" || !telemetry) {
+    try {
+      await queue.work(j.job, logger, 1, items);
+    } finally {
+      await telemetry
+        ?.recordItems(j.name, items, run === "first-item" ? undefined : run)
+        .catch(err => logger.error(err, { job_name: j.name }));
+    }
+    return items;
+  }
+
+  const byRun = new Map<number | undefined, ItemCounts>();
+  let itemRun: number | undefined;
+  let picked = false;
+  const handler = async (item: T) => {
+    if (!picked) {
+      picked = true;
+      itemRun = await telemetry.latestStart(j.name).catch((): undefined => undefined);
+    }
+    return j.job(item);
+  };
+  const onItem = (outcome: keyof ItemCounts) => {
+    const counts = byRun.get(itemRun) ?? { success: 0, failed: 0 };
+    counts[outcome]++;
+    byRun.set(itemRun, counts);
+    picked = false;
+  };
   try {
-    await queue.work(handler, logger, 1, items);
+    await queue.work(handler, logger, 1, items, onItem);
   } finally {
-    await telemetry?.recordItems(j.name, items, runStart).catch(err => logger.error(err, { job_name: j.name }));
+    for (const [runStart, counts] of byRun) {
+      await telemetry.recordItems(j.name, counts, runStart).catch(err => logger.error(err, { job_name: j.name }));
+    }
   }
   return items;
 }

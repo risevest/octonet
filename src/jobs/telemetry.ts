@@ -14,7 +14,7 @@ export interface ItemCounts {
   failed: number;
 }
 
-const DURATION_BUCKETS = [1, 5, 15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
+export const DURATION_BUCKETS = [1, 5, 15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 14400];
 
 const RECORD_START = `
 local start = redis.call("HGET", KEYS[1], "start")
@@ -48,6 +48,13 @@ redis.call("HSET", KEYS[1], "start", ARGV[1], "running", 0, "duration", ARGV[2])
 if ARGV[3] ~= "" then
   redis.call("HSET", KEYS[1], "success", ARGV[3])
 end
+redis.call("HINCRBY", KEYS[1], "runs_done", 1)
+redis.call("HINCRBYFLOAT", KEYS[1], "duration_total", ARGV[2])
+for i = 4, #ARGV do
+  if tonumber(ARGV[2]) <= tonumber(ARGV[i]) then
+    redis.call("HINCRBY", KEYS[1], "duration_le_" .. ARGV[i], 1)
+  end
+end
 return 1`;
 
 export class JobTelemetry {
@@ -60,6 +67,9 @@ export class JobTelemetry {
   private runningSince: ObservableGauge;
   private lastDuration: ObservableGauge;
   private lastRunItems: ObservableGauge;
+  private runDurationsCount: ObservableGauge;
+  private runDurationsSum: ObservableGauge;
+  private runDurationsBucket: ObservableGauge;
   private maxComputeTime: ObservableGauge;
   private deadLetter: ObservableGauge;
   private startedAt = Date.now();
@@ -95,6 +105,16 @@ export class JobTelemetry {
       unit: "s",
       description: "How long the most recently finished run took"
     });
+    this.runDurationsCount = meter.createObservableGauge("job.run_durations.count", {
+      description: "Runs that finished, across all replicas and restarts"
+    });
+    this.runDurationsSum = meter.createObservableGauge("job.run_durations.sum", {
+      unit: "s",
+      description: "Total duration of the runs that finished"
+    });
+    this.runDurationsBucket = meter.createObservableGauge("job.run_durations.bucket", {
+      description: "Finished runs that took at most le seconds"
+    });
     this.lastRunItems = meter.createObservableGauge("job.last_run.items", {
       description: "Items the most recent run worked, by outcome, across all replicas"
     });
@@ -110,6 +130,9 @@ export class JobTelemetry {
       this.runningSince,
       this.lastDuration,
       this.lastRunItems,
+      this.runDurationsCount,
+      this.runDurationsSum,
+      this.runDurationsBucket,
       this.maxComputeTime,
       this.deadLetter
     ];
@@ -153,7 +176,16 @@ export class JobTelemetry {
     const success = outcome === "success" ? Date.now() : "";
     let replaced = false;
     try {
-      replaced = (await this.redis.eval(RECORD_END, 1, stateKey(name), startedAt, durationSeconds, success)) === 0;
+      replaced =
+        (await this.redis.eval(
+          RECORD_END,
+          1,
+          stateKey(name),
+          startedAt,
+          durationSeconds,
+          success,
+          ...DURATION_BUCKETS
+        )) === 0;
     } finally {
       if (!replaced) {
         this.runs.add(1, { job_name: name, outcome });
@@ -192,7 +224,18 @@ export class JobTelemetry {
   private async observe(result: BatchObservableResult) {
     const pipeline = this.redis.pipeline();
     for (const j of this.jobs) {
-      pipeline.hmget(stateKey(j.name), "start", "success", "running", "duration", "items_success", "items_failed");
+      pipeline.hmget(
+        stateKey(j.name),
+        "start",
+        "success",
+        "running",
+        "duration",
+        "items_success",
+        "items_failed",
+        "runs_done",
+        "duration_total",
+        ...DURATION_BUCKETS.map(le => `duration_le_${le}`)
+      );
       pipeline.hlen(`${j.name}:dead-letter`);
     }
 
@@ -212,9 +255,9 @@ export class JobTelemetry {
         return;
       }
 
-      const [start, success, running, duration, itemsSuccess, itemsFailed] = (state as (string | null)[]).map(v =>
-        v === null ? null : Number(v)
-      );
+      const [start, success, running, duration, itemsSuccess, itemsFailed, runsDone, durationTotal, ...buckets] = (
+        state as (string | null)[]
+      ).map(v => (v === null ? null : Number(v)));
       const attrs = { job_name: j.name };
       const lastStart = start ?? this.startedAt;
 
@@ -231,6 +274,14 @@ export class JobTelemetry {
       }
       if (duration !== null) {
         result.observe(this.lastDuration, duration, attrs);
+      }
+      if (runsDone !== null) {
+        result.observe(this.runDurationsCount, runsDone, attrs);
+        result.observe(this.runDurationsSum, durationTotal ?? 0, attrs);
+        DURATION_BUCKETS.forEach((le, b) =>
+          result.observe(this.runDurationsBucket, buckets[b] ?? 0, { ...attrs, le: String(le) })
+        );
+        result.observe(this.runDurationsBucket, runsDone, { ...attrs, le: "+Inf" });
       }
       if (j.query && itemsSuccess !== null) {
         result.observe(this.lastRunItems, itemsSuccess, { ...attrs, outcome: "success" });

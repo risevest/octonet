@@ -202,6 +202,25 @@ describe("RedisQueue#work when redis fails", () => {
   });
 });
 
+describe("RedisQueue#work with an item callback", () => {
+  it("should report each item's outcome as it finishes", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 1, max: 20 }) }).map(() => faker.datatype.number());
+    const failing = new Set(jobs.filter(() => faker.datatype.boolean()));
+    await queue.fill(jobs);
+    const outcomes: string[] = [];
+
+    await queue.work(
+      async n => (failing.has(n) ? Promise.reject(new Error(faker.lorem.word())) : undefined),
+      undefined,
+      1,
+      { success: 0, failed: 0 },
+      outcome => outcomes.push(outcome)
+    );
+
+    expect(outcomes).to.deep.eq(jobs.map(n => (failing.has(n) ? "failed" : "success")));
+  });
+});
+
 describe("RedisQueue#work when acknowledging an item fails", () => {
   afterEach(() => sinon.restore());
 

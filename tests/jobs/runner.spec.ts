@@ -415,7 +415,7 @@ describe("runJob", () => {
     expect(points("job.last_run.items", { job_name: j.name, outcome: "failed" })[0].value).to.eq(0);
   });
 
-  it("keeps a lock loser's late items out of a run that started after them", async () => {
+  it("attributes a lock loser's items to the run each was picked up in", async () => {
     const items = randomItems();
     const runStart = faker.date.recent(1).getTime();
     let replaced = false;
@@ -435,7 +435,7 @@ describe("runJob", () => {
     const { error, points } = await runWithTelemetry(j);
 
     expect(error).to.be.null;
-    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(0);
+    expect(points("job.last_run.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length - 1);
     expect(points("job.items", { job_name: j.name, outcome: "success" })[0].value).to.eq(items.length);
   });
 
