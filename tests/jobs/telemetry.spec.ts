@@ -640,6 +640,20 @@ describe("JobTelemetry", () => {
     expect(points("job.run_durations.bucket", { job_name: j.name, le: "+Inf" })[0].value).to.eq(durations.length);
   });
 
+  it("reports zero duration totals before a job's first run finishes", async () => {
+    const j = randomJob();
+    const { meter, reader } = testMeter();
+    const telemetry = new JobTelemetry(redis, [j], logger, meter);
+    await telemetry.recordStart(j.name, faker.date.recent(1).getTime());
+
+    const points = await collect(reader);
+    expect(points("job.run_durations.count", { job_name: j.name })[0].value).to.eq(0);
+    expect(points("job.run_durations.sum", { job_name: j.name })[0].value).to.eq(0);
+    for (const le of [...DURATION_BUCKETS.map(String), "+Inf"]) {
+      expect(points("job.run_durations.bucket", { job_name: j.name, le })[0].value).to.eq(0);
+    }
+  });
+
   it("leaves a replaced run out of the duration totals", async () => {
     const j = randomJob();
     const { meter, reader } = testMeter();

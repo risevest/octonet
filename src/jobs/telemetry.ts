@@ -275,14 +275,12 @@ export class JobTelemetry {
       if (duration !== null) {
         result.observe(this.lastDuration, duration, attrs);
       }
-      if (runsDone !== null) {
-        result.observe(this.runDurationsCount, runsDone, attrs);
-        result.observe(this.runDurationsSum, durationTotal ?? 0, attrs);
-        DURATION_BUCKETS.forEach((le, b) =>
-          result.observe(this.runDurationsBucket, buckets[b] ?? 0, { ...attrs, le: String(le) })
-        );
-        result.observe(this.runDurationsBucket, runsDone, { ...attrs, le: "+Inf" });
-      }
+      result.observe(this.runDurationsCount, runsDone ?? 0, attrs);
+      result.observe(this.runDurationsSum, durationTotal ?? 0, attrs);
+      DURATION_BUCKETS.forEach((le, b) =>
+        result.observe(this.runDurationsBucket, buckets[b] ?? 0, { ...attrs, le: String(le) })
+      );
+      result.observe(this.runDurationsBucket, runsDone ?? 0, { ...attrs, le: "+Inf" });
       if (j.query && itemsSuccess !== null) {
         result.observe(this.lastRunItems, itemsSuccess, { ...attrs, outcome: "success" });
         result.observe(this.lastRunItems, itemsFailed ?? 0, { ...attrs, outcome: "failed" });
