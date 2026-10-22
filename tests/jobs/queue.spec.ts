@@ -3,6 +3,8 @@ import "reflect-metadata";
 import { expect, use } from "chai";
 
 import Redis from "ioredis";
+import { faker } from "@faker-js/faker";
+import sinon from "sinon";
 import { RedisQueue } from "../../src/jobs/queue";
 import chaiAsPromised from "chai-as-promised";
 
@@ -66,6 +68,25 @@ describe("RedisQueue#fill", () => {
       expect(e).to.eq(String(i + 1));
     });
   });
+
+  it("should not consume a generator if list not empty", async () => {
+    const existing = Array.from({ length: faker.datatype.number({ min: 1, max: 10 }) }).map(() =>
+      faker.datatype.number()
+    );
+    await queue.fill(existing);
+    let consumed = false;
+
+    const filled = await queue.fill(
+      (async function* () {
+        consumed = true;
+        yield [faker.datatype.number()];
+      })()
+    );
+
+    expect(filled).to.be.false;
+    expect(consumed).to.be.false;
+    expect(await redis.lrange(queueName, 0, -1)).to.deep.eq(existing.map(String));
+  });
 });
 
 describe("RedisQueue#work", () => {
@@ -115,7 +136,7 @@ describe("RedisQueue#work", () => {
 
     const results: number[] = [];
 
-    await queue.work(async j => {
+    const counts = await queue.work(async j => {
       if (j === 5) {
         throw new Error("exit");
       }
@@ -125,11 +146,104 @@ describe("RedisQueue#work", () => {
 
     expect(results).to.have.length(9);
     expect(results.includes(5)).to.be.false;
+    expect(counts).to.deep.eq({ success: jobs.length - 1, failed: 1 });
 
     const key = `${queueName}:dead-letter`;
     expect(redis.hlen(key)).to.eventually.eq(1);
     const randomVal = await redis.hrandfield(key, 1, "WITHVALUES");
     expect(Number(randomVal?.[1])).to.eq(5);
+  });
+});
+
+describe("RedisQueue#work with parallelism", () => {
+  it("should only return once every worker has finished", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 5, max: 20 }) }).map(() => faker.datatype.number());
+    const parallelism = faker.datatype.number({ min: 2, max: 5 });
+    await queue.fill(jobs);
+    let inFlight = 0;
+
+    const counts = await queue.work(
+      async () => {
+        inFlight++;
+        await new Promise(r => setTimeout(r, faker.datatype.number({ min: 10, max: 100 })));
+        inFlight--;
+      },
+      undefined,
+      parallelism
+    );
+
+    expect(inFlight).to.eq(0);
+    expect(counts).to.deep.eq({ success: jobs.length, failed: 0 });
+  });
+});
+
+describe("RedisQueue#work when redis fails", () => {
+  afterEach(() => sinon.restore());
+
+  it("should keep the counts of items finished before the failure", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 3, max: 10 }) }).map(() => faker.datatype.number());
+    const done = faker.datatype.number({ min: 1, max: jobs.length - 1 });
+    await queue.fill(jobs);
+    const lpop = redis.lpop.bind(redis);
+    let pops = 0;
+    sinon.stub(redis, "lpop").callsFake(((key: string) => {
+      pops++;
+      return pops > done ? Promise.reject(new Error(faker.lorem.word())) : lpop(key);
+    }) as any);
+    const counts = { success: 0, failed: 0 };
+
+    const error = await queue.work(async () => {}, undefined, 1, counts).then(
+      () => null,
+      err => err
+    );
+
+    expect(error).to.be.instanceOf(Error);
+    expect(counts).to.deep.eq({ success: done, failed: 0 });
+  });
+});
+
+describe("RedisQueue#work with an item callback", () => {
+  it("should report each item's outcome as it finishes", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 1, max: 20 }) }).map(() => faker.datatype.number());
+    const failing = new Set(jobs.filter(() => faker.datatype.boolean()));
+    await queue.fill(jobs);
+    const outcomes: string[] = [];
+
+    await queue.work(
+      async n => (failing.has(n) ? Promise.reject(new Error(faker.lorem.word())) : undefined),
+      undefined,
+      1,
+      { success: 0, failed: 0 },
+      outcome => outcomes.push(outcome)
+    );
+
+    expect(outcomes).to.deep.eq(jobs.map(n => (failing.has(n) ? "failed" : "success")));
+  });
+});
+
+describe("RedisQueue#work when acknowledging an item fails", () => {
+  afterEach(() => sinon.restore());
+
+  it("should count the item as a success and reject with the redis error", async () => {
+    const jobs = Array.from({ length: faker.datatype.number({ min: 2, max: 10 }) }).map(() => faker.datatype.number());
+    const acked = faker.datatype.number({ min: 0, max: jobs.length - 1 });
+    await queue.fill(jobs);
+    const failure = new Error(faker.lorem.sentence());
+    const hdel = redis.hdel.bind(redis);
+    let calls = 0;
+    sinon.stub(redis, "hdel").callsFake(((...args: [string, string]) => {
+      calls++;
+      return calls > acked ? Promise.reject(failure) : hdel(...args);
+    }) as any);
+    const counts = { success: 0, failed: 0 };
+
+    const error = await queue.work(async () => {}, undefined, 1, counts).then(
+      () => null,
+      err => err
+    );
+
+    expect(error).to.eq(failure);
+    expect(counts).to.deep.eq({ success: acked + 1, failed: 0 });
   });
 });
 

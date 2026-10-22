@@ -141,6 +141,8 @@ async processOrders(order?: Order) {
 
 Marks a method as a data generator for a job. Must have the same name as the corresponding `@job`.
 
+If the job's queue still holds items from an earlier run (for example after a Redis error), the runner works those items and skips the query for that run. Keep each run's query idempotent and size it so the queue drains well within the schedule's period.
+
 **Parameters:**
 
 - `name`: Must match the job name
