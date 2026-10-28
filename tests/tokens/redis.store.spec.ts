@@ -11,7 +11,7 @@ let store: RedisStore;
 beforeAll(async () => {
   const secret = randomString(32);
 
-  redis = new IORedis();
+  redis = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379");
   store = new RedisStore(secret, redis);
 });
 
@@ -67,6 +67,15 @@ describe("RedisStore#peek", () => {
 
     expect(val).to.be.null;
   });
+
+  it("should not resolve a redis key that is not a token", async () => {
+    const key = `session:${faker.datatype.uuid()}`;
+    await redis.set(key, JSON.stringify({ user_id: faker.datatype.uuid() }), "PX", 3000);
+
+    const val = await store.peek(key);
+
+    expect(val).to.be.null;
+  });
 });
 
 describe("RedisStore#extend", () => {
@@ -90,6 +99,17 @@ describe("RedisStore#extend", () => {
     const val = await store.extend(token, "10ms");
 
     expect(val).to.be.null;
+  });
+
+  it("should not extend a redis key that is not a token", async () => {
+    const key = `session:${faker.datatype.uuid()}`;
+    await redis.set(key, JSON.stringify({ user_id: faker.datatype.uuid() }), "PX", 3000);
+
+    const val = await store.extend(key, "30s");
+    const ttl = await redis.pttl(key);
+
+    expect(val).to.be.null;
+    expect(ttl).to.be.lessThanOrEqual(3000);
   });
 });
 
@@ -137,6 +157,33 @@ describe("RedisStore#decommission", () => {
     const val = await store.decommission(token);
 
     expect(val).to.be.null;
+  });
+
+  it("should not delete a redis key that is not a token", async () => {
+    const key = `session:${faker.datatype.uuid()}`;
+    const content = JSON.stringify({ user_id: faker.datatype.uuid() });
+    await redis.set(key, content, "PX", 3000);
+
+    const val = await store.decommission(key);
+    const stored = await redis.get(key);
+
+    expect(val).to.be.null;
+    expect(stored).to.equal(content);
+  });
+
+  it("should still round-trip a commissioned token", async () => {
+    const data = { user_id: faker.datatype.uuid(), created_at: new Date() };
+    const token = await store.commission(faker.internet.userName(), data, "3s");
+
+    const peeked = await store.peek(token);
+    const extended = await store.extend(token, "5s");
+    const removed = await store.decommission(token);
+    const stored = await redis.get(token);
+
+    expect(peeked).to.deep.equal(data);
+    expect(extended).to.deep.equal(data);
+    expect(removed).to.deep.equal(data);
+    expect(stored).to.be.null;
   });
 });
 
