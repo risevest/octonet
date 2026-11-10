@@ -1,5 +1,6 @@
 import { RetryError, retryOnRequest } from "../retry";
 
+import { ItemCounts } from "./telemetry";
 import { Logger } from "../logging/logger";
 import Redis from "ioredis";
 import crypto from "crypto";
@@ -36,7 +37,7 @@ export class RedisQueue<T> {
    */
   async fill(ts: T[] | AsyncGenerator<T[]>) {
     const length = await this.length();
-    if (length > 0 && Array.isArray(ts)) {
+    if (length > 0) {
       return false;
     }
 
@@ -87,8 +88,16 @@ export class RedisQueue<T> {
    * @param f function works on each item
    * @param logger optional logger for tracking jobs
    * @param parallelism how many workers should handle the jobs at any given time
+   * @param counts updated as each item finishes, so callers keep the counts if a Redis call fails midway
+   * @returns how many items this worker processed and how many failed
    */
-  async work(f: (t: T) => Promise<void>, logger?: Logger, parallelism = 1) {
+  async work(
+    f: (t: T) => Promise<void>,
+    logger?: Logger,
+    parallelism = 1,
+    counts: ItemCounts = { success: 0, failed: 0 },
+    onItem?: (outcome: keyof ItemCounts) => void
+  ): Promise<ItemCounts> {
     await retryOnRequest(JOB_POLL_RETRIES, JOB_POLL_TIMEOUT, async (attempt: number) => {
       try {
         let handler: Function;
@@ -111,14 +120,20 @@ export class RedisQueue<T> {
 
             try {
               await retryOnRequest(this.retries, this.timeout, _n => handler(data));
-              await this.redis.hdel(this.deadLetterHash, bkpKey);
             } catch (err) {
-              // no-op
+              counts.failed++;
+              onItem?.("failed");
+              continue;
             }
+
+            counts.success++;
+            onItem?.("success");
+            await this.redis.hdel(this.deadLetterHash, bkpKey);
           }
         });
 
-        return await Promise.all(work);
+        const errors = await Promise.all(work.map(w => w.catch(err => err)));
+        throw errors.find(err => !(err instanceof RetryError)) ?? errors[0];
       } catch (error) {
         if (error instanceof RetryError && attempt >= JOB_POLL_RETRIES) {
           return;
@@ -127,6 +142,8 @@ export class RedisQueue<T> {
         throw error;
       }
     });
+
+    return counts;
   }
 }
 
