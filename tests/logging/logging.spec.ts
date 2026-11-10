@@ -219,6 +219,35 @@ describe("Bunyan#DataPayload", () => {
   });
 });
 
+describe("Bunyan#warn", () => {
+  it("should log a warning with an object", () => {
+    logger.warn({ message: "low balance", threshold: 100 });
+    const record = ringbuffer.records[0];
+    expect(ringbuffer.records).to.be.length(1);
+    expect(record).to.have.property("message", "low balance");
+    expect(record).to.have.property("threshold", 100);
+    expect(record.level).to.equal(40); // Bunyan WARN level
+  });
+
+  it("should log a warning with a string message only", () => {
+    logger.warn("something looks off");
+    const record = ringbuffer.records[0];
+    expect(ringbuffer.records).to.be.length(1);
+    expect(record.msg).to.equal("something looks off");
+    expect(record.level).to.equal(40);
+  });
+
+  it("should log a warning with a string message and metadata", () => {
+    logger.warn("fallback used", { provider: "faida_v2", reason: "primary timeout" });
+    const record = ringbuffer.records[0];
+    expect(ringbuffer.records).to.be.length(1);
+    expect(record.msg).to.equal("fallback used");
+    expect(record).to.have.property("provider", "faida_v2");
+    expect(record).to.have.property("reason", "primary timeout");
+    expect(record.level).to.equal(40);
+  });
+});
+
 describe("Bunyan#AxiosRequest", () => {
   it("should strip sensitive headers from axios_req logs", () => {
     const axiosBuf = new Bunyan.RingBuffer({ limit: 5 });
@@ -273,6 +302,31 @@ describe("Logger#tracing", () => {
 
     it("should inject trace context on string-only log", () => {
       tracedLogger.log("just a string");
+      const record = traceBuffer.records[0];
+      expect(record).to.have.property("trace_id", "abc123");
+      expect(record).to.have.property("span_id", "def456");
+    });
+  });
+
+  describe("warn()", () => {
+    it("should inject trace_id and span_id on object warn", () => {
+      tracedLogger.warn({ message: "degraded" });
+      const record = traceBuffer.records[0];
+      expect(record).to.have.property("trace_id", "abc123");
+      expect(record).to.have.property("span_id", "def456");
+      expect(record).to.have.property("message", "degraded");
+    });
+
+    it("should inject trace context on string warn with metadata", () => {
+      tracedLogger.warn("fallback triggered", { service: "faida_v2" });
+      const record = traceBuffer.records[0];
+      expect(record).to.have.property("trace_id", "abc123");
+      expect(record).to.have.property("span_id", "def456");
+      expect(record).to.have.property("service", "faida_v2");
+    });
+
+    it("should inject trace context on string-only warn", () => {
+      tracedLogger.warn("cache miss");
       const record = traceBuffer.records[0];
       expect(record).to.have.property("trace_id", "abc123");
       expect(record).to.have.property("span_id", "def456");
