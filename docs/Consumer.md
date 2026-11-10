@@ -198,3 +198,39 @@ const logger = new Logger({
   await publisher.publish("wallet.withdraw", 100);
 })();
 ```
+
+## Retries
+
+A subscriber asks for a message to be redelivered by throwing `RetryError`. Any other error acks the message and drops it.
+
+```ts
+await consumers.start(nats, logger, {
+  namespace: "wallets",
+  batch_size: 10,
+  timeout: "1m",
+  max_deliver: 5,
+  backoff: ["10s", "1m", "5m", "15m"]
+});
+```
+
+- `max_deliver` (default `5`): how many times a message is delivered before it is given up on.
+- `backoff` (default `["10s", "1m", "5m", "15m"]`): the delay before each redelivery. The last delay is reused once the list runs out.
+- `timeout`: how long JetStream waits for an ack before it redelivers. This only kicks in when a handler hangs or the process dies. Requested retries use `backoff`.
+
+On `RetryError` the message is nak'd with the next delay. On the last attempt it is terminated and an error is logged. Durable consumers that already exist are updated to the configured `timeout` and `max_deliver` on start.
+
+Subscribers receive the delivery details as a second argument, so the last attempt can be handled explicitly:
+
+```ts
+@subscribe("debit.completed")
+async debitCompleted(data: DebitEvent, { attempt, max_attempts }: DeliveryInfo) {
+  try {
+    await this.requests.complete(data.id);
+  } catch (err) {
+    if (attempt === max_attempts) {
+      await this.requests.recordFailure(data.id, err);
+    }
+    throw new RetryError(err);
+  }
+}
+```

@@ -8,10 +8,25 @@ import { Logger } from "../logging/logger";
 export type Middleware = (data: any, handler: Function) => Promise<void>;
 
 /**
+ * Details of the current delivery, passed to handlers as their second argument
+ */
+export interface DeliveryInfo {
+  /**
+   * which delivery this is, starting from 1
+   */
+  attempt: number;
+  /**
+   * the last attempt before the message is given up on
+   */
+  max_attempts: number;
+}
+
+/**
  * Merge multiple middleware into a handler applying them from left to right
  * @param handler base handle
  * @param middleware list of middleware for the handler
- * @returns new handler wrapped using middleware
+ * @returns new handler wrapped using middleware. It accepts the delivery info as a
+ * second argument and passes it to `handler` untouched by middleware
  */
 export function collapse(handler: Function, middleware: Middleware[]): Function {
   if (middleware.length === 0) {
@@ -21,11 +36,11 @@ export function collapse(handler: Function, middleware: Middleware[]): Function 
   const final = middleware.reduce(
     (a, b) => async (data, handler) =>
       a(data, async (data: any) => {
-        b(data, handler);
+        await b(data, handler);
       })
   );
 
-  return (data: any) => final(data, handler);
+  return (data: any, info?: DeliveryInfo) => final(data, (data: any) => handler(data, info));
 }
 
 /**
