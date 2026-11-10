@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Publish test build
+
+on:
+  push:
+    branches:
+      - "rc/**"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@risevest"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEXT=$(node -p "const [major, minor, patch] = require('./package.json').version.split('.'); [major, minor, +patch + 1].join('.')")
+          VERSION="$NEXT-rc.$GITHUB_RUN_NUMBER"
+          npm pkg set name=@risevest/octonet version="$VERSION" publishConfig.registry=https://npm.pkg.github.com
+          # without the repository link the package keeps the org's private default instead of the public repo's visibility
+          npm pkg delete repository
+          npm publish --tag rc
+          {
+            echo "Published \`@risevest/octonet@$VERSION\` from \`$GITHUB_REF_NAME\` ($GITHUB_SHA)."
+            echo
+            echo "Install it under the usual name:"
+            echo
+            echo "\`\`\`"
+            echo "yarn add @risemaxi/octonet@npm:@risevest/octonet@$VERSION"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
