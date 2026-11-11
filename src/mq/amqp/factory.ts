@@ -26,7 +26,7 @@ export class QueueFactory {
     private logger: Logger,
     private url?: string
   ) {
-    this.watch(conn);
+    this.watch(conn, channel);
   }
 
   /**
@@ -96,8 +96,18 @@ export class QueueFactory {
     return;
   }
 
-  private watch(conn: Connection) {
+  private watch(conn: Connection, channel: Channel) {
     this.connected = true;
+
+    // RabbitMQ can close a channel and keep the connection. Treat it like a lost
+    // connection: drop the connection so reconnect() rebuilds the channel.
+    channel.on("error", err => this.logger.error(err));
+    channel.on("close", () => {
+      this.connected = false;
+      if (this.url && !this.closing) {
+        conn.close().catch(() => undefined);
+      }
+    });
 
     conn.on("error", err => {
       this.connected = false;
@@ -127,9 +137,15 @@ export class QueueFactory {
           queue.useChannel(channel);
         }
 
+        // close() ran while we were connecting
+        if (this.closing) {
+          await conn.close();
+          return;
+        }
+
         this.conn = conn;
         this.channel = channel;
-        this.watch(conn);
+        this.watch(conn, channel);
         this.logger.log("reconnected the queues to rabbitmq");
       } catch (err) {
         this.logger.error(err);

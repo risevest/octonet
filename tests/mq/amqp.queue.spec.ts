@@ -58,6 +58,19 @@ describe("QueueFactory#reconnect", () => {
   }, 15_000);
 });
 
+describe("QueueFactory#close", () => {
+  it("should not reconnect after close() is called while the connection is down", async () => {
+    const factory = await QueueFactory.connect(amqpURL, logger);
+
+    dropConnection(factory);
+    await sleep(300);
+    await factory.close();
+
+    await sleep(reconnectDelay + 1000);
+    expect(factory.isConnected()).to.be.false;
+  }, 15_000);
+});
+
 describe("QueueFactory#queue", () => {
   let factory: QueueFactory;
   let conn: Connection;

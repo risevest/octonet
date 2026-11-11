@@ -62,6 +62,10 @@ export class StreamFactory {
   static async init(arg: string | string[] | NatsConnection, opts?: ConnectionOptions) {
     if (typeof arg === "string" || Array.isArray(arg)) {
       const conn = await connect({
+        // retry forever: the nats.js default gives up after 10 attempts (~20s), shorter
+        // than a NATS restart, and a client that gives up never recovers
+        maxReconnectAttempts: -1,
+        reconnectTimeWait: 2000,
         ...opts,
         servers: typeof arg === "string" ? arg.split(",") : arg
       });

@@ -101,6 +101,16 @@ export class Workers {
     });
 
     const channel = await conn.createChannel();
+    // RabbitMQ can close a channel and keep the connection (e.g. an ack with a stale
+    // delivery tag). Treat it like a lost connection: drop the connection so the
+    // reconnect below rebuilds the channel and its consumers.
+    channel.on("error", err => logger.error(err));
+    channel.on("close", () => {
+      this.connected = false;
+      if (url && !this.stopping) {
+        conn.close().catch(() => undefined);
+      }
+    });
     await channel.prefetch(parallel);
 
     for (const [job, handler] of this.commands.entries()) {
@@ -146,6 +156,13 @@ export class Workers {
       try {
         conn = await connect(url);
         await this.consume(conn, logger, parallel, url);
+        // stop() ran while we were connecting
+        if (this.stopping) {
+          this.connected = false;
+          await conn.close();
+          return;
+        }
+
         logger.log("reconnected the workers to rabbitmq");
       } catch (err) {
         logger.error(err);
