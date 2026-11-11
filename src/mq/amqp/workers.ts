@@ -29,10 +29,12 @@ export const command = handlerDecorator(handlerKey);
  * Link workers and their corresponding commands to rabbitmq.
  */
 export class Workers {
-  private connected: boolean;
+  private connected = false;
   private conn: Connection;
   private channel: Channel;
   private commands = new Map<string, Function>();
+  private generation = 0;
+  private consumerTags: Array<{ queue: string; consumer_tag: string }> = [];
 
   /**
    * Build up the command handlers. Each command runs their group middleware first
@@ -64,68 +66,120 @@ export class Workers {
   async start(connUrl: string | Connection, logger: Logger, parallel = 5): Promise<void> {
     if (typeof connUrl === "string") {
       this.conn = await connect(connUrl);
-      this.conn.on("error", err => {
-        logger.error(err);
-      });
     } else {
       this.conn = connUrl;
     }
 
-    this.channel = await this.conn.createChannel();
-    this.connected = true;
+    // Each start() is a new generation. Callbacks from an older generation
+    // cannot change health, and each consumer acks on the channel that
+    // delivered its message, never on `this.channel`, which a later start()
+    // replaces. Delivery tags are channel-scoped: acking an old tag on a new
+    // channel is a PRECONDITION_FAILED that closes the new channel.
+    const generation = ++this.generation;
+    const channel = await this.conn.createChannel();
+    this.channel = channel;
+    this.consumerTags = [];
+    // Not running until every queue below has a confirmed consumer.
+    this.connected = false;
 
-    this.conn.on("error", err => {
+    const lose = (err?: Error) => {
+      if (this.generation !== generation) {
+        return;
+      }
       this.connected = false;
-      logger.error(err);
-    });
+      if (err) {
+        logger.error(err);
+      }
+    };
 
-    this.conn.on("close", () => {
-      this.connected = false;
-    });
+    this.conn.on("error", err => lose(err));
+    this.conn.on("close", () => lose());
+    // A channel can close while its connection stays up.
+    channel.on("error", err => lose(err));
+    channel.on("close", () => lose());
 
-    await this.channel.prefetch(parallel);
+    await channel.prefetch(parallel);
 
     for (const [job, handler] of this.commands.entries()) {
       const queue = job.split(".").join("_").toUpperCase();
       const wrapped = wrapHandler(queue, logger, handler);
-      this.channel.assertQueue(queue, { durable: true });
-      this.channel.consume(queue, async msg => {
+      // Awaited, so a failed assert or consume rejects start() instead of
+      // becoming an unhandled rejection with no consumer behind it.
+      await channel.assertQueue(queue, { durable: true });
+      const reply = await channel.consume(queue, async msg => {
         if (msg === null) {
+          // the broker cancelled this consumer
+          lose();
           return;
         }
 
         try {
           await wrapped(msg);
-          this.channel.ack(msg);
+          ackOn(channel, msg, logger);
         } catch (err) {
           if (!(err instanceof RetryError)) {
-            this.channel.ack(msg);
+            ackOn(channel, msg, logger);
           }
           // no-op for normal errors
         }
       });
+      this.consumerTags.push({ queue, consumer_tag: reply.consumerTag });
     }
+
+    this.connected = true;
   }
 
   /**
    * Tracks the health status of connection to RabbitMQ. Returns false once
-   * one connection is lost
+   * the connection or channel is lost, and until start() has registered
+   * every consumer.
    */
   isRunning() {
     return this.connected;
   }
 
   /**
+   * The queues this instance holds consumers on, with the broker's consumer
+   * tags. Empty until start() has registered them all.
+   */
+  registrations() {
+    return this.consumerTags.slice();
+  }
+
+  /**
    * Shutdown all workers
    */
   async stop() {
-    if (!this.connected) {
-      return;
+    // Fence live callbacks first so the closes below don't count as a lost
+    // connection. No early return when disconnected: a worker that lost its
+    // connection may still hold a channel or connection to close.
+    this.generation++;
+    this.connected = false;
+    this.consumerTags = [];
+
+    try {
+      await this.channel?.close();
+    } catch {
+      // already closed
     }
 
-    await this.channel.close();
-    await this.conn.close();
-    return;
+    try {
+      await this.conn?.close();
+    } catch {
+      // already closed
+    }
+  }
+}
+
+/**
+ * Ack on the channel that delivered the message. If that channel is gone the
+ * ack is dropped and the broker redelivers the message.
+ */
+function ackOn(channel: Channel, msg: ConsumeMessage, logger: Logger) {
+  try {
+    channel.ack(msg);
+  } catch (err) {
+    logger.error(err, "amqp ack dropped: delivering channel is closed; message will be redelivered");
   }
 }
 
