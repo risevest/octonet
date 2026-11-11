@@ -7,7 +7,9 @@ import { expect } from "chai";
 import { Logger } from "../../src/logging/logger";
 import { defaultSerializers } from "../../src/logging/serializers";
 import { QueueFactory } from "../../src/mq";
+import { reconnectDelay } from "../../src/mq/amqp/factory";
 import { multiply, popFromQueue, repeat, sleep } from "../helpers";
+import { dropConnection } from "./helpers/amqp";
 
 const logger = new Logger({
   name: "amqp.queue.tests",
@@ -26,6 +28,47 @@ describe("QueueFactory#connectionStatus", () => {
 
     expect(factory.isConnected()).to.be.false;
   });
+});
+
+describe("QueueFactory#reconnect", () => {
+  it("should move its queues to a new connection when RabbitMQ drops it", async () => {
+    const queueName = "RECONNECT_QUEUE";
+    const conn = await connect(amqpURL);
+    const channel = await conn.createChannel();
+    await channel.deleteQueue(queueName);
+
+    const factory = await QueueFactory.connect(amqpURL, logger);
+    const queue = await factory.queue<number>(queueName);
+
+    dropConnection(factory);
+    await sleep(300);
+    expect(factory.isConnected()).to.be.false;
+
+    await sleep(reconnectDelay + 1000);
+    expect(factory.isConnected()).to.be.true;
+
+    const amount = Number(faker.finance.amount());
+    queue.push(amount);
+    await sleep(300);
+
+    expect(await popFromQueue(channel, queueName)).to.eq(amount);
+
+    await factory.close();
+    await conn.close();
+  }, 15_000);
+});
+
+describe("QueueFactory#close", () => {
+  it("should not reconnect after close() is called while the connection is down", async () => {
+    const factory = await QueueFactory.connect(amqpURL, logger);
+
+    dropConnection(factory);
+    await sleep(300);
+    await factory.close();
+
+    await sleep(reconnectDelay + 1000);
+    expect(factory.isConnected()).to.be.false;
+  }, 15_000);
 });
 
 describe("QueueFactory#queue", () => {
@@ -58,6 +101,16 @@ describe("QueueFactory#queue", () => {
 
     const assertReply = await channel.checkQueue(queueName);
     expect(assertReply.messageCount).to.eq(10);
+  });
+
+  it("should publish persistent messages", async () => {
+    const queue = await factory.queue(queueName);
+    queue.push(Number(faker.finance.amount()));
+
+    await sleep(300);
+
+    const message = await channel.get(queueName, { noAck: true });
+    expect(message && message.properties.deliveryMode).to.eq(2);
   });
 
   it("should restrict queue length based on fixed number of items", async () => {
