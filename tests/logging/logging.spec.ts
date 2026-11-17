@@ -264,6 +264,24 @@ describe("Bunyan#AxiosRequest", () => {
     expect(record.axios_req.params).to.not.have.property("password");
     expect(record.axios_req.params).to.have.property("other_prop");
   });
+
+  it("should strip sensitive fields from a JSON string body without mutating the config", () => {
+    const axiosBuf = new Bunyan.RingBuffer({ limit: 5 });
+    const axiosLogger = new Logger({
+      name: "axios_data_test",
+      buffer: axiosBuf,
+      serializers: defaultSerializers("password")
+    });
+
+    const body = JSON.stringify({ password: "secret", other_prop: "other" });
+    const config = { method: "POST", url: "/test", data: body };
+    axiosLogger.axiosRequest(config as any);
+
+    const record = axiosBuf.records[0];
+    expect(record.axios_req.data).to.not.have.property("password");
+    expect(record.axios_req.data).to.have.property("other_prop");
+    expect(config.data).to.eq(body);
+  });
 });
 
 describe("Logger#tracing", () => {
