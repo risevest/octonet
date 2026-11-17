@@ -119,6 +119,13 @@ describe("Bunyan#Request", () => {
     expect(properties.req.headers).to.not.have.property("x-webhook-secret");
     expect(properties.req.headers).to.have.property("content-type");
   });
+
+  it("should ensure sensitive params are not logged on request", async () => {
+    await axios.get(`${baseUrl}/req/other/secret`);
+    const properties = ringbuffer.records[0];
+    expect(properties.req.params).to.not.have.property("password");
+    expect(properties.req.params).to.have.property("other_prop");
+  });
 });
 
 describe("Bunyan#Response", () => {
@@ -237,6 +244,25 @@ describe("Bunyan#AxiosRequest", () => {
     const record = axiosBuf.records[0];
     expect(record.axios_req.headers).to.not.have.property("Authorization");
     expect(record.axios_req.headers).to.have.property("content-type");
+  });
+
+  it("should strip sensitive params from axios_req logs", () => {
+    const axiosBuf = new Bunyan.RingBuffer({ limit: 5 });
+    const axiosLogger = new Logger({
+      name: "axios_params_test",
+      buffer: axiosBuf,
+      serializers: defaultSerializers("password")
+    });
+
+    axiosLogger.axiosRequest({
+      method: "GET",
+      url: "/test",
+      params: { password: "secret", other_prop: "other" }
+    } as any);
+
+    const record = axiosBuf.records[0];
+    expect(record.axios_req.params).to.not.have.property("password");
+    expect(record.axios_req.params).to.have.property("other_prop");
   });
 });
 

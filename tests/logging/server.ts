@@ -13,6 +13,11 @@ export function createLoggingApp(logger: Logger) {
     res.json({ message: "Logged" });
   });
 
+  app.get("/req/:other_prop/:password", (req, res) => {
+    logger.request(req);
+    res.json({ message: "Logged" });
+  });
+
   app.post("/req", (req, res) => {
     res.locals.body = req.body;
     logger.request(req);
