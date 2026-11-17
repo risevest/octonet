@@ -76,7 +76,12 @@ export function sanitized<T = any>(...paths: string[]) {
  */
 export function axiosRequest(...paths: string[]) {
   return (conf: AxiosRequestConfig) => {
-    const log = { method: conf.method, url: conf.url, headers: conf.headers, params: conf.params };
+    const log = {
+      method: conf.method,
+      url: conf.url,
+      headers: conf.headers,
+      params: deepSanitizeObj(conf.params, ...paths)
+    };
 
     // remove default header config
     const headers = Object.assign({}, conf.headers);
@@ -87,12 +92,10 @@ export function axiosRequest(...paths: string[]) {
     log["headers"] = <any>deepSanitizeObj(headers, ...paths);
 
     // when we get the config from the axios response
-    if (typeof conf.data === "string") {
-      conf.data = JSON.parse(conf.data);
-    }
+    const data = typeof conf.data === "string" ? JSON.parse(conf.data) : conf.data;
 
-    if (conf.data && Object.keys(conf.data).length !== 0) {
-      const logBody = deepSanitizeObj(conf.data, ...paths);
+    if (data && Object.keys(data).length !== 0) {
+      const logBody = deepSanitizeObj(data, ...paths);
 
       log["data"] = logBody;
     }
@@ -129,7 +132,7 @@ export function expressRequest(...paths: string[]): (req: Request) => object {
       method: req.method,
       url: req.url,
       headers: deepSanitizeObj(req.headers as object, ...paths.map(p => p.toLowerCase())),
-      params: req.params,
+      params: deepSanitizeObj(req.params, ...paths),
       remoteAddress: req.socket.remoteAddress,
       remotePort: req.socket.remotePort
     };
